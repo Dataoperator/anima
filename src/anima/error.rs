@@ -1,8 +1,9 @@
 use candid::{CandidType, Deserialize};
+use serde::Serialize;
 use ic_stable_structures::{Storable, BoundedStorable};
 use std::borrow::Cow;
 
-#[derive(CandidType, Deserialize, Debug)]
+#[derive(CandidType, Deserialize, Debug, Serialize)]
 pub enum AnimaError {
     NotFound,
     NotAuthorized,
