@@ -4,15 +4,46 @@ use ic_stable_structures::{DefaultMemoryImpl, StableBTreeMap, BoundedStorable, S
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::borrow::Cow;
-use ciborium;
 
-use crate::personality::Personality;
-use crate::types::{Memory as MemoryRecord, InteractionResponse};
-use crate::error::AnimaError;
+// Import from sibling modules
+use super::personality::Personality;
+use super::types::{Memory as MemoryRecord, InteractionResponse};
+use super::error::AnimaError;
 
 // Type alias for memory
 type Memory = VirtualMemory<DefaultMemoryImpl>;
 type Result<T> = std::result::Result<T, AnimaError>;
+
+// Custom wrapper for Principal to implement BoundedStorable
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+struct StorablePrincipal(Principal);
+
+impl Storable for StorablePrincipal {
+    fn to_bytes(&self) -> Cow<[u8]> {
+        Cow::Owned(self.0.as_slice().to_vec())
+    }
+
+    fn from_bytes(bytes: Cow<[u8]>) -> Self {
+        Self(Principal::from_slice(&bytes))
+    }
+}
+
+impl BoundedStorable for StorablePrincipal {
+    const MAX_SIZE: u32 = 29;
+    const IS_FIXED_SIZE: bool = false;
+}
+
+thread_local! {
+    static MEMORY_MANAGER: RefCell<MemoryManager<DefaultMemoryImpl>> = RefCell::new(
+        MemoryManager::init(DefaultMemoryImpl::default())
+    );
+
+    static STORAGE: RefCell<StableBTreeMap<StorablePrincipal, Anima, Memory>> = RefCell::new(
+        StableBTreeMap::init(
+            MEMORY_MANAGER.with(|m| m.borrow().get(MemoryId::new(0)))
+        )
+    );
+}
 
 #[derive(CandidType, Serialize, Deserialize, Clone, Debug)]
 pub struct Anima {
@@ -26,7 +57,6 @@ pub struct Anima {
     pub last_interaction: u64,
 }
 
-// Implement storage traits for Anima
 impl Storable for Anima {
     fn to_bytes(&self) -> Cow<[u8]> {
         let mut bytes = vec![];
@@ -40,20 +70,8 @@ impl Storable for Anima {
 }
 
 impl BoundedStorable for Anima {
-    const MAX_SIZE: u32 = 1024 * 1024; // 1MB max size
+    const MAX_SIZE: u32 = 64 * 1024; // 64KB max size
     const IS_FIXED_SIZE: bool = false;
-}
-
-thread_local! {
-    static MEMORY_MANAGER: RefCell<MemoryManager<DefaultMemoryImpl>> = RefCell::new(
-        MemoryManager::init(DefaultMemoryImpl::default())
-    );
-
-    static STORAGE: RefCell<StableBTreeMap<Principal, Anima, Memory>> = RefCell::new(
-        StableBTreeMap::init(
-            MEMORY_MANAGER.with(|m| m.borrow().get(MemoryId::new(0)))
-        )
-    );
 }
 
 #[ic_cdk_macros::update]
@@ -72,7 +90,7 @@ pub async fn create(name: String) -> Result<Principal> {
 
     let id = ic_cdk::id();
     STORAGE.with(|storage| {
-        storage.borrow_mut().insert(id, anima)
+        storage.borrow_mut().insert(StorablePrincipal(id), anima)
     });
 
     Ok(id)
@@ -81,7 +99,7 @@ pub async fn create(name: String) -> Result<Principal> {
 #[ic_cdk_macros::query]
 pub fn get(id: Principal) -> Result<Anima> {
     STORAGE.with(|storage| {
-        storage.borrow().get(&id)
+        storage.borrow().get(&StorablePrincipal(id))
             .ok_or(AnimaError::NotFound)
     })
 }
@@ -98,7 +116,7 @@ pub async fn interact(id: Principal, input: String) -> Result<InteractionRespons
     let response = process_interaction(&mut anima, &input).await?;
     
     STORAGE.with(|storage| {
-        storage.borrow_mut().insert(id, anima)
+        storage.borrow_mut().insert(StorablePrincipal(id), anima)
     });
 
     Ok(response)
