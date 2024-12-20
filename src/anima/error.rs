@@ -3,15 +3,15 @@ use thiserror::Error;
 
 #[derive(Error, Debug, CandidType)]
 pub enum AnimaError {
-    #[error("Not found")]
+    #[error("Anima not found")]
     NotFound,
-    
-    #[error("Not authorized")]
+
+    #[error("Not authorized to interact with this Anima")]
     NotAuthorized,
-    
-    #[error("Interaction failed: {0}")]
-    InteractionFailed(String),
-    
+
+    #[error("Invalid input: {0}")]
+    InvalidInput(String),
+
     #[error("Internal error: {0}")]
     Internal(String),
 }

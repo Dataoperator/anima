@@ -3,28 +3,18 @@
     "anima": {
       "type": "rust",
       "package": "anima",
-      "candid": "src/anima/anima.did",
-      "optimize": "cycles"
+      "candid": "src/anima/anima.did"
     },
     "anima_assets": {
       "type": "assets",
       "source": ["dist/"],
-      "dependencies": ["anima"],
-      "frontend": {
-        "entrypoint": "src/anima_assets/src/index.html"
-      }
+      "dependencies": ["anima"]
     }
   },
   "defaults": {
     "build": {
       "args": "",
       "packtool": ""
-    }
-  },
-  "networks": {
-    "ic": {
-      "providers": ["https://ic0.app"],
-      "type": "persistent"
     }
   },
   "version": 1

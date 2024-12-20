@@ -6,6 +6,7 @@ pub struct Memory {
     pub timestamp: u64,
     pub content: String,
     pub emotional_impact: f32,
+    pub associations: Vec<String>,
 }
 
 impl Memory {
@@ -14,6 +15,7 @@ impl Memory {
             timestamp: ic_cdk::api::time(),
             content,
             emotional_impact,
+            associations: Vec::new(),
         }
     }
 }

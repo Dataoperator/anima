@@ -19,18 +19,22 @@ pub struct PersonalityTrait {
 
 impl Personality {
     pub fn generate_initial() -> Self {
-        Personality {
+        Self {
             empathy: 0.5,
-            curiosity: 0.7,
-            resilience: 0.6,
-            synthesis: 1.0,
-            traits: vec![
-                PersonalityTrait {
-                    name: "Genesis".to_string(),
-                    value: 1.0,
-                    description: "Born from the dialogue between human and artificial minds".to_string(),
-                }
-            ],
+            curiosity: 0.5,
+            resilience: 0.5,
+            synthesis: 0.5,
+            traits: Vec::new(),
+        }
+    }
+
+    pub fn adjust_trait(&mut self, name: &str, delta: f32) -> Option<(f32, f32)> {
+        if let Some(trait_) = self.traits.iter_mut().find(|t| t.name == name) {
+            let old_value = trait_.value;
+            trait_.value = (trait_.value + delta).clamp(0.0, 1.0);
+            Some((old_value, trait_.value))
+        } else {
+            None
         }
     }
 }

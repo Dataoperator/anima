@@ -1,5 +1,6 @@
 use candid::CandidType;
 use serde::{Deserialize, Serialize};
+use crate::anima::memory::Memory;
 
 #[derive(CandidType, Serialize, Deserialize, Clone, Debug)]
 pub struct InteractionResponse {
@@ -14,11 +15,4 @@ pub struct PersonalityChange {
     pub old_value: f32,
     pub new_value: f32,
     pub reason: String,
-}
-
-#[derive(CandidType, Serialize, Deserialize, Clone, Debug)]
-pub struct Memory {
-    pub timestamp: u64,
-    pub content: String,
-    pub emotional_impact: f32,
 }
