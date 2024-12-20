@@ -1,5 +1,7 @@
 use candid::CandidType;
 use serde::{Deserialize, Serialize};
+use ic_stable_structures::{Storable, BoundedStorable};
+use std::borrow::Cow;
 
 #[derive(CandidType, Serialize, Deserialize, Clone, Debug)]
 pub struct Personality {
@@ -7,34 +9,38 @@ pub struct Personality {
     pub curiosity: f32,
     pub resilience: f32,
     pub synthesis: f32,
-    pub traits: Vec<PersonalityTrait>,
-}
-
-#[derive(CandidType, Serialize, Deserialize, Clone, Debug)]
-pub struct PersonalityTrait {
-    pub name: String,
-    pub value: f32,
-    pub description: String,
 }
 
 impl Personality {
     pub fn generate_initial() -> Self {
-        Self {
+        Personality {
             empathy: 0.5,
-            curiosity: 0.5,
-            resilience: 0.5,
-            synthesis: 0.5,
-            traits: Vec::new(),
+            curiosity: 0.7,
+            resilience: 0.6,
+            synthesis: 0.4,
         }
     }
 
-    pub fn adjust_trait(&mut self, name: &str, delta: f32) -> Option<(f32, f32)> {
-        if let Some(trait_) = self.traits.iter_mut().find(|t| t.name == name) {
-            let old_value = trait_.value;
-            trait_.value = (trait_.value + delta).clamp(0.0, 1.0);
-            Some((old_value, trait_.value))
-        } else {
-            None
-        }
+    pub fn evolve(&mut self, emotional_impact: f32) {
+        self.empathy = (self.empathy + emotional_impact * 0.1).clamp(0.0, 1.0);
+        self.curiosity = (self.curiosity + 0.05).clamp(0.0, 1.0);
+        self.resilience = (self.resilience + emotional_impact.abs() * 0.05).clamp(0.0, 1.0);
     }
+}
+
+impl Storable for Personality {
+    fn to_bytes(&self) -> Cow<[u8]> {
+        let mut bytes = vec![];
+        ciborium::ser::into_writer(&self, &mut bytes).unwrap();
+        Cow::Owned(bytes)
+    }
+
+    fn from_bytes(bytes: Cow<[u8]>) -> Self {
+        ciborium::de::from_reader(bytes.as_ref()).unwrap()
+    }
+}
+
+impl BoundedStorable for Personality {
+    const MAX_SIZE: u32 = 128; // Fixed size for personality struct
+    const IS_FIXED_SIZE: bool = true;
 }
