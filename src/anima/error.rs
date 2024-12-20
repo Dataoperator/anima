@@ -1,17 +1,39 @@
-use candid::CandidType;
-use thiserror::Error;
+use candid::{CandidType, Deserialize};
+use ic_stable_structures::{Storable, BoundedStorable};
+use std::borrow::Cow;
 
-#[derive(Error, Debug, CandidType)]
+#[derive(CandidType, Deserialize, Debug)]
 pub enum AnimaError {
-    #[error("Anima not found")]
     NotFound,
-
-    #[error("Not authorized to interact with this Anima")]
     NotAuthorized,
+    InteractionFailed(String),
+    InternalError(String),
+}
 
-    #[error("Invalid input: {0}")]
-    InvalidInput(String),
+impl std::fmt::Display for AnimaError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AnimaError::NotFound => write!(f, "Anima not found"),
+            AnimaError::NotAuthorized => write!(f, "Not authorized to interact with this Anima"),
+            AnimaError::InteractionFailed(msg) => write!(f, "Interaction failed: {}", msg),
+            AnimaError::InternalError(msg) => write!(f, "Internal error: {}", msg),
+        }
+    }
+}
 
-    #[error("Internal error: {0}")]
-    Internal(String),
+impl Storable for AnimaError {
+    fn to_bytes(&self) -> Cow<[u8]> {
+        let mut bytes = vec![];
+        ciborium::ser::into_writer(&self, &mut bytes).unwrap();
+        Cow::Owned(bytes)
+    }
+
+    fn from_bytes(bytes: Cow<[u8]>) -> Self {
+        ciborium::de::from_reader(bytes.as_ref()).unwrap()
+    }
+}
+
+impl BoundedStorable for AnimaError {
+    const MAX_SIZE: u32 = 1024;
+    const IS_FIXED_SIZE: bool = false;
 }
