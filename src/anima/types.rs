@@ -1,43 +1,54 @@
-use candid::CandidType;
-use serde::{Deserialize, Serialize};
-use ic_stable_structures::{Storable, BoundedStorable};
-use std::borrow::Cow;
+use candid::{CandidType, Deserialize};
+use serde::Serialize;
+
+pub type Principal = candid::Principal;
 
 #[derive(CandidType, Serialize, Deserialize, Clone, Debug)]
-pub struct Memory {
-    pub timestamp: u64,
-    pub content: String,
-    pub emotional_impact: f32,
-}
-
-#[derive(CandidType, Serialize, Deserialize, Clone, Debug)]
-pub struct InteractionResponse {
-    pub message: String,
-    pub personality_changes: Vec<PersonalityChange>,
-    pub new_memories: Vec<Memory>,
+pub struct Config {
+    pub openai_api_key: String,
+    pub max_memory_size: usize,
+    pub autonomous_check_interval: u64,
 }
 
 #[derive(CandidType, Serialize, Deserialize, Clone, Debug)]
 pub struct PersonalityChange {
     pub trait_name: String,
-    pub old_value: f32,
-    pub new_value: f32,
+    pub change: f32,
     pub reason: String,
 }
 
-impl Storable for Memory {
-    fn to_bytes(&self) -> Cow<[u8]> {
-        let mut bytes = vec![];
-        ciborium::ser::into_writer(&self, &mut bytes).unwrap();
-        Cow::Owned(bytes)
-    }
-
-    fn from_bytes(bytes: Cow<[u8]>) -> Self {
-        ciborium::de::from_reader(bytes.as_ref()).unwrap()
-    }
+#[derive(CandidType, Serialize, Deserialize, Clone, Debug)]
+pub struct InteractionContext {
+    pub recent_memories: Vec<String>,
+    pub current_mood: String,
+    pub dominant_traits: Vec<(String, f32)>,
+    pub growth_level: u32,
 }
 
-impl BoundedStorable for Memory {
-    const MAX_SIZE: u32 = 4096; // 4KB max size for a memory
-    const IS_FIXED_SIZE: bool = false;
+#[derive(CandidType, Serialize, Deserialize, Clone, Debug)]
+pub struct UserProfile {
+    pub principal: Principal,
+    pub anima_ids: Vec<Principal>,
+    pub preferences: UserPreferences,
+}
+
+#[derive(CandidType, Serialize, Deserialize, Clone, Debug)]
+pub struct UserPreferences {
+    pub autonomous_enabled: bool,
+    pub notification_preferences: NotificationPreferences,
+    pub privacy_settings: PrivacySettings,
+}
+
+#[derive(CandidType, Serialize, Deserialize, Clone, Debug)]
+pub struct NotificationPreferences {
+    pub autonomous_messages: bool,
+    pub growth_updates: bool,
+    pub personality_changes: bool,
+}
+
+#[derive(CandidType, Serialize, Deserialize, Clone, Debug)]
+pub struct PrivacySettings {
+    pub share_interactions: bool,
+    pub share_personality: bool,
+    pub share_growth: bool,
 }

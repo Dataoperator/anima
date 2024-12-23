@@ -1,0 +1,14 @@
+{
+  "ic_canister": {
+    "http_request": {
+      "outgoing": {
+        "https:api.openai.com:443": {
+          "methods": ["POST"],
+          "headers": ["Authorization"],
+          "max_response_bytes": "2048",
+          "url_path": "/v1/chat/completions"
+        }
+      }
+    }
+  }
+}

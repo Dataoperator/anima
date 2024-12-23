@@ -1,40 +1,45 @@
 use candid::{CandidType, Deserialize};
-use serde::Serialize;
-use ic_stable_structures::{Storable, BoundedStorable};
-use std::borrow::Cow;
+use std::fmt;
 
-#[derive(CandidType, Deserialize, Debug, Serialize)]
+#[derive(CandidType, Deserialize, Debug)]
 pub enum AnimaError {
     NotFound,
     NotAuthorized,
-    InteractionFailed(String),
-    InternalError(String),
+    Configuration(String),
+    External(String),
 }
 
-impl std::fmt::Display for AnimaError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Display for AnimaError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             AnimaError::NotFound => write!(f, "Anima not found"),
-            AnimaError::NotAuthorized => write!(f, "Not authorized to interact with this Anima"),
-            AnimaError::InteractionFailed(msg) => write!(f, "Interaction failed: {}", msg),
-            AnimaError::InternalError(msg) => write!(f, "Internal error: {}", msg),
+            AnimaError::NotAuthorized => write!(f, "Not authorized to perform this action"),
+            AnimaError::Configuration(msg) => write!(f, "Configuration error: {}", msg),
+            AnimaError::External(msg) => write!(f, "External error: {}", msg),
         }
     }
 }
 
-impl Storable for AnimaError {
-    fn to_bytes(&self) -> Cow<[u8]> {
-        let mut bytes = vec![];
-        ciborium::ser::into_writer(&self, &mut bytes).unwrap();
-        Cow::Owned(bytes)
-    }
-
-    fn from_bytes(bytes: Cow<[u8]>) -> Self {
-        ciborium::de::from_reader(bytes.as_ref()).unwrap()
+impl From<String> for AnimaError {
+    fn from(error: String) -> Self {
+        AnimaError::External(error)
     }
 }
 
-impl BoundedStorable for AnimaError {
-    const MAX_SIZE: u32 = 1024;
-    const IS_FIXED_SIZE: bool = false;
+impl From<&str> for AnimaError {
+    fn from(error: &str) -> Self {
+        AnimaError::External(error.to_string())
+    }
+}
+
+impl From<std::io::Error> for AnimaError {
+    fn from(error: std::io::Error) -> Self {
+        AnimaError::External(error.to_string())
+    }
+}
+
+impl From<serde_json::Error> for AnimaError {
+    fn from(error: serde_json::Error) -> Self {
+        AnimaError::External(error.to_string())
+    }
 }

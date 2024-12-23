@@ -1,9 +1,11 @@
-pub mod error;
-pub mod main;
-pub mod personality;
-pub mod types;
+mod personality;
+mod memory;
+mod types;
+mod error;
+mod openai;
+mod autonomous;
 
-pub use error::*;
-pub use main::*;
-pub use personality::*;
+pub use personality::Personality;
+pub use memory::Memory;
 pub use types::*;
+pub use error::AnimaError;

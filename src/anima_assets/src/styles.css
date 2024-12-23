@@ -1,0 +1,54 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-gray-50;
+  }
+}
+
+@layer components {
+  .anima-gradient {
+    @apply bg-gradient-to-r from-blue-500 to-purple-500;
+  }
+  
+  .anima-card {
+    @apply bg-white rounded-xl shadow-lg p-6;
+  }
+  
+  .anima-button {
+    @apply px-4 py-2 rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-colors;
+  }
+  
+  .anima-input {
+    @apply w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-blue-500 focus:border-transparent;
+  }
+}
+
+/* Custom animations */
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.glass-effect {
+  @apply bg-white bg-opacity-20 backdrop-blur-lg;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-gray-100;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-blue-500 rounded-full;
+}

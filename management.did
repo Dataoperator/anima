@@ -1,0 +1,11 @@
+service : {
+  update_settings : (record {
+    canister_id : principal;
+    settings : record {
+      controllers : opt vec principal;
+      compute_allocation : opt nat;
+      memory_allocation : opt nat;
+      freezing_threshold : opt nat;
+    };
+  }) -> ();
+}
