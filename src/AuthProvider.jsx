@@ -16,6 +16,23 @@ const LoadingSpinner = () => (
   </div>
 );
 
+const ErrorBanner = ({ message, onClose }) => (
+  <motion.div
+    initial={{ opacity: 0, y: -20 }}
+    animate={{ opacity: 1, y: 0 }}
+    exit={{ opacity: 0, y: -20 }}
+    className="fixed top-4 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg z-50"
+  >
+    {message}
+    <button
+      onClick={onClose}
+      className="ml-3 hover:text-red-200"
+    >
+      ✕
+    </button>
+  </motion.div>
+);
+
 export const AuthProvider = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -41,13 +58,13 @@ export const AuthProvider = ({ children }) => {
             isAuthenticated: true, 
             isInitialized, 
             principalId: state.principal.toString(),
-            animaName: null,
+            animaName: isInitialized ? await getAnimaName(state.principal) : null,
             creationTime: null,
           });
         }
       } catch (err) {
         console.error('Auth initialization failed:', err);
-        setError('Failed to initialize authentication');
+        setError(err.message || 'Failed to initialize authentication');
       } finally {
         setIsLoading(false);
       }
@@ -56,8 +73,25 @@ export const AuthProvider = ({ children }) => {
     initAuth();
   }, []);
 
+  const getAnimaName = async (principal) => {
+    try {
+      const state = authManager.getState();
+      if (state.actor) {
+        const response = await state.actor.get_anima(principal);
+        if ('Ok' in response) {
+          return response.Ok.name;
+        }
+      }
+      return null;
+    } catch (error) {
+      console.warn('Could not fetch anima name:', error);
+      return null;
+    }
+  };
+
   const login = async () => {
     setIsLoading(true);
+    setError(null);
     try {
       await authManager.login();
       const state = authManager.getState();
@@ -68,34 +102,33 @@ export const AuthProvider = ({ children }) => {
           isAuthenticated: true, 
           isInitialized,
           principalId: state.principal.toString(),
-          animaName: null,
+          animaName: isInitialized ? await getAnimaName(state.principal) : null,
           creationTime: null,
         });
       }
     } catch (err) {
       console.error('Login failed:', err);
-      setError('Failed to login');
+      setError(err.message || 'Failed to login');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const initialize = async (name, apiKey) => {
+  const initialize = async (name) => {
     try {
       setIsLoading(true);
       setError(null);
-      const result = await authManager.createAnima(name, apiKey);
+      const result = await authManager.createAnima(name);
       setAuthState(prev => ({ 
         ...prev, 
         isInitialized: true,
-        principalId: result.anima_id.toString(),
-        animaName: result.name,
-        creationTime: result.creation_time
+        animaName: name,
+        creationTime: Date.now()
       }));
       return result;
     } catch (err) {
       console.error('Initialization failed:', err);
-      setError('Failed to create Anima');
+      setError(err.message || 'Failed to create Anima');
       throw err;
     } finally {
       setIsLoading(false);
@@ -103,14 +136,19 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = async () => {
-    await authManager.logout();
-    setAuthState({
-      isAuthenticated: false,
-      isInitialized: false,
-      principalId: null,
-      animaName: null,
-      creationTime: null,
-    });
+    try {
+      await authManager.logout();
+      setAuthState({
+        isAuthenticated: false,
+        isInitialized: false,
+        principalId: null,
+        animaName: null,
+        creationTime: null,
+      });
+    } catch (error) {
+      console.error('Logout failed:', error);
+      setError('Failed to logout');
+    }
   };
 
   const contextValue = {
@@ -125,22 +163,14 @@ export const AuthProvider = ({ children }) => {
   return (
     <AuthContext.Provider value={contextValue}>
       {children}
-      <AnimatePresence mode="wait">
+      {isLoading && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <LoadingSpinner />
+        </div>
+      )}
+      <AnimatePresence>
         {error && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="fixed top-4 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg"
-          >
-            {error}
-            <button
-              onClick={() => setError(null)}
-              className="ml-3 hover:text-red-200"
-            >
-              ✕
-            </button>
-          </motion.div>
+          <ErrorBanner message={error} onClose={() => setError(null)} />
         )}
       </AnimatePresence>
     </AuthContext.Provider>

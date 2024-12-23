@@ -1,0 +1,63 @@
+type BatchId = nat;
+type ChunkId = nat;
+type Key = text;
+type Time = int;
+
+type CreateAssetArguments = record {
+  key: Key;
+  content_type: text;
+  max_age: opt nat64;
+  headers: opt vec record { text; text; };
+  enable_aliasing: opt bool;
+  allow_raw_access: opt bool;
+};
+
+type SetAssetContentArguments = record {
+  key: Key;
+  content_encoding: text;
+  chunk_ids: vec ChunkId;
+  sha256: opt vec nat8;
+};
+
+type UnsetAssetContentArguments = record {
+  key: Key;
+  content_encoding: text;
+};
+
+type DeleteAssetArguments = record {
+  key: Key;
+};
+
+type ClearArguments = record {};
+
+service : {
+  create_asset: (CreateAssetArguments) -> ();
+  set_asset_content: (SetAssetContentArguments) -> ();
+  unset_asset_content: (UnsetAssetContentArguments) -> ();
+  delete_asset: (DeleteAssetArguments) -> ();
+  clear: (ClearArguments) -> ();
+
+  create_batch: () -> (record { batch_id: BatchId; });
+  create_chunk: (record { batch_id: BatchId; content: blob; }) -> (record { chunk_id: ChunkId; });
+  commit_batch: (record { batch_id: BatchId; operations: vec Operation; }) -> ();
+
+  get: (record { key: Key; accept_encodings: vec text; }) -> (record { content: blob; content_type: text; content_encoding: text; total_length: nat; sha256: opt vec nat8; });
+  get_chunk: (record { key: Key; content_encoding: text; index: nat; sha256: opt vec nat8; }) -> (record { content: blob; });
+  list : (record {}) -> (vec record { key: Key; content_type: text; encodings: vec record { content_encoding: text; sha256: opt vec nat8; length: nat; modified: Time; }; });
+
+  get_configuration: () -> (record { max_chunks_per_batch: opt nat; max_bytes_per_chunk: opt nat; });
+  configure: (record { max_chunks_per_batch: opt nat; max_bytes_per_chunk: opt nat; }) -> ();
+  validate_config_update: (record { max_chunks_per_batch: opt nat; max_bytes_per_chunk: opt nat; }) -> ();
+  http_request: (request: HttpRequest) -> (HttpResponse) query;
+  http_request_streaming_callback: (token: StreamingCallbackToken) -> (StreamingCallbackHttpResponse) query;
+
+  authorize: (principal) -> ();
+  deauthorize: (principal) -> ();
+  list_authorized: () -> (vec principal) query;
+  grant_permission: (principal, permission: text) -> ();
+  revoke_permission: (principal, permission: text) -> ();
+  list_permissions: () -> (vec record { principal; permissions: vec text; }) query;
+
+  take_ownership: () -> ();
+  get_asset_properties: (key: text) -> (record { max_age: opt nat64; headers: opt vec record { text; text; }; enable_aliasing: opt bool; allow_raw_access: opt bool; }) query;
+};

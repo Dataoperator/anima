@@ -7,6 +7,7 @@ use serde_json::{json, Value};
 use candid::Nat;
 
 const TRANSFORM_METHOD_NAME: &str = "transform";
+const SATELLITE_CANISTER: &str = "pycrs-xiaaa-aaaal-ab6la-cai";
 
 #[derive(CandidType, Deserialize, Clone)]
 pub struct OpenAIConfig {
@@ -24,12 +25,33 @@ pub struct OpenAIResponse {
 
 #[derive(CandidType, Deserialize, Clone)]
 pub struct EmotionalAnalysis {
-    pub valence: f32,    // Positive/negative (-1.0 to 1.0)
-    pub arousal: f32,    // Intensity (0.0 to 1.0)
-    pub dominance: f32,  // Control/influence (0.0 to 1.0)
+    pub valence: f32,
+    pub arousal: f32,
+    pub dominance: f32,
 }
 
-const OPENAI_URL: &str = "https://api.openai.com/v1/chat/completions";
+async fn call_satellite(payload: Value) -> Result<Vec<u8>, String> {
+    let headers = vec![
+        HttpHeader {
+            name: "Content-Type".to_string(),
+            value: "application/json".to_string(),
+        }
+    ];
+
+    let request = CanisterHttpRequestArgument {
+        url: format!("https://{}.raw.icp0.io/openai", SATELLITE_CANISTER),
+        method: HttpMethod::POST,
+        body: Some(serde_json::to_vec(&payload).map_err(|e| e.to_string())?),
+        max_response_bytes: Some(2048000),
+        transform: None,
+        headers,
+    };
+
+    match http_request(request, 60_000_000_000).await {
+        Ok((response,)) => Ok(response.body),
+        Err((_, msg)) => Err(format!("Satellite request failed: {}", msg))
+    }
+}
 
 pub async fn send_openai_request(
     config: &OpenAIConfig,
@@ -44,15 +66,15 @@ pub async fn send_openai_request(
         context
     );
 
-    let request_body = json!({
+    let payload = json!({
+        "api_key": config.api_key,
         "model": config.model,
         "messages": [
             {
                 "role": "system",
                 "content": personality_system_prompt
             },
-            // Previous context messages
-            messages,
+            messages
         ],
         "temperature": config.temperature,
         "max_tokens": config.max_tokens,
@@ -74,66 +96,33 @@ pub async fn send_openai_request(
                         "type": "number",
                         "description": "Sense of control/influence (0.0 to 1.0)"
                     }
-                }
+                },
+                "required": ["valence", "arousal", "dominance"]
             }
         }]
     });
 
-    let headers = vec![
-        HttpHeader {
-            name: "Content-Type".to_string(),
-            value: "application/json".to_string(),
-        },
-        HttpHeader {
-            name: "Authorization".to_string(),
-            value: format!("Bearer {}", config.api_key),
-        },
-    ];
-
-    let request = CanisterHttpRequestArgument {
-        url: OPENAI_URL.to_string(),
-        method: HttpMethod::POST,
-        body: Some(request_body.to_string().into_bytes()),
-        max_response_bytes: Some(10 * 1024 * 1024), // 10MB
-        transform: Some(TransformContext {
-            function: TransformFunc(candid::Func {
-                principal: ic_cdk::id(),
-                method: TRANSFORM_METHOD_NAME.to_string(),
-            }),
-            context: vec![],
-        }),
-        headers,
-    };
-
-    match http_request(request, 60_000_000_000).await {
-        Ok((response,)) => {
-            let response_body = String::from_utf8(response.body)
-                .map_err(|e| format!("Failed to decode response: {}", e))?;
-            
-            parse_openai_response(&response_body)
-        }
-        Err((code, msg)) => Err(format!(
-            "HTTP request failed with code {:?} and message: {}",
-            code, msg
-        )),
-    }
+    let response_bytes = call_satellite(payload).await?;
+    let response_str = String::from_utf8(response_bytes)
+        .map_err(|e| format!("Invalid UTF-8 in response: {}", e))?;
+    
+    parse_openai_response(&response_str)
 }
 
 #[ic_cdk::query(name = "transform")]
 fn transform(raw: TransformContext) -> HttpResponse {
-    let headers = vec![
-        HttpHeader {
-            name: "Content-Security-Policy".to_string(),
-            value: "default-src 'self'".to_string(),
-        },
-    ];
-
-    let context = raw.context;
-    
+    let transformed = json!({
+        "status": "success",
+        "content": String::from_utf8_lossy(&raw.context)
+    });
+            
     HttpResponse {
         status: Nat::from(200u64),
-        headers,
-        body: context,
+        headers: vec![HttpHeader {
+            name: "Content-Type".to_string(),
+            value: "application/json".to_string(),
+        }],
+        body: serde_json::to_vec(&transformed).unwrap_or_default(),
     }
 }
 
@@ -141,15 +130,20 @@ fn parse_openai_response(response_body: &str) -> Result<OpenAIResponse, String> 
     let response: Value = serde_json::from_str(response_body)
         .map_err(|e| format!("Failed to parse response JSON: {}", e))?;
 
-    let content = response["choices"][0]["message"]["content"]
+    // Extract content from successful response
+    let content = response["response"]["content"]
         .as_str()
+        .or_else(|| response["content"].as_str())
         .ok_or("Missing content in response")?
         .to_string();
 
-    let function_call = &response["choices"][0]["message"]["function_call"];
-    let emotional_analysis = if let Some(args) = function_call["arguments"].as_str() {
-        serde_json::from_str(args)
-            .map_err(|e| format!("Failed to parse emotional analysis: {}", e))?
+    // Handle emotional analysis
+    let emotional_analysis = if let Some(analysis) = response["emotional_analysis"].as_object() {
+        EmotionalAnalysis {
+            valence: analysis["valence"].as_f64().unwrap_or(0.0) as f32,
+            arousal: analysis["arousal"].as_f64().unwrap_or(0.0) as f32,
+            dominance: analysis["dominance"].as_f64().unwrap_or(0.0) as f32,
+        }
     } else {
         EmotionalAnalysis {
             valence: 0.0,

@@ -38,7 +38,18 @@
       },
       "build": ["npm run build"],
       "init_arg": "(record { max_pages_per_asset = 1000 : nat16; })",
-      "gzip": true
+      "gzip": true,
+      "headers": {
+        "**/*": {
+          "Cache-Control": "max-age=604800",
+          "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+          "X-Frame-Options": "DENY",
+          "X-Content-Type-Options": "nosniff",
+          "Content-Security-Policy": "default-src 'self' 'unsafe-eval' 'unsafe-inline' https://*.icp0.io; img-src 'self' data: https://*.icp0.io; connect-src 'self' https://*.icp0.io https://*.raw.icp0.io https://ic0.app",
+          "Referrer-Policy": "strict-origin",
+          "Permissions-Policy": "geolocation=(), microphone=(), camera=()"
+        }
+      }
     }
   },
   "networks": {

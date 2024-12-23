@@ -1,8 +1,19 @@
 import { Actor, ActorSubclass, Identity } from "@dfinity/agent";
 import { AuthClient } from "@dfinity/auth-client";
 import { Principal } from "@dfinity/principal";
-import { _SERVICE, InteractionResult } from "./declarations/anima/anima.did";
+import { _SERVICE } from "./declarations/anima/anima.did";
 import { createActor } from "./declarations/anima";
+
+const ANIMA_CANISTER_ID = "l2ilz-iqaaa-aaaaj-qngjq-cai";
+const IS_MAINNET = true;
+
+export enum ErrorType {
+  Configuration = "Configuration",
+  NotFound = "NotFound",
+  NotAuthorized = "NotAuthorized",
+  AlreadyInitialized = "AlreadyInitialized",
+  External = "External"
+}
 
 export interface AuthState {
   client: AuthClient | null;
@@ -14,7 +25,7 @@ export interface AuthState {
 }
 
 class AuthError extends Error {
-  constructor(message: string, public code?: string) {
+  constructor(message: string, public code?: ErrorType) {
     super(message);
     this.name = 'AuthError';
   }
@@ -46,12 +57,12 @@ class AuthManager {
 
   private async initActor(identity: Identity): Promise<void> {
     try {
-      const actor = createActor(process.env.CANISTER_ID_ANIMA!, {
+      const actor = createActor(ANIMA_CANISTER_ID, {
         agentOptions: {
           identity,
-          host: process.env.DFX_NETWORK === "ic" 
+          host: IS_MAINNET 
             ? "https://ic0.app" 
-            : `http://${process.env.CANISTER_ID_ANIMA}.localhost:4943`,
+            : "http://localhost:4943",
         },
       });
 
@@ -63,19 +74,37 @@ class AuthManager {
         isAuthenticated: true,
       };
 
-      // Check if OpenAI is already configured
-      const state = await actor.get_user_state([this.authState.principal]);
-      if ('Initialized' in state) {
-        this.authState.isOpenAIConfigured = true;
+      try {
+        const response = await actor.get_anima(identity.getPrincipal());
+        if ('Ok' in response) {
+          this.authState.isOpenAIConfigured = true;
+        }
+      } catch (error) {
+        console.warn('Could not verify OpenAI configuration - continuing without verification');
       }
     } catch (error) {
-      throw new AuthError('Failed to initialize actor', 'ACTOR_INIT_FAILED');
+      console.error('Actor initialization failed:', error);
+      throw new AuthError('Failed to initialize actor', ErrorType.Configuration);
+    }
+  }
+
+  async checkInitialization(): Promise<boolean> {
+    if (!this.authState.actor || !this.authState.principal) {
+      return false;
+    }
+
+    try {
+      const response = await this.authState.actor.get_anima(this.authState.principal);
+      return 'Ok' in response;
+    } catch (error) {
+      console.error('Check initialization failed:', error);
+      return false;
     }
   }
 
   async configureOpenAI(apiKey: string): Promise<void> {
     if (!this.authState.actor) {
-      throw new AuthError('Not authenticated', 'NOT_AUTHENTICATED');
+      throw new AuthError('Not authenticated', ErrorType.NotAuthorized);
     }
 
     try {
@@ -83,88 +112,60 @@ class AuthManager {
       if ('Ok' in result) {
         this.authState.isOpenAIConfigured = true;
         sessionStorage.setItem('openai_configured', 'true');
-      } else if ('Err' in result) {
-        throw new Error('Configuration error: ' + ('Configuration' in result.Err ? result.Err.Configuration : 'Unknown error'));
-      }
-    } catch (error) {
-      console.error('Failed to configure OpenAI:', error);
-      throw new AuthError('Failed to configure OpenAI API', 'OPENAI_CONFIG_FAILED');
-    }
-  }
-
-  async createAnima(name: string): Promise<InteractionResult> {
-    if (!this.authState.actor) {
-      throw new AuthError('Not authenticated', 'NOT_AUTHENTICATED');
-    }
-
-    try {
-      const result = await this.authState.actor.create_anima(name);
-      if ('Ok' in result) {
-        // Get the newly created Anima's information
-        const animaResult = await this.authState.actor.get_anima(result.Ok);
-        if ('Ok' in animaResult) {
-          return {
-            response: 'Successfully created Anima',
-            personality_updates: [],
-            memory: {
-              timestamp: BigInt(Date.now()),
-              event_type: { Initial: null },
-              description: 'Anima created',
-              emotional_impact: 0,
-              importance_score: 1,
-              keywords: ['creation']
-            },
-            is_autonomous: false
-          };
-        } else {
-          throw new Error('Failed to fetch created Anima');
-        }
       } else {
-        throw new Error('Configuration error: ' + ('Configuration' in result.Err ? result.Err.Configuration : 'Unknown error'));
+        throw new Error(result.Err[0] || 'Unknown error');
       }
-    } catch (error) {
-      console.error("Failed to create anima:", error);
-      throw new AuthError('Failed to create Anima', 'CREATE_ANIMA_FAILED');
+    } catch (error: any) {
+      console.error('Failed to configure OpenAI:', error);
+      throw new AuthError(error.message || 'Failed to configure OpenAI API', ErrorType.Configuration);
     }
   }
 
   async initialize(): Promise<void> {
     try {
-      const client = await AuthClient.create();
+      const client = await AuthClient.create({
+        idleOptions: {
+          idleTimeout: 1000 * 60 * 30, // 30 minutes
+          disableDefaultIdleCallback: true
+        }
+      });
+      
       this.authState.client = client;
 
       if (await client.isAuthenticated()) {
         const identity = client.getIdentity();
         await this.initActor(identity);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to initialize auth:", error);
-      throw new AuthError(
-        error instanceof Error ? error.message : 'Authentication initialization failed',
-        'INIT_FAILED'
-      );
+      throw new AuthError(error.message || 'Authentication initialization failed', ErrorType.Configuration);
     }
   }
 
   async login(): Promise<void> {
     if (!this.authState.client) {
-      throw new AuthError('Auth client not initialized', 'CLIENT_NOT_INITIALIZED');
+      throw new AuthError('Auth client not initialized', ErrorType.Configuration);
     }
 
     return new Promise((resolve, reject) => {
       this.authState.client!.login({
-        identityProvider: process.env.II_URL || "https://identity.ic0.app",
+        identityProvider: IS_MAINNET 
+          ? "https://identity.ic0.app"
+          : `http://localhost:4943/?canisterId=${ANIMA_CANISTER_ID}`,
+        maxTimeToLive: BigInt(7 * 24 * 60 * 60 * 1000 * 1000 * 1000), // 7 days
         onSuccess: async () => {
           try {
             const identity = this.authState.client!.getIdentity();
             await this.initActor(identity);
             resolve();
-          } catch (error) {
-            reject(new AuthError('Failed to complete login', 'LOGIN_FAILED'));
+          } catch (error: any) {
+            console.error('Login completion failed:', error);
+            reject(new AuthError(error.message || 'Failed to complete login', ErrorType.Configuration));
           }
         },
         onError: (error) => {
-          reject(new AuthError(error.message, 'LOGIN_ERROR'));
+          console.error('Login error:', error);
+          reject(new AuthError(error.message || 'Login failed', ErrorType.External));
         },
       });
     });
