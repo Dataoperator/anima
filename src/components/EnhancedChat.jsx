@@ -1,104 +1,69 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { useAuth } from '../AuthProvider';
-import { MessageCircle, Send } from 'lucide-react';
 
-const EnhancedChat = ({ principalId }) => {
-  const [message, setMessage] = useState('');
-  const [chatHistory, setChatHistory] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const { actor } = useAuth();
+const EnhancedChat = () => {
+  const [messages, setMessages] = useState([]);
+  const [inputValue, setInputValue] = useState('');
 
-  const sendMessage = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!message.trim() || isLoading) return;
+    if (!inputValue.trim()) return;
 
-    setIsLoading(true);
-    try {
-      const result = await actor.interact(principalId, message);
-      if ('Ok' in result) {
-        const response = result.Ok;
-        setChatHistory(prev => [...prev, {
-          type: 'user',
-          content: message,
-          timestamp: Date.now()
-        }, {
-          type: 'anima',
-          content: response.response,
-          timestamp: Date.now(),
-          emotional_impact: response.memory.emotional_impact
-        }]);
-      }
-    } catch (error) {
-      console.error('Failed to send message:', error);
-    } finally {
-      setMessage('');
-      setIsLoading(false);
-    }
+    // Add user message
+    const newMessage = {
+      text: inputValue,
+      sender: 'user',
+      timestamp: new Date().toISOString(),
+    };
+    
+    setMessages(prev => [...prev, newMessage]);
+    setInputValue('');
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <motion.div 
+      initial={{ opacity: 0 }} 
+      animate={{ opacity: 1 }} 
+      exit={{ opacity: 0 }}
+      className="flex flex-col h-screen bg-background"
+    >
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {chatHistory.map((msg, i) => (
+        {messages.map((message, index) => (
           <motion.div
-            key={i}
+            key={index}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}
+            className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
           >
-            <div
-              className={`max-w-[80%] p-3 rounded-lg ${
-                msg.type === 'user'
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-gray-100 text-gray-800'
-              }`}
-            >
-              <p>{msg.content}</p>
-              {msg.emotional_impact !== undefined && (
-                <div className="text-xs mt-1 opacity-70">
-                  Emotional Impact: {msg.emotional_impact.toFixed(2)}
-                </div>
-              )}
+            <div className={`max-w-[80%] p-4 rounded-lg ${
+              message.sender === 'user' 
+                ? 'bg-primary text-primary-foreground ml-4' 
+                : 'bg-muted text-foreground mr-4'
+            }`}>
+              {message.text}
             </div>
           </motion.div>
         ))}
       </div>
 
-      <form onSubmit={sendMessage} className="p-4 border-t">
-        <div className="flex space-x-2">
+      <div className="border-t border-border p-4">
+        <form onSubmit={handleSubmit} className="flex space-x-2">
           <input
             type="text"
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
             placeholder="Type your message..."
-            disabled={isLoading}
+            className="flex-1 p-2 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
           />
           <button
             type="submit"
-            disabled={isLoading || !message.trim()}
-            className={`px-4 py-2 rounded-lg ${
-              isLoading || !message.trim()
-                ? 'bg-gray-300 cursor-not-allowed'
-                : 'bg-blue-500 hover:bg-blue-600'
-            } text-white`}
+            className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
           >
-            {isLoading ? (
-              <motion.div
-                animate={{ rotate: 360 }}
-                transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                className="w-6 h-6"
-              >
-                <MessageCircle className="w-6 h-6" />
-              </motion.div>
-            ) : (
-              <Send className="w-6 h-6" />
-            )}
+            Send
           </button>
-        </div>
-      </form>
-    </div>
+        </form>
+      </div>
+    </motion.div>
   );
 };
 

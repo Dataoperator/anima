@@ -1,0 +1,17 @@
+{
+    "version": 1,
+    "files": [
+        {
+            "source": "dist/index.html",
+            "destination": "/index.html",
+            "contentType": "text/html",
+            "gzip": true
+        },
+        {
+            "source": "dist/assets",
+            "destination": "/assets",
+            "contentType": "auto",
+            "gzip": true
+        }
+    ]
+}

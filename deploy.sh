@@ -1,20 +1,31 @@
 #!/bin/bash
 
-# Build and deploy with HTTP outcall configurations
-dfx deploy --network ic anima --argument "(record { 
-  ic_canister = record { 
-    http_request = record { 
-      outgoing = record {
-        \"https:api.openai.com:443\" = record {
-          methods = vec { \"POST\" };
-          headers = vec { \"Authorization\" };
-          max_response_bytes = \"2048\";
-          url_path = \"/v1/chat/completions\";
-        }
-      }
-    }
-  }
-})"
+# Stop on any error
+set -e
 
-# Deploy frontend assets
-dfx deploy --network ic anima_assets
+echo "Starting deployment process..."
+
+# Build the Rust canister
+echo "Building Rust canister..."
+cargo build --target wasm32-unknown-unknown --release -p anima
+
+# Create necessary directories
+mkdir -p .dfx/ic/canisters/anima
+
+# Prepare WASM file
+echo "Preparing WASM..."
+cp target/wasm32-unknown-unknown/release/anima.wasm .dfx/ic/canisters/anima/
+gzip -f .dfx/ic/canisters/anima/anima.wasm
+cp src/lib.did .dfx/ic/canisters/anima/anima.did
+
+# Deploy backend only
+echo "Deploying backend canister..."
+dfx deploy --network ic anima
+
+# Build frontend
+echo "Building frontend..."
+NODE_ENV=production webpack --mode production
+
+# Upload assets using our new method
+echo "Uploading frontend assets..."
+node upload_assets.js

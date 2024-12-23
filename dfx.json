@@ -8,11 +8,11 @@
         "node_compatibility": true
       },
       "build": [
-        "cargo build --target wasm32-unknown-unknown --release -p anima",
-        "bash copy_did.sh"
+        "cargo build --target wasm32-unknown-unknown --release -p anima"
       ],
       "optimize": "O3",
       "gzip": true,
+      "init_arg": "(record { admin = null; })",
       "metadata": [
         {
           "name": "candid:service",
@@ -20,7 +20,8 @@
         },
         {
           "name": "candid:args",
-          "visibility": "public"
+          "visibility": "public",
+          "content": "file:src/constructor.did"
         },
         {
           "name": "https_outcalls",
@@ -31,7 +32,13 @@
     "anima_assets": {
       "type": "assets",
       "source": ["dist/"],
-      "dependencies": ["anima"]
+      "dependencies": ["anima"],
+      "declarations": {
+        "node_compatibility": true
+      },
+      "build": ["npm run build"],
+      "init_arg": "(record { max_pages_per_asset = 1000 : nat16; })",
+      "gzip": true
     }
   },
   "networks": {

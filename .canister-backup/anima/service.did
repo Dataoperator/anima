@@ -1,0 +1,102 @@
+type UserState = variant {
+    NotInitialized;
+    Initialized: record {
+        anima_id: principal;
+        name: text;
+    };
+};
+
+type Result_1 = variant { Ok: principal; Err: Error };
+type Result_2 = variant { Ok: Anima; Err: Error };
+type Result_3 = variant { Ok: InteractionResult; Err: Error };
+type Result_4 = variant { Ok; Err: Error };
+type Result_5 = variant { Ok: opt InteractionResult; Err: Error };
+type Result_6 = variant { Ok: AnimaMetrics; Err: Error };
+
+type EventType = variant {
+    Initial;
+    UserInteraction;
+    AutonomousThought;
+    EmotionalResponse;
+    LearningMoment;
+    RelationshipDevelopment;
+};
+
+type Memory = record {
+    timestamp: nat64;
+    event_type: EventType;
+    description: text;
+    emotional_impact: float32;
+    importance_score: float32;
+    keywords: vec text;
+};
+
+type NFTPersonality = record {
+    traits: vec record { text; float32; };
+    memories: vec Memory;
+    creation_time: nat64;
+    interaction_count: nat64;
+    growth_level: nat32;
+    developmental_stage: DevelopmentalStage;
+    hash: opt text;
+};
+
+type DevelopmentalStage = variant {
+    Initial;
+    Beginner;
+    Intermediate;
+    Advanced;
+    Expert;
+};
+
+type DevelopmentMetrics = record {
+    growth_rate: float32;
+    trait_stability: float32;
+    learning_curve: float32;
+    emotional_maturity: float32;
+};
+
+type AnimaMetrics = record {
+    total_memories: nat64;
+    avg_emotional_impact: float32;
+    avg_importance_score: float32;
+    personality_development: DevelopmentMetrics;
+    interaction_frequency: float32;
+    autonomous_ratio: float32;
+};
+
+type Anima = record {
+    owner: principal;
+    name: text;
+    personality: NFTPersonality;
+    creation_time: nat64;
+    last_interaction: nat64;
+    autonomous_enabled: bool;
+};
+
+type InteractionResult = record {
+    response: text;
+    personality_updates: vec record { text; float32; };
+    memory: Memory;
+    is_autonomous: bool;
+};
+
+type Error = variant {
+    NotFound;
+    NotAuthorized;
+    AlreadyInitialized;
+    Configuration: text;
+    External: text;
+};
+
+service : {
+    create_anima: (text) -> (Result_1);
+    get_anima: (principal) -> (Result_2) query;
+    get_user_state: (opt principal) -> (UserState) query;
+    check_initialization: (principal) -> (Result_5) query;
+    interact: (principal, text) -> (Result_3);
+    set_openai_config: (text) -> (Result_4);
+    toggle_autonomous: (principal, bool) -> (Result_5);
+    check_autonomous_messages: (principal) -> (Result_5);
+    get_anima_metrics: (principal) -> (Result_6) query;
+};
