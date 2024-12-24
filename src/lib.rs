@@ -1,162 +1,173 @@
-//! Anima: A living NFT with personality and memory
-mod openai;
-
-use ic_cdk_macros::{query, update, pre_upgrade, post_upgrade};
-use candid::{CandidType, Deserialize, Principal};
-use std::collections::HashMap;
+use candid::Principal;
+use ic_cdk::api::time;
+use ic_cdk_macros::{init, post_upgrade, pre_upgrade, update, query};
 use std::cell::RefCell;
+use std::collections::HashMap;
+use ic_cdk::api::caller;
+use ic_cdk::api::management_canister::http_request::{TransformArgs, HttpResponse};
+
+mod anima_types;
+mod autonomous;
+mod config;
+mod error;
+mod memory;
+mod migrate;
+mod openai;
+mod personality;
+mod utils;
+mod version;
+
+use anima_types::{Anima, InteractionResult, UserState};
+use error::{Error, Result};
+use memory::Memory;
 use openai::OpenAIConfig;
-use serde_json::json;
-
-#[derive(Clone, CandidType, Deserialize)]
-pub enum EventType {
-    Initial,
-    UserInteraction,
-    AutonomousThought,
-    EmotionalResponse,
-    LearningMoment,
-    RelationshipDevelopment,
-}
-
-#[derive(Clone, CandidType, Deserialize)]
-pub struct Memory {
-    pub timestamp: u64,
-    pub event_type: EventType,
-    pub description: String,
-    pub emotional_impact: f32,
-    pub importance_score: f32,
-    pub keywords: Vec<String>,
-}
-
-#[derive(Clone, CandidType, Deserialize)]
-pub enum DevelopmentalStage {
-    Initial,
-    Beginner,
-    Intermediate,
-    Advanced,
-    Expert,
-}
-
-#[derive(Clone, CandidType, Deserialize)]
-pub struct NFTPersonality {
-    pub creation_time: u64,
-    pub interaction_count: u64,
-    pub hash: Option<String>,
-    pub traits: Vec<(String, f32)>,
-    pub growth_level: u32,
-    pub memories: Vec<Memory>,
-    pub developmental_stage: DevelopmentalStage,
-}
-
-#[derive(Clone, CandidType, Deserialize)]
-pub struct Anima {
-    pub creation_time: u64,
-    pub personality: NFTPersonality,
-    pub last_interaction: u64,
-    pub owner: Principal,
-    pub name: String,
-    pub autonomous_enabled: bool,
-}
+use version::Version;
 
 thread_local! {
     static STATE: RefCell<Option<HashMap<Principal, Anima>>> = RefCell::new(Some(HashMap::new()));
     static OPENAI_CONFIG: RefCell<Option<OpenAIConfig>> = RefCell::new(None);
+    static VERSION: RefCell<Version> = RefCell::new(Version::new());
 }
 
-#[update]
-async fn interact(anima_id: Principal, message: String) -> Result<String, String> {
-    let state = STATE.with(|state| -> Result<Anima, String> {
-        let mut state = state.borrow_mut();
-        let state = state.as_mut().ok_or("State not initialized")?;
-        
-        let anima = state.get_mut(&anima_id).ok_or("Anima not found")?;
-        anima.personality.interaction_count += 1;
-        
-        Ok(anima.clone())
-    })?;
-
-    let config = OPENAI_CONFIG.with(|config| {
-        config.borrow().clone().ok_or("OpenAI config not initialized")
-    })?;
-
-    let context = format!(
-        "You are {}, an AI companion with the following traits:\n{}",
-        state.name,
-        state.personality.traits
-            .iter()
-            .map(|(trait_name, value)| format!("{}: {:.2}", trait_name, value))
-            .collect::<Vec<_>>()
-            .join("\n")
-    );
-
-    let messages = vec![
-        json!({
-            "role": "user",
-            "content": message
-        })
-    ];
-
-    let response = openai::send_openai_request(&config, messages, context).await?;
-    
-    // Update emotional state and memories based on response
-    STATE.with(|state| -> Result<(), String> {
-        let mut state = state.borrow_mut();
-        let state = state.as_mut().ok_or("State not initialized")?;
-        let anima = state.get_mut(&anima_id).ok_or("Anima not found")?;
-
-        // Add new memory
-        anima.personality.memories.push(Memory {
-            timestamp: ic_cdk::api::time(),
-            event_type: EventType::UserInteraction,
-            description: message,
-            emotional_impact: response.emotional_analysis.valence,
-            importance_score: response.emotional_analysis.arousal,
-            keywords: vec![],
-        });
-
-        Ok(())
-    })?;
-
-    Ok(response.content)
-}
-
-#[query]
-fn get_anima(id: Principal) -> Result<Anima, String> {
-    STATE.with(|state| {
-        let state = state.borrow();
-        let state = state.as_ref().ok_or("State not initialized")?;
-        state.get(&id).cloned().ok_or("Anima not found".to_string())
-    })
-}
-
-#[update]
-fn configure_openai(api_key: String, model: String) -> Result<(), String> {
-    let config = OpenAIConfig {
-        api_key,
-        model,
-        temperature: 0.7,
-        max_tokens: 150,
-    };
-
-    OPENAI_CONFIG.with(|c| {
-        *c.borrow_mut() = Some(config);
-    });
-
-    Ok(())
+#[init]
+fn init() {
+    version::init_version();
+    config::init_default_config();
 }
 
 #[pre_upgrade]
 fn pre_upgrade() {
     STATE.with(|state| {
-        let state_data = state.borrow().clone();
-        ic_cdk::storage::stable_save((state_data,)).unwrap();
+        let state_ref = state.borrow();
+        if let Some(state_data) = &*state_ref {
+            for (id, anima) in state_data {
+                utils::store_anima(id, anima);
+            }
+        }
     });
 }
 
 #[post_upgrade]
 fn post_upgrade() {
-    let (state_data,): (Option<HashMap<Principal, Anima>>,) = ic_cdk::storage::stable_restore().unwrap();
+    let version = version::get_version().unwrap_or_else(|_| Version::new());
+    if version.upgrade_needed() {
+        migrate::perform_upgrades(&version.get_needed_upgrades());
+    }
+    version::set_version(version);
+}
+
+#[query]
+fn get_user_state(user: Option<Principal>) -> UserState {
+    let principal = user.unwrap_or_else(caller);
+    
     STATE.with(|state| {
-        *state.borrow_mut() = state_data;
-    });
+        let state = state.borrow();
+        let state = state.as_ref().unwrap();
+        
+        if let Some(anima) = state.get(&principal) {
+            UserState::Initialized { 
+                anima_id: principal,
+                name: anima.name.clone()
+            }
+        } else {
+            UserState::NotInitialized
+        }
+    })
+}
+
+#[query]
+fn check_initialization(id: Principal) -> Result<Option<InteractionResult>> {
+    STATE.with(|state| {
+        let state = state.borrow();
+        let state = state.as_ref().ok_or(Error::NotFound)?;
+        
+        if let Some(anima) = state.get(&id) {
+            if !anima.personality.memories.is_empty() {
+                let last_memory = anima.personality.memories.last().unwrap();
+                Ok(Some(InteractionResult {
+                    response: "Welcome back!".to_string(),
+                    personality_updates: vec![],
+                    memory: last_memory.clone(),
+                    is_autonomous: false
+                }))
+            } else {
+                Ok(None)
+            }
+        } else {
+            Ok(None)
+        }
+    })
+}
+
+#[update]
+async fn create_anima(name: String) -> Result<Principal> {
+    let owner = caller();
+    
+    STATE.with(|state| -> Result<Principal> {
+        let mut state = state.borrow_mut();
+        let state = state.as_mut().ok_or(Error::NotFound)?;
+        
+        if state.contains_key(&owner) {
+            return Err(Error::AlreadyInitialized);
+        }
+        
+        let anima = Anima {
+            owner,
+            name,
+            personality: personality::NFTPersonality::default(),
+            creation_time: time(),
+            last_interaction: time(),
+            autonomous_enabled: false,
+        };
+        
+        state.insert(owner, anima);
+        Ok(owner)
+    })
+}
+
+#[update]
+async fn interact(anima_id: Principal, message: String) -> Result<InteractionResult> {
+    let mut state = STATE.with(|state| -> Result<Anima> {
+        let mut state = state.borrow_mut();
+        let state = state.as_mut().ok_or(Error::NotFound)?;
+        
+        let anima = state.get_mut(&anima_id).ok_or(Error::NotFound)?;
+        anima.personality.interaction_count += 1;
+        anima.last_interaction = time();
+        
+        Ok(anima.clone())
+    })?;
+
+    let config = OPENAI_CONFIG.with(|config| {
+        config.borrow().clone().ok_or(Error::Configuration("OpenAI not configured".to_string()))
+    })?;
+
+    let response = openai::get_response(&message, &state.personality, &config)
+        .await
+        .map_err(|e| Error::External(e.to_string()))?;
+
+    if state.autonomous_enabled {
+        autonomous::handle_autonomous_check(anima_id).await?;
+    }
+
+    let memory = Memory::from_interaction(&message, &response.content);
+    let personality_updates = state.personality.update_from_interaction(&message, &response.content, &memory);
+
+    STATE.with(|s| -> Result<()> {
+        let mut s = s.borrow_mut();
+        let s = s.as_mut().ok_or(Error::NotFound)?;
+        let anima = s.get_mut(&anima_id).ok_or(Error::NotFound)?;
+        anima.personality.memories.push(memory.clone());
+        if anima.personality.memories.len() > 100 {
+            Memory::cleanup_memories(&mut anima.personality.memories);
+        }
+        Ok(())
+    })?;
+
+    Ok(InteractionResult {
+        response: response.content.clone(),
+        personality_updates,
+        memory,
+        is_autonomous: false,
+    })
 }

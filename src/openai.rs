@@ -1,15 +1,9 @@
-use candid::{CandidType, Deserialize};
-use ic_cdk::api::management_canister::http_request::{
-    http_request, CanisterHttpRequestArgument, HttpHeader, HttpMethod, 
-    TransformContext, TransformFunc, HttpResponse
-};
-use serde_json::{json, Value};
-use candid::Nat;
+use serde::{Deserialize, Serialize};
+use serde_json::json;
+use ic_cdk::api::management_canister::http_request::{HttpResponse, CanisterHttpRequestArgument, HttpMethod, HttpHeader};
+use crate::personality::NFTPersonality;
 
-const TRANSFORM_METHOD_NAME: &str = "transform";
-const SATELLITE_CANISTER: &str = "pycrs-xiaaa-aaaal-ab6la-cai";
-
-#[derive(CandidType, Deserialize, Clone)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct OpenAIConfig {
     pub api_key: String,
     pub model: String,
@@ -17,139 +11,79 @@ pub struct OpenAIConfig {
     pub max_tokens: u32,
 }
 
-#[derive(CandidType, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
+pub struct EmotionalAnalysis {
+    pub valence: f32,
+    pub arousal: f32,
+}
+
+#[derive(Debug)]
 pub struct OpenAIResponse {
     pub content: String,
     pub emotional_analysis: EmotionalAnalysis,
 }
 
-#[derive(CandidType, Deserialize, Clone)]
-pub struct EmotionalAnalysis {
-    pub valence: f32,
-    pub arousal: f32,
-    pub dominance: f32,
+pub async fn get_response(prompt: &str, personality: &NFTPersonality, config: &OpenAIConfig) -> Result<OpenAIResponse, String> {
+    let personality_context = format!("You are an AI with the following traits: {:?}", personality.traits);
+    
+    send_openai_request(config, &[json!({
+        "role": "system",
+        "content": personality_context
+    }), json!({
+        "role": "user",
+        "content": prompt
+    })]).await
 }
 
-async fn call_satellite(payload: Value) -> Result<Vec<u8>, String> {
-    let headers = vec![
-        HttpHeader {
-            name: "Content-Type".to_string(),
-            value: "application/json".to_string(),
-        }
-    ];
+pub async fn send_openai_request(config: &OpenAIConfig, messages: &[serde_json::Value]) -> Result<OpenAIResponse, String> {
+    let request_body = json!({
+        "model": config.model,
+        "messages": messages,
+        "temperature": config.temperature,
+        "max_tokens": config.max_tokens
+    });
 
     let request = CanisterHttpRequestArgument {
-        url: format!("https://{}.raw.icp0.io/openai", SATELLITE_CANISTER),
+        url: "https://api.openai.com/v1/chat/completions".to_string(),
         method: HttpMethod::POST,
-        body: Some(serde_json::to_vec(&payload).map_err(|e| e.to_string())?),
-        max_response_bytes: Some(2048000),
+        body: Some(serde_json::to_vec(&request_body).map_err(|e| e.to_string())?),
+        max_response_bytes: None,
         transform: None,
-        headers,
+        headers: vec![
+            HttpHeader {
+                name: "Content-Type".to_string(),
+                value: "application/json".to_string(),
+            },
+            HttpHeader {
+                name: "Authorization".to_string(),
+                value: format!("Bearer {}", config.api_key),
+            },
+        ],
     };
 
-    match http_request(request, 60_000_000_000).await {
-        Ok((response,)) => Ok(response.body),
-        Err((_, msg)) => Err(format!("Satellite request failed: {}", msg))
-    }
+    let response = ic_cdk::api::management_canister::http_request::http_request(request, 50_000_000)
+        .await
+        .map_err(|e| format!("HTTP request failed: {:?}", e))?
+        .0;
+
+    parse_openai_response(&response)
 }
 
-pub async fn send_openai_request(
-    config: &OpenAIConfig,
-    messages: Vec<Value>,
-    context: String,
-) -> Result<OpenAIResponse, String> {
-    let personality_system_prompt = format!(
-        "You are an AI companion with a unique personality and emotional intelligence. \
-        Your responses should reflect genuine emotional depth while maintaining consistency \
-        with your personality traits and past interactions. \
-        Current context: {}", 
-        context
-    );
+fn parse_openai_response(response: &HttpResponse) -> Result<OpenAIResponse, String> {
+    let response_body = String::from_utf8(response.body.clone())
+        .map_err(|e| format!("Failed to parse response body: {}", e))?;
 
-    let payload = json!({
-        "api_key": config.api_key,
-        "model": config.model,
-        "messages": [
-            {
-                "role": "system",
-                "content": personality_system_prompt
-            },
-            messages
-        ],
-        "temperature": config.temperature,
-        "max_tokens": config.max_tokens,
-        "functions": [{
-            "name": "analyze_emotion",
-            "description": "Analyzes the emotional content of the response",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "valence": {
-                        "type": "number",
-                        "description": "Emotional positivity/negativity (-1.0 to 1.0)"
-                    },
-                    "arousal": {
-                        "type": "number",
-                        "description": "Emotional intensity (0.0 to 1.0)"
-                    },
-                    "dominance": {
-                        "type": "number",
-                        "description": "Sense of control/influence (0.0 to 1.0)"
-                    }
-                },
-                "required": ["valence", "arousal", "dominance"]
-            }
-        }]
-    });
+    let response_json: serde_json::Value = serde_json::from_str(&response_body)
+        .map_err(|e| format!("Failed to parse JSON: {}", e))?;
 
-    let response_bytes = call_satellite(payload).await?;
-    let response_str = String::from_utf8(response_bytes)
-        .map_err(|e| format!("Invalid UTF-8 in response: {}", e))?;
-    
-    parse_openai_response(&response_str)
-}
-
-#[ic_cdk::query(name = "transform")]
-fn transform(raw: TransformContext) -> HttpResponse {
-    let transformed = json!({
-        "status": "success",
-        "content": String::from_utf8_lossy(&raw.context)
-    });
-            
-    HttpResponse {
-        status: Nat::from(200u64),
-        headers: vec![HttpHeader {
-            name: "Content-Type".to_string(),
-            value: "application/json".to_string(),
-        }],
-        body: serde_json::to_vec(&transformed).unwrap_or_default(),
-    }
-}
-
-fn parse_openai_response(response_body: &str) -> Result<OpenAIResponse, String> {
-    let response: Value = serde_json::from_str(response_body)
-        .map_err(|e| format!("Failed to parse response JSON: {}", e))?;
-
-    // Extract content from successful response
-    let content = response["response"]["content"]
+    let content = response_json["choices"][0]["message"]["content"]
         .as_str()
-        .or_else(|| response["content"].as_str())
-        .ok_or("Missing content in response")?
+        .ok_or("No content in response")?
         .to_string();
 
-    // Handle emotional analysis
-    let emotional_analysis = if let Some(analysis) = response["emotional_analysis"].as_object() {
-        EmotionalAnalysis {
-            valence: analysis["valence"].as_f64().unwrap_or(0.0) as f32,
-            arousal: analysis["arousal"].as_f64().unwrap_or(0.0) as f32,
-            dominance: analysis["dominance"].as_f64().unwrap_or(0.0) as f32,
-        }
-    } else {
-        EmotionalAnalysis {
-            valence: 0.0,
-            arousal: 0.0,
-            dominance: 0.0,
-        }
+    let emotional_analysis = EmotionalAnalysis {
+        valence: 0.5,
+        arousal: 0.5,
     };
 
     Ok(OpenAIResponse {

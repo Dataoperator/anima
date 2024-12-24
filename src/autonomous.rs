@@ -1,109 +1,81 @@
-use candid::{CandidType, Deserialize, Principal};
-use serde::Serialize;
-use ic_cdk_timers::TimerId;
+use candid::Principal;
+use ic_cdk::api::time;
 use std::time::Duration;
-use crate::openai;
-use crate::memory::Memory;
-use crate::anima_types::{InteractionResult, Error as AnimaError};
-use crate::utils::{store_anima, get_anima_from_storage};
 
-#[derive(CandidType, Serialize, Deserialize, Clone, Debug, PartialEq)]
-pub enum InitiativeType {
-    Reflection,
-    Learning,
-    Emotional,
-    Social,
-    Introspection,
-}
+use crate::memory::{EventType, Memory};
+use crate::error::{Error, Result};
+use crate::STATE;
 
 const AUTONOMOUS_CHECK_INTERVAL: Duration = Duration::from_secs(3600);
 const MAX_RETRY_ATTEMPTS: u32 = 3;
 const RETRY_DELAY: Duration = Duration::from_secs(300);
+const AUTONOMOUS_THOUGHTS: &[&str] = &[
+    "I've been thinking about our conversations...",
+    "Something interesting came to mind...",
+    "I had a moment of reflection...",
+    "I wonder if...",
+];
 
-pub fn start_autonomous_timer(anima_id: Principal) -> TimerId {
-    ic_cdk_timers::set_timer_interval(AUTONOMOUS_CHECK_INTERVAL, move || {
-        ic_cdk::spawn(async move {
-            let mut retry_count = 0;
-            while retry_count < MAX_RETRY_ATTEMPTS {
-                match handle_autonomous_check(anima_id).await {
-                    Ok(_) => break,
-                    Err(e) => {
-                        ic_cdk::println!("Autonomous check failed (attempt {}): {}", retry_count + 1, e);
-                        retry_count += 1;
-                        if retry_count < MAX_RETRY_ATTEMPTS {
-                            ic_cdk_timers::set_timer(RETRY_DELAY, || {});
-                        } else {
-                            handle_timer_error(anima_id);
-                        }
-                    }
-                }
-            }
-        });
-    })
-}
+pub async fn handle_autonomous_check(anima_id: Principal) -> Result<()> {
+    let config = crate::OPENAI_CONFIG.with(|config| {
+        config.borrow().clone().ok_or(Error::Configuration("OpenAI not configured".to_string()))
+    })?;
 
-async fn handle_autonomous_check(anima_id: Principal) -> Result<(), String> {
-    if let Some(mut anima) = get_anima_from_storage(&anima_id) {
-        if !anima.autonomous_enabled {
-            return Ok(());
-        }
+    let state = STATE.with(|state| -> Result<_> {
+        let state = state.borrow();
+        let state = state.as_ref().ok_or(Error::NotFound)?;
+        state.get(&anima_id).cloned().ok_or(Error::NotFound)
+    })?;
 
-        let prompt = format!(
-            "Given your personality traits and {} past interactions, what are your current thoughts and feelings?",
-            anima.personality.interaction_count
-        );
-
-        match openai::get_response(&prompt, &anima.personality).await {
-            Ok(response) => {
-                let memory = Memory::from_autonomous_thought(&response);
-                anima.personality.memories.push(memory);
-                store_anima(&anima_id, &anima);
-                Ok(())
-            }
-            Err(e) => Err(format!("OpenAI error: {}", e))
-        }
-    } else {
-        Err("Anima not found".to_string())
-    }
-}
-
-fn handle_timer_error(anima_id: Principal) {
-    if let Some(mut anima) = get_anima_from_storage(&anima_id) {
-        anima.autonomous_enabled = false;
-        store_anima(&anima_id, &anima);
-        ic_cdk::println!("Disabled autonomous mode due to repeated errors for anima: {}", anima_id);
-    }
-}
-
-pub async fn process_autonomous_thought(anima_id: Principal) -> Result<InteractionResult, AnimaError> {
-    let mut anima = get_anima_from_storage(&anima_id)
-        .ok_or(AnimaError::NotFound)?;
-
-    if !anima.autonomous_enabled {
-        return Err(AnimaError::NotAuthorized);
+    if !state.autonomous_enabled {
+        return Ok(());
     }
 
-    let prompt = format!(
-        "Given your personality traits ({:?}) and current state, share your thoughts or feelings.",
-        anima.personality.traits
-    );
+    let now = time();
+    let timestamp = now % (AUTONOMOUS_THOUGHTS.len() as u64);
+    let thought = AUTONOMOUS_THOUGHTS[timestamp as usize];
+    
+    let memory = Memory {
+        timestamp: now,
+        event_type: EventType::AutonomousThought,
+        description: thought.to_string(),
+        emotional_impact: 0.5,
+        importance_score: 0.7,
+        keywords: vec!["autonomous".to_string(), "reflection".to_string()],
+    };
 
-    let response = openai::get_response(&prompt, &anima.personality)
-        .await
-        .map_err(|e| AnimaError::External(e.to_string()))?;
+    STATE.with(|s| -> Result<()> {
+        let mut s = s.borrow_mut();
+        let s = s.as_mut().ok_or(Error::NotFound)?;
+        let anima = s.get_mut(&anima_id).ok_or(Error::NotFound)?;
+        anima.personality.memories.push(memory.clone());
+        Ok(())
+    })?;
 
-    let memory = Memory::from_autonomous_thought(&response);
-    let personality_updates = anima.personality.update_from_interaction("", &response, &memory);
+    Ok(())
+}
 
-    anima.personality.memories.push(memory.clone());
-    Memory::cleanup_memories(&mut anima.personality.memories);
-    anima.last_interaction = ic_cdk::api::time();
-    store_anima(&anima_id, &anima);
+pub async fn process_autonomous_thought(anima_id: Principal) -> Result<()> {
+    let now = time();
+    let timestamp = now % (AUTONOMOUS_THOUGHTS.len() as u64);
+    let thought = AUTONOMOUS_THOUGHTS[timestamp as usize];
 
-    Ok(InteractionResult {
-        response,
-        personality_updates,
-        memory,
-        is_autonomous: true,
-    })
+    let memory = Memory {
+        timestamp: now,
+        event_type: EventType::AutonomousThought,
+        description: thought.to_string(),
+        emotional_impact: 0.5,
+        importance_score: 0.7,
+        keywords: vec!["autonomous".to_string(), "reflection".to_string()],
+    };
+
+    STATE.with(|s| -> Result<()> {
+        let mut s = s.borrow_mut();
+        let s = s.as_mut().ok_or(Error::NotFound)?;
+        let anima = s.get_mut(&anima_id).ok_or(Error::NotFound)?;
+        anima.personality.memories.push(memory);
+        Ok(())
+    })?;
+
+    Ok(())
 }

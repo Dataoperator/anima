@@ -39,5 +39,3 @@ export const createActor = (canisterId, options = {}) => {
     ...options.actorOptions,
   });
 };
-
-export const anima_assets = createActor(canisterId);

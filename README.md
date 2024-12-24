@@ -1,88 +1,71 @@
 # Anima: Living NFTs on Internet Computer
 
-Digital companions that evolve through interaction, built on the Internet Computer blockchain.
+Current Status: **Milestone 1 - Authentication & UI Foundation**
 
-## Features
+## Project Overview
+Anima creates living NFTs on the Internet Computer that evolve and learn through user interactions, powered by AI. Think of it as a sophisticated AI Tamagotchi with a unique, evolving personality.
 
-- 🧠 AI-driven NFTs that evolve and learn based on user interactions
-- 🎭 Dynamic personality system with core traits
-- 💭 Memory storage for interaction history
-- 📈 Growth mechanics and developmental stages
-- 🤖 OpenAI integration for natural conversations
-- 🔒 Secure authentication with Internet Identity
-- ⚡ High-performance frontend with React and Tailwind
+## Current Features
+- ✅ Internet Identity (II) Authentication
+- ✅ Personality Trait Visualization
+- ✅ Immersive Chat UI
+- ✅ State Management
+- ✅ Basic Anima Creation
 
-## Live Application
+## Technical Stack
+- Backend: Rust on Internet Computer
+- Frontend: React with TailwindCSS
+- Authentication: Internet Identity
+- Canister ID: `l2ilz-iqaaa-aaaaj-qngjq-cai`
 
-- Frontend: [https://lpp2u-jyaaa-aaaaj-qngka-cai.icp0.io/](https://lpp2u-jyaaa-aaaaj-qngka-cai.icp0.io/)
-- Backend: [l2ilz-iqaaa-aaaaj-qngjq-cai](https://a4gq6-oaaaa-aaaab-qaa4q-cai.raw.icp0.io/?id=l2ilz-iqaaa-aaaaj-qngjq-cai)
+## Current Progress
+1. Authentication
+   - Successful II integration
+   - Proper auth flow
+   - State persistence
 
-## Quick Start
+2. UI/UX
+   - Immersive chat interface
+   - Personality visualization
+   - Real-time updates
+   - Loading states
 
-1. Install dependencies:
-```bash
-pnpm install
-```
+3. Core Logic
+   - Basic personality system
+   - State management
+   - Canister interaction foundation
 
-2. Start local development:
-```bash
-pnpm dev
-```
-
-3. Deploy to IC:
-```bash
-./deploy-frontend.sh
-```
-
-## Architecture
-
-- 🎯 Frontend: React, Tailwind CSS, Framer Motion
-- 🔧 Backend: Rust on Internet Computer
-- 🔐 Authentication: Internet Identity
-- 💬 AI: OpenAI integration for dynamic interactions
-- 💾 Storage: On-chain personality and memory systems
-
-## Development
-
-### Prerequisites
-
-- Node.js >=20.10.0
-- DFX >=0.14.0
+## Development Requirements
+- Node.js 16+
 - Rust
-- [IC SDK](https://internetcomputer.org/docs/current/developer-docs/setup/install/)
+- DFX 0.14.0+
+- Internet Computer SDK
 
-### Local Development
-
-1. Start IC local network:
+## Local Development
 ```bash
-dfx start --clean
-```
+# Install dependencies
+npm install
 
-2. Deploy locally:
-```bash
+# Start local replica
+dfx start --clean --background
+
+# Deploy locally
 dfx deploy
+
+# Run development server
+npm run dev
 ```
 
-### Production Deployment
+## Deployment
+Currently deployed on IC mainnet:
+- Frontend: `lpp2u-jyaaa-aaaaj-qngka-cai.icp0.io`
+- Backend: `l2ilz-iqaaa-aaaaj-qngjq-cai`
 
-1. Build optimized version:
-```bash
-./deploy-optimized.sh
-```
-
-2. Deploy frontend only:
-```bash
-./deploy-frontend.sh
-```
-
-## Contributing
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'feat: add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+## Next Steps
+1. Message interaction implementation
+2. OpenAI integration
+3. Memory system enhancement
+4. Growth mechanics implementation
 
 ## License
-
-MIT License - see the [LICENSE](LICENSE) file for details
+MIT

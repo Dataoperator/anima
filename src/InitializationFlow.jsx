@@ -1,138 +1,138 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useAuth } from './AuthProvider';
+import { authManager } from './auth';
+import AnimaChat from './components/chat/AnimaChat';
 import { motion } from 'framer-motion';
-import { useAuth } from './components/AuthProvider';
-import { RecentlyConnected } from './components/RecentlyConnected';
 
-const containerVariants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: { 
-    opacity: 1, 
-    y: 0,
-    transition: {
-      duration: 0.6,
-      ease: "easeOut",
-      when: "beforeChildren",
-      staggerChildren: 0.1
+export function InitializationFlow() {
+  const { identity } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [needsInitialization, setNeedsInitialization] = useState(false);
+  const [initialized, setInitialized] = useState(false);
+  
+  useEffect(() => {
+    const checkInitialization = async () => {
+      if (!identity) {
+        console.log("No identity found in InitializationFlow");
+        setLoading(false);
+        return;
+      }
+
+      try {
+        console.log("Checking initialization status");
+        const actor = authManager.getActor();
+        if (!actor) {
+          throw new Error("Actor not initialized");
+        }
+
+        const principal = identity.getPrincipal();
+        const userState = await actor.get_user_state([principal]);
+        console.log("User state received:", userState);
+        
+        if ('NotInitialized' in userState) {
+          console.log("User needs initialization");
+          setNeedsInitialization(true);
+        } else {
+          console.log("User already initialized");
+          setInitialized(true);
+        }
+      } catch (err) {
+        console.error("Initialization check failed:", err);
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkInitialization();
+  }, [identity]);
+
+  const handleCreateAnima = async (name) => {
+    try {
+      console.log("Creating anima with name:", name);
+      setLoading(true);
+      const actor = authManager.getActor();
+      const result = await actor.create_anima(name);
+      if ('Ok' in result) {
+        console.log("Anima created successfully");
+        setInitialized(true);
+        setNeedsInitialization(false);
+      } else {
+        throw new Error('Failed to initialize anima');
+      }
+    } catch (err) {
+      console.error("Failed to create anima:", err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
     }
-  },
-  exit: { 
-    opacity: 0,
-    y: -20,
-    transition: { duration: 0.4 }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <motion.div
+          className="w-12 h-12 border-4 border-purple-500 rounded-full border-t-transparent"
+          animate={{ rotate: 360 }}
+          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+        />
+      </div>
+    );
   }
-};
 
-const itemVariants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0 }
-};
-
-export const InitializationFlow = () => {
-  const { login, recentConnections, shouldAutoConnect, toggleAutoConnect } = useAuth();
-  const [isConnecting, setIsConnecting] = useState(false);
-
-  const handleConnect = async () => {
-    setIsConnecting(true);
-    try {
-      await login();
-    } catch (error) {
-      console.error('Connection failed:', error);
-    } finally {
-      setIsConnecting(false);
-    }
-  };
-
-  const handleRecentConnect = async (principal) => {
-    setIsConnecting(true);
-    try {
-      await login();
-    } catch (error) {
-      console.error('Recent connection failed:', error);
-    } finally {
-      setIsConnecting(false);
-    }
-  };
-
-  return (
-    <motion.div
-      variants={containerVariants}
-      initial="hidden"
-      animate="visible"
-      exit="exit"
-      className="min-h-[calc(var(--vh,1vh)*100)] flex flex-col items-center justify-center p-6 bg-background"
-    >
-      <motion.div 
-        variants={itemVariants}
-        className="w-full max-w-md space-y-8"
-      >
-        <div className="text-center space-y-4">
-          <motion.h1 
-            variants={itemVariants}
-            className="text-4xl font-bold tracking-tight text-foreground"
-          >
-            Welcome to Anima
-          </motion.h1>
-          <motion.p 
-            variants={itemVariants}
-            className="text-lg text-muted-foreground"
-          >
-            Your digital companion awaits
-          </motion.p>
-        </div>
-
-        <motion.div variants={itemVariants} className="space-y-6">
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            disabled={isConnecting}
-            onClick={handleConnect}
-            className={`w-full flex items-center justify-center px-6 py-4 border border-transparent text-base font-medium rounded-lg text-white bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors
-              ${isConnecting ? 'opacity-70 cursor-not-allowed' : ''}
-            `}
-          >
-            {isConnecting ? (
-              <div className="flex items-center space-x-2">
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                <span>Connecting...</span>
-              </div>
-            ) : (
-              <span>Connect with Internet Identity</span>
-            )}
-          </motion.button>
-
-          <RecentlyConnected 
-            connections={recentConnections}
-            onConnect={handleRecentConnect}
-          />
-
-          <motion.div 
-            variants={itemVariants}
-            className="flex items-center justify-center space-x-2 text-sm text-muted-foreground"
-          >
-            <input
-              type="checkbox"
-              id="autoConnect"
-              checked={shouldAutoConnect}
-              onChange={toggleAutoConnect}
-              className="rounded border-muted"
-            />
-            <label htmlFor="autoConnect">
-              Remember and auto-connect next time
-            </label>
-          </motion.div>
-        </motion.div>
-
-        <motion.div 
-          variants={itemVariants}
-          className="text-center text-sm text-muted-foreground mt-8"
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen p-4">
+        <div className="text-red-500 mb-4">Error: {error}</div>
+        <button 
+          onClick={() => window.location.reload()}
+          className="px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600 transition-colors"
         >
-          <p>
-            Your Anima is a unique digital companion powered by the Internet Computer.
-            <br />
-            Connect securely using Internet Identity to begin your journey.
-          </p>
-        </motion.div>
-      </motion.div>
-    </motion.div>
-  );
-};
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  if (initialized) {
+    console.log("Rendering AnimaChat - initialization complete");
+    return <AnimaChat />;
+  }
+
+  if (needsInitialization) {
+    console.log("Showing anima creation form");
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen p-4">
+        <h2 className="text-2xl font-bold mb-6">Create Your Anima</h2>
+        <form 
+          onSubmit={(e) => {
+            e.preventDefault();
+            const name = e.target.animaName.value;
+            handleCreateAnima(name);
+          }}
+          className="w-full max-w-md"
+        >
+          <input
+            type="text"
+            name="animaName"
+            placeholder="Enter a name for your Anima"
+            className="w-full px-4 py-2 mb-4 border rounded focus:outline-none focus:ring-2 focus:ring-purple-500"
+            required
+            minLength={2}
+            maxLength={32}
+          />
+          <button 
+            type="submit"
+            className="w-full px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600 transition-colors"
+          >
+            Create
+          </button>
+        </form>
+      </div>
+    );
+  }
+
+  console.log("Unexpected state in InitializationFlow");
+  return null;
+}

@@ -6,12 +6,21 @@ type UserState = variant {
     };
 };
 
+type Result = variant { Ok : text; Err : Error };
 type Result_1 = variant { Ok: principal; Err: Error };
 type Result_2 = variant { Ok: Anima; Err: Error };
 type Result_3 = variant { Ok: InteractionResult; Err: Error };
 type Result_4 = variant { Ok; Err: Error };
 type Result_5 = variant { Ok: opt InteractionResult; Err: Error };
 type Result_6 = variant { Ok: AnimaMetrics; Err: Error };
+
+type Error = variant {
+    NotFound;
+    NotAuthorized;
+    AlreadyInitialized;
+    Configuration: text;
+    External: text;
+};
 
 type EventType = variant {
     Initial;
@@ -81,14 +90,6 @@ type InteractionResult = record {
     is_autonomous: bool;
 };
 
-type Error = variant {
-    NotFound;
-    NotAuthorized;
-    AlreadyInitialized;
-    Configuration: text;
-    External: text;
-};
-
 service : {
     create_anima: (text) -> (Result_1);
     get_anima: (principal) -> (Result_2) query;
@@ -96,6 +97,7 @@ service : {
     check_initialization: (principal) -> (Result_5) query;
     interact: (principal, text) -> (Result_3);
     set_openai_config: (text) -> (Result_4);
+    set_memory_allocation: (nat64) -> (Result_4);
     toggle_autonomous: (principal, bool) -> (Result_5);
     check_autonomous_messages: (principal) -> (Result_5);
     get_anima_metrics: (principal) -> (Result_6) query;

@@ -20,8 +20,30 @@ const MessageBubble = ({ message, isUser }) => (
   </motion.div>
 );
 
+const AuthPlaceholder = () => (
+  <div className="flex items-center justify-center h-full">
+    <div className="text-gray-400 text-center px-4">
+      <p>Please log in to chat with your Anima</p>
+    </div>
+  </div>
+);
+
+const InitializationRequired = ({ onInitialize }) => (
+  <div className="flex items-center justify-center h-full">
+    <div className="text-gray-400 text-center px-4">
+      <p className="mb-4">You haven't created your Anima yet</p>
+      <button
+        onClick={onInitialize}
+        className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+      >
+        Create Your Anima
+      </button>
+    </div>
+  </div>
+);
+
 export const Chat = () => {
-  const { authState } = useAuth();
+  const { authState, initialize } = useAuth();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -38,7 +60,7 @@ export const Chat = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!input.trim() || isLoading) return;
+    if (!input.trim() || isLoading || !authState.isAuthenticated) return;
 
     const userMessage = input.trim();
     setInput('');
@@ -48,14 +70,20 @@ export const Chat = () => {
     setMessages(prev => [...prev, { text: userMessage, isUser: true }]);
 
     try {
-      const actor = authState.actor;
-      if (!actor) throw new Error('No actor available');
+      // Ensure we have both actor and principal
+      if (!authState.actor || !authState.principal) {
+        throw new Error('Authentication not complete');
+      }
 
-      const response = await actor.interact(authState.principal, userMessage);
-      if ('Ok' in response) {
-        setMessages(prev => [...prev, { text: response.Ok.response, isUser: false }]);
-      } else {
-        throw new Error('Failed to get response');
+      const response = await authState.actor.interact(authState.principal, userMessage);
+      
+      // Handle the response based on our Rust backend's Result type
+      if (typeof response === 'string') {
+        setMessages(prev => [...prev, { text: response, isUser: false }]);
+      } else if ('Ok' in response) {
+        setMessages(prev => [...prev, { text: response.Ok, isUser: false }]);
+      } else if ('Err' in response) {
+        throw new Error(response.Err);
       }
     } catch (error) {
       console.error('Chat error:', error);
@@ -69,10 +97,20 @@ export const Chat = () => {
     }
   };
 
+  if (!authState.isAuthenticated) {
+    return <AuthPlaceholder />;
+  }
+
+  if (!authState.isInitialized) {
+    return <InitializationRequired onInitialize={() => initialize('MyAnima')} />;
+  }
+
   return (
     <div className="bg-gray-800 rounded-lg shadow-xl overflow-hidden h-[600px] flex flex-col">
       <div className="p-4 border-b border-gray-700">
-        <h2 className="text-lg font-semibold text-white">Chat with your Anima</h2>
+        <h2 className="text-lg font-semibold text-white">
+          Chat with {authState?.animaName || 'your Anima'}
+        </h2>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-900">

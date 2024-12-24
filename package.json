@@ -2,15 +2,11 @@
   "name": "anima",
   "version": "0.1.0",
   "description": "Living NFTs on Internet Computer",
+  "private": true,
   "scripts": {
     "build": "vite build",
     "dev": "vite",
-    "deploy": "./deploy-optimized.sh",
-    "preview": "vite preview",
-    "clean": "rm -rf dist node_modules .dfx/local",
-    "deploy:frontend": "./deploy-frontend.sh",
-    "analyze": "vite build --mode analyze",
-    "start:clean": "dfx stop && rm -rf .dfx && dfx start --clean"
+    "serve": "vite preview"
   },
   "dependencies": {
     "@dfinity/agent": "^0.20.2",
@@ -18,29 +14,24 @@
     "@dfinity/candid": "^0.20.2",
     "@dfinity/principal": "^0.20.2",
     "@headlessui/react": "^1.7.17",
-    "@radix-ui/react-dialog": "^1.0.5",
-    "@radix-ui/react-slot": "^1.0.2",
-    "class-variance-authority": "^0.7.0",
-    "clsx": "^2.0.0",
-    "framer-motion": "^10.16.4",
-    "lucide-react": "^0.294.0",
+    "@heroicons/react": "^2.1.1",
+    "framer-motion": "^10.18.0",
+    "lucide-react": "^0.263.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "tailwind-merge": "^2.1.0",
-    "tailwindcss-animate": "^1.0.7"
+    "react-router-dom": "^6.21.2"
   },
   "devDependencies": {
-    "@types/node": "^20.10.0",
-    "@types/react": "^18.2.38",
-    "@types/react-dom": "^18.2.17",
-    "@vitejs/plugin-react": "^4.2.0",
+    "@types/react": "^18.2.48",
+    "@types/react-dom": "^18.2.18",
+    "@vitejs/plugin-react": "^4.2.1",
     "autoprefixer": "^10.4.16",
-    "postcss": "^8.4.31",
-    "tailwindcss": "^3.3.5",
-    "vite": "^4.5.0"
+    "postcss": "^8.4.33",
+    "tailwindcss": "^3.4.1",
+    "vite": "^4.5.1"
   },
-  "engines": {
-    "node": ">=20.10.0",
-    "npm": ">=10.2.5"
+  "peerDependencies": {
+    "react": ">=18.0.0",
+    "react-dom": ">=18.0.0"
   }
 }

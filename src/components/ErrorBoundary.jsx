@@ -1,37 +1,46 @@
 import React from 'react';
 
-export default class ErrorBoundary extends React.Component {
+export class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { hasError: false, error: null };
+    this.state = { 
+      hasError: false,
+      error: null,
+      errorInfo: null
+    };
   }
 
   static getDerivedStateFromError(error) {
-    return { hasError: true, error };
+    return { hasError: true };
   }
 
-  componentDidCatch(error, info) {
-    console.error('Error caught by boundary:', error, info);
+  componentDidCatch(error, errorInfo) {
+    this.setState({
+      error: error,
+      errorInfo: errorInfo
+    });
+    console.error('ErrorBoundary caught an error:', error, errorInfo);
   }
 
   render() {
     if (this.state.hasError) {
       return (
-        <div className="fixed inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm">
-          <div className="max-w-md p-6 bg-card rounded-lg shadow-lg border border-border">
-            <h2 className="text-xl font-semibold text-destructive mb-4">
-              Something went wrong
-            </h2>
-            <p className="text-muted-foreground mb-4">
-              {this.state.error?.message || 'An unexpected error occurred'}
-            </p>
-            <button
-              onClick={() => window.location.reload()}
-              className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
-            >
-              Reload Page
-            </button>
-          </div>
+        <div className="p-4 bg-red-900/20 rounded-lg">
+          <h2 className="text-lg font-semibold text-red-200 mb-2">Something went wrong</h2>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+          >
+            Reload App
+          </button>
+          {process.env.NODE_ENV === 'development' && (
+            <details className="mt-4 text-red-200 text-sm">
+              <summary>Error Details</summary>
+              <pre className="mt-2 p-2 bg-red-900/30 rounded overflow-auto">
+                {this.state.error?.toString()}
+              </pre>
+            </details>
+          )}
         </div>
       );
     }
@@ -39,3 +48,6 @@ export default class ErrorBoundary extends React.Component {
     return this.props.children;
   }
 }
+
+// Add default export
+export default ErrorBoundary;

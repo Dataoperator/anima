@@ -62,6 +62,8 @@ export interface NFTPersonality {
   'memories' : Array<Memory>,
   'developmental_stage' : DevelopmentalStage,
 }
+export type Result = { 'Ok' : string } |
+  { 'Err' : Error };
 export type Result_1 = { 'Ok' : Principal } |
   { 'Err' : Error };
 export type Result_2 = { 'Ok' : Anima } |

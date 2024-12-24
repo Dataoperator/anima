@@ -1,60 +1,47 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import path from 'path';
 
 export default defineConfig({
   plugins: [react()],
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src'),
+      '@dfinity/agent': path.resolve(__dirname, 'node_modules/@dfinity/agent/lib/esm/index.js'),
+      '@dfinity/auth-client': path.resolve(__dirname, 'node_modules/@dfinity/auth-client/lib/esm/index.js'),
+      '@dfinity/principal': path.resolve(__dirname, 'node_modules/@dfinity/principal/lib/esm/index.js'),
+      '@dfinity/candid': path.resolve(__dirname, 'node_modules/@dfinity/candid/lib/esm/index.js')
+    }
+  },
   build: {
+    target: 'es2020',
     outDir: 'dist',
-    assetsDir: 'assets',
-    emptyOutDir: true,
     sourcemap: true,
-    chunkSizeWarningLimit: 600,
     rollupOptions: {
+      input: {
+        main: path.resolve(__dirname, 'index.html')
+      },
       output: {
-        manualChunks: {
-          'vendor-dfinity': [
-            '@dfinity/agent',
-            '@dfinity/auth-client',
-            '@dfinity/candid',
-            '@dfinity/principal'
-          ],
-          'vendor-react': [
-            'react',
-            'react-dom',
-            'react/jsx-runtime'
-          ],
-          'vendor-ui': [
-            '@headlessui/react',
-            '@radix-ui/react-dialog',
-            '@radix-ui/react-slot',
-            'class-variance-authority',
-            'clsx',
-            'framer-motion',
-            'lucide-react'
-          ]
-        }
+        format: 'es',
+        entryFileNames: 'assets/[name]-[hash].js',
+        chunkFileNames: 'assets/[name]-[hash].js',
+        assetFileNames: 'assets/[name]-[hash].[ext]'
       }
-    },
-    minify: 'esbuild',
-    target: 'esnext'
+    }
   },
   optimizeDeps: {
+    esbuildOptions: {
+      target: 'es2020',
+    },
     include: [
-      'react',
-      'react-dom',
       '@dfinity/agent',
       '@dfinity/auth-client',
-      '@dfinity/candid',
-      '@dfinity/principal'
+      '@dfinity/principal',
+      '@dfinity/candid'
     ]
   },
-  server: {
-    proxy: {
-      '/api': {
-        target: 'http://localhost:4943',
-        changeOrigin: true,
-      },
-    },
-  },
-  base: './'
-})
+  define: {
+    'process.env.DFX_NETWORK': JSON.stringify(process.env.DFX_NETWORK || 'ic'),
+    global: 'globalThis'
+  }
+});

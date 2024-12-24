@@ -45,7 +45,10 @@
           "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
           "X-Frame-Options": "DENY",
           "X-Content-Type-Options": "nosniff",
-          "Content-Security-Policy": "default-src 'self' 'unsafe-eval' 'unsafe-inline' https://*.icp0.io; img-src 'self' data: https://*.icp0.io; connect-src 'self' https://*.icp0.io https://*.raw.icp0.io https://ic0.app",
+          "Content-Security-Policy": "default-src 'self' 'unsafe-eval' 'unsafe-inline' https://*.icp0.io https://identity.ic0.app https://identity.internetcomputer.org; img-src 'self' data: https://*.icp0.io; connect-src 'self' https://*.icp0.io https://*.raw.icp0.io https://ic0.app https://identity.ic0.app https://identity.internetcomputer.org https://*.internetcomputer.org",
+          "Access-Control-Allow-Origin": "https://identity.ic0.app https://identity.internetcomputer.org",
+          "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+          "Access-Control-Allow-Headers": "Content-Type",
           "Referrer-Policy": "strict-origin",
           "Permissions-Policy": "geolocation=(), microphone=(), camera=()"
         }
@@ -54,7 +57,7 @@
   },
   "networks": {
     "ic": {
-      "providers": ["https://ic0.app"],
+      "providers": ["https://icp0.io", "https://ic0.app"],
       "type": "persistent"
     }
   },
