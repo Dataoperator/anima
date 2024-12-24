@@ -4,7 +4,6 @@ use ic_cdk_macros::{init, post_upgrade, pre_upgrade, update, query};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use ic_cdk::api::caller;
-use ic_cdk::api::management_canister::http_request::{TransformArgs, HttpResponse};
 
 mod anima_types;
 mod autonomous;
@@ -20,12 +19,10 @@ mod version;
 use anima_types::{Anima, InteractionResult, UserState};
 use error::{Error, Result};
 use memory::Memory;
-use openai::OpenAIConfig;
 use version::Version;
 
 thread_local! {
     static STATE: RefCell<Option<HashMap<Principal, Anima>>> = RefCell::new(Some(HashMap::new()));
-    static OPENAI_CONFIG: RefCell<Option<OpenAIConfig>> = RefCell::new(None);
     static VERSION: RefCell<Version> = RefCell::new(Version::new());
 }
 
@@ -138,13 +135,7 @@ async fn interact(anima_id: Principal, message: String) -> Result<InteractionRes
         Ok(anima.clone())
     })?;
 
-    let config = OPENAI_CONFIG.with(|config| {
-        config.borrow().clone().ok_or(Error::Configuration("OpenAI not configured".to_string()))
-    })?;
-
-    let response = openai::get_response(&message, &state.personality, &config)
-        .await
-        .map_err(|e| Error::External(e.to_string()))?;
+    let response = openai::get_response(&message, &state.personality).await?;
 
     if state.autonomous_enabled {
         autonomous::handle_autonomous_check(anima_id).await?;

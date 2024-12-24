@@ -37,10 +37,17 @@ impl NFTPersonality {
     }
 
     pub fn update_from_interaction(&mut self, input: &str, response: &str, memory: &Memory) -> Vec<(String, f32)> {
-        let sentiment_score: f32 = Self::calculate_sentiment(response);
-        let importance_score: f32 = memory.importance_score;
         let mut updates = Vec::new();
         
+        // Use sentiment score to influence emotional traits
+        let sentiment_score = Self::calculate_sentiment(response);
+        updates.push(("emotional_stability".to_string(), sentiment_score * 0.1));
+        
+        // Use memory importance to influence growth
+        if memory.importance_score > 0.7 {
+            updates.push(("growth_potential".to_string(), memory.importance_score * 0.1));
+        }
+
         if input.contains('?') {
             updates.push(("curiosity".to_string(), 0.1));
         }

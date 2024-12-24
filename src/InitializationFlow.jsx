@@ -54,12 +54,15 @@ export function InitializationFlow() {
       setLoading(true);
       const actor = authManager.getActor();
       const result = await actor.create_anima(name);
+      console.log("Create anima result:", result);
+      
       if ('Ok' in result) {
-        console.log("Anima created successfully");
+        console.log("Anima created successfully with id:", result.Ok.toString());
         setInitialized(true);
         setNeedsInitialization(false);
       } else {
-        throw new Error('Failed to initialize anima');
+        console.error("Failed to create anima:", result.Err);
+        throw new Error(result.Err);
       }
     } catch (err) {
       console.error("Failed to create anima:", err);

@@ -1,71 +1,123 @@
 # Anima: Living NFTs on Internet Computer
 
-Current Status: **Milestone 1 - Authentication & UI Foundation**
+Current Status: **Milestone 2 - Functional MVP**
 
 ## Project Overview
-Anima creates living NFTs on the Internet Computer that evolve and learn through user interactions, powered by AI. Think of it as a sophisticated AI Tamagotchi with a unique, evolving personality.
+Anima brings living NFTs to the Internet Computer, creating AI-driven digital companions that evolve through meaningful interactions. Each Anima is a unique entity with its own personality, memory, and growth trajectory.
 
-## Current Features
-- ✅ Internet Identity (II) Authentication
-- ✅ Personality Trait Visualization
-- ✅ Immersive Chat UI
-- ✅ State Management
-- ✅ Basic Anima Creation
+## Core Features
+- ✅ Autonomous AI Personality System
+- ✅ Internet Identity Authentication
+- ✅ Persistent Memory System
+- ✅ Dynamic Trait Evolution
+- ✅ Real-time Chat Interface
+- ✅ Secure State Management
+- ✅ Personality Visualization
 
-## Technical Stack
-- Backend: Rust on Internet Computer
-- Frontend: React with TailwindCSS
-- Authentication: Internet Identity
-- Canister ID: `l2ilz-iqaaa-aaaaj-qngjq-cai`
+## Technical Architecture
+### Backend (Internet Computer Canister)
+- Rust-based implementation
+- Autonomous canister architecture
+- Stable memory management
+- Robust state persistence
+- Personality & memory systems
 
-## Current Progress
-1. Authentication
-   - Successful II integration
-   - Proper auth flow
-   - State persistence
+### Frontend
+- React 18+ with Vite
+- TailwindCSS for styling
+- Real-time state updates
+- Immersive chat interface
+- Trait visualization
 
-2. UI/UX
-   - Immersive chat interface
-   - Personality visualization
-   - Real-time updates
-   - Loading states
+### Authentication & Security
+- Internet Identity integration
+- Principal-based user management
+- Secure state transitions
+- Canister upgrades support
 
-3. Core Logic
-   - Basic personality system
-   - State management
-   - Canister interaction foundation
+## Live Deployment
+- Frontend Canister: `lpp2u-jyaaa-aaaaj-qngka-cai.icp0.io`
+- Backend Canister: `l2ilz-iqaaa-aaaaj-qngjq-cai`
 
-## Development Requirements
+## Development Setup
+### Prerequisites
 - Node.js 16+
-- Rust
+- Rust (latest stable)
 - DFX 0.14.0+
 - Internet Computer SDK
 
-## Local Development
+### Local Development
 ```bash
 # Install dependencies
 npm install
 
+# Set up Rust toolchain for IC development
+rustup target add wasm32-unknown-unknown
+
 # Start local replica
 dfx start --clean --background
 
-# Deploy locally
+# Deploy canisters locally
 dfx deploy
 
-# Run development server
+# Start development server
 npm run dev
 ```
 
-## Deployment
-Currently deployed on IC mainnet:
-- Frontend: `lpp2u-jyaaa-aaaaj-qngka-cai.icp0.io`
-- Backend: `l2ilz-iqaaa-aaaaj-qngjq-cai`
+### Production Deployment
+```bash
+# Deploy to IC mainnet
+dfx deploy --network ic
 
-## Next Steps
-1. Message interaction implementation
-2. OpenAI integration
-3. Memory system enhancement
-4. Growth mechanics implementation
+# Deploy frontend assets only
+npm run deploy:frontend
+```
+
+## Personality System
+Our Animas feature a sophisticated personality system with:
+- Dynamic trait evolution
+- Memory-based learning
+- Emotional response modeling
+- Growth stages
+- Autonomous behaviors
+
+## Memory System
+- Event-based memory storage
+- Importance scoring
+- Emotional impact tracking
+- Context-aware retrieval
+- Memory consolidation
+
+## Security & State Management
+- Secure canister upgrades
+- State persistence through upgrades
+- Principal-based access control
+- Robust error handling
+
+## Upcoming Features
+1. Enhanced Growth Mechanics
+   - Skill tree development
+   - Achievement system
+   - Evolution pathways
+
+2. Social Interactions
+   - Inter-Anima communication
+   - Shared experiences
+   - Community features
+
+3. Advanced AI Integration
+   - Improved context awareness
+   - Deeper personality development
+   - Enhanced autonomous behaviors
+
+## Contributing
+We welcome contributions! Please see our contributing guidelines for more information.
 
 ## License
-MIT
+MIT License - See LICENSE file for details
+
+## Team & Support
+Created by the Anima team. For support:
+- GitHub Issues
+- Discord: [Coming Soon]
+- Email: [Coming Soon]

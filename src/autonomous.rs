@@ -5,6 +5,7 @@ use std::time::Duration;
 use crate::memory::{EventType, Memory};
 use crate::error::{Error, Result};
 use crate::STATE;
+use crate::config;
 
 const AUTONOMOUS_CHECK_INTERVAL: Duration = Duration::from_secs(3600);
 const MAX_RETRY_ATTEMPTS: u32 = 3;
@@ -17,9 +18,7 @@ const AUTONOMOUS_THOUGHTS: &[&str] = &[
 ];
 
 pub async fn handle_autonomous_check(anima_id: Principal) -> Result<()> {
-    let config = crate::OPENAI_CONFIG.with(|config| {
-        config.borrow().clone().ok_or(Error::Configuration("OpenAI not configured".to_string()))
-    })?;
+    let config = config::get_config()?;
 
     let state = STATE.with(|state| -> Result<_> {
         let state = state.borrow();
