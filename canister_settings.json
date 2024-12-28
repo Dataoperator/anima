@@ -1,0 +1,7 @@
+{
+  "settings": {
+    "http_request_transform": true,
+    "http_outgoing_transform": true,
+    "metrics_transform": true
+  }
+}

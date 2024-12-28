@@ -1,0 +1,16 @@
+[build]
+target = "wasm32-unknown-unknown"
+
+[target.wasm32-unknown-unknown]
+rustflags = [
+    "-C", "link-arg=-z",
+    "-C", "link-arg=stack-size=32768",
+    "-C", "link-arg=--max-memory=524288000"
+]
+
+[profile.release]
+lto = true
+debug = false
+codegen-units = 1
+incremental = false
+panic = "abort"

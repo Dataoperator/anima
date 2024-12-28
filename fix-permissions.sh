@@ -1,0 +1,21 @@
+#!/bin/bash
+chmod +x clean-rebuild.sh
+chmod +x verify-build.sh
+chmod +x deploy-ic.sh
+chmod +x build.sh
+chmod +x prepare_wasm.sh
+chmod +x install_deps.sh
+chmod +x install_ui.sh
+chmod +x copy_did.sh
+chmod +x verify-deployment.sh
+chmod +x check-deploy.sh
+chmod +x create-directories.sh
+chmod +x create-and-write.sh
+chmod +x upgrade.sh
+chmod +x manage-identity.sh
+chmod +x deploy-emergency.sh
+chmod +x generate-declarations.sh
+chmod +x clean.sh
+chmod +x deploy.sh
+chmod +x update-repo.sh
+chmod +x backup-state.sh

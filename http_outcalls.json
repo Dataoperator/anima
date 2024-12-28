@@ -1,0 +1,35 @@
+{
+  "http_outbound": {
+    "using_satellite": true,
+    "satellite_canister": "pycrs-xiaaa-aaaal-ab6la-cai",
+    "calls": [
+      {
+        "id": "openai_api",
+        "url": "https://api.openai.com",
+        "max_response_bytes": 2048000,
+        "headers": {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+          "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-IC-Request-ID"
+        },
+        "transform_method_name": "transform",
+        "transforms": [
+          "response_verification",
+          "json_extraction"
+        ]
+      },
+      {
+        "id": "ic_status",
+        "url": "https://icp0.io/api/v2/status",
+        "max_response_bytes": 1024000,
+        "headers": {
+          "Content-Type": "application/cbor",
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+          "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-IC-Request-ID"
+        }
+      }
+    ]
+  }
+}

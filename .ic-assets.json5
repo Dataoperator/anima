@@ -1,0 +1,51 @@
+{
+  "canisters": {
+    "anima_assets": {
+      "source": ["dist/"],
+      "type": "assets",
+      "headers": {
+        "content-security-policy": [
+          "default-src 'self';",
+          "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://*.icp0.io https://*.ic0.app https://*.raw.ic0.app;",
+          "style-src 'self' 'unsafe-inline';",
+          "connect-src 'self' https://icp0.io https://*.icp0.io https://*.raw.ic0.app https://*.ic0.app https://ic0.app https://api.icp0.io https://icp-api.io https://*.internetcomputer.org https://*.dfinity.network https://identity.internetcomputer.org https://identity.ic0.app https://nns.ic0.app https://ledger.ic0.app wss://*.ic0.app wss://identity.ic0.app wss://*.icp0.io wss://*.raw.ic0.app wss://icp0.io https://api.openai.com;",
+          "img-src 'self' data: blob: https://*.icp0.io https://*.ic0.app https://*.raw.ic0.app;",
+          "font-src 'self' data:;",
+          "frame-src 'self' https://identity.ic0.app https://identity.internetcomputer.org https://nns.ic0.app https://*.icp0.io;",
+          "manifest-src 'self';",
+          "base-uri 'self';",
+          "form-action 'self';",
+          "frame-ancestors 'none';",
+          "worker-src 'self' blob: 'unsafe-inline';"
+        ].join(" "),
+        "permissions-policy": [
+          "accelerometer=()",
+          "autoplay=()",
+          "camera=()",
+          "display-capture=()",
+          "encrypted-media=()",
+          "fullscreen=()",
+          "geolocation=()",
+          "gyroscope=()",
+          "magnetometer=()",
+          "microphone=()",
+          "midi=()",
+          "payment=()",
+          "picture-in-picture=()",
+          "publickey-credentials-get=()",
+          "screen-wake-lock=()",
+          "sync-xhr=()",
+          "usb=()",
+          "web-share=()",
+          "xr-spatial-tracking=()"
+        ].join(", "),
+        "x-frame-options": "DENY",
+        "x-content-type-options": "nosniff",
+        "access-control-allow-origin": "*",
+        "access-control-allow-methods": "GET, POST, OPTIONS",
+        "access-control-allow-headers": "Content-Type, Authorization, Accept, Accept-Language",
+        "strict-transport-security": "max-age=31536000; includeSubDomains"
+      }
+    }
+  }
+}

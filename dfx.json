@@ -1,0 +1,71 @@
+{
+  "canisters": {
+    "anima": {
+      "type": "rust",
+      "package": "anima",
+      "candid": "src/lib.did",
+      "declarations": {
+        "node_compatibility": true
+      },
+      "build": [
+        "cargo clean",
+        "cargo update",
+        "cargo build --target wasm32-unknown-unknown --release -p anima"
+      ],
+      "optimize": "O3",
+      "gzip": true,
+      "init_arg": "(record { admin = null; })",
+      "metadata": [
+        {
+          "name": "candid:service",
+          "visibility": "public"
+        },
+        {
+          "name": "candid:args",
+          "visibility": "public",
+          "content": "file:src/constructor.did"
+        },
+        {
+          "name": "https_outcalls",
+          "content": "{\"allowed_methods\":[\"GET\",\"POST\"],\"allowed_headers\":[\"Accept\",\"Accept-Language\",\"Authorization\",\"Content-Language\",\"Content-Type\",\"OpenAI-Beta\"],\"cycles_per_call\":800000000000,\"cycles_per_byte\":50,\"max_request_bytes\":4096,\"max_response_bytes\":5242880,\"timeout_secs\":30,\"permitted_origins\":null,\"urls\":[\"https://api.openai.com/v1/chat/completions\"]}"
+        }
+      ]
+    },
+    "anima_assets": {
+      "type": "assets",
+      "source": ["dist/"],
+      "dependencies": ["anima"],
+      "declarations": {
+        "node_compatibility": true
+      },
+      "build": ["npm run build"],
+      "init_args": "(opt record { max_pages_per_asset = 1000 : nat16; })",
+      "gzip": true,
+      "headers": {
+        "**/*": {
+          "Cache-Control": "max-age=604800",
+          "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+          "X-Frame-Options": "DENY",
+          "X-Content-Type-Options": "nosniff",
+          "Content-Security-Policy": "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://*.icp0.io https://*.ic0.app https://*.raw.ic0.app; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.ic0.app https://*.raw.ic0.app https://icp0.io https://*.icp0.io https://*.raw.icp0.app https://*.ic0.app https://ic0.app https://api.icp0.io https://icp-api.io https://*.internetcomputer.org https://*.dfinity.network https://identity.internetcomputer.org https://identity.ic0.app https://nns.ic0.app https://ledger.ic0.app https://*.raw.ic0.app wss://*.ic0.app wss://identity.ic0.app wss://*.icp0.io wss://*.raw.ic0.app wss://icp0.io https://api.openai.com *.raw.ic0.app raw.ic0.app api.internetcomputer.org boundary.ic0.app; img-src 'self' data: blob: https://*.icp0.io https://*.ic0.app https://*.raw.ic0.app; font-src 'self' data:; frame-src 'self' https://identity.ic0.app https://identity.internetcomputer.org https://nns.ic0.app https://*.icp0.io https://*.ic0.app; manifest-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; worker-src 'self' blob: 'unsafe-inline'",
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+          "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, Accept-Language, X-Requested-With, X-IC-Request-ID",
+          "Access-Control-Max-Age": "86400",
+          "Referrer-Policy": "strict-origin-when-cross-origin",
+          "Cross-Origin-Opener-Policy": "same-origin",
+          "Cross-Origin-Embedder-Policy": "require-corp",
+          "Cross-Origin-Resource-Policy": "same-site",
+          "Permissions-Policy": "accelerometer=(), autoplay=(), camera=(), display-capture=(), document-domain=(), encrypted-media=(), fullscreen=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), publickey-credentials-get=(), screen-wake-lock=(), sync-xhr=(), usb=(), web-share=(), xr-spatial-tracking=()"
+        }
+      }
+    }
+  },
+  "networks": {
+    "ic": {
+      "providers": ["https://icp0.io", "https://ic0.app", "https://raw.ic0.app"],
+      "type": "persistent"
+    }
+  },
+  "version": 1
+}
