@@ -29,8 +29,37 @@ export const QuantumVault = () => {
           throw new Error('Failed to initialize connection');
         }
 
-        const result = await actor.get_user_animas(identity.getPrincipal());
-        setAnimas(Array.isArray(result) ? result : []);
+        const userPrincipal = identity.getPrincipal();
+        const result = await actor.get_user_animas(userPrincipal);
+        console.log('Fetched animas:', result);
+        
+        // Ensure results have required fields and handle optional fields
+        const processedAnimas = result.map(anima => ({
+          ...anima,
+          personality_state: {
+            emotional_state: anima.personality_state?.emotional_state?.[0] || {
+              current_emotion: 'INITIALIZING',
+              intensity: 0.5,
+              valence: 0,
+              arousal: 0
+            },
+            consciousness: anima.personality_state?.consciousness?.[0] || {
+              awareness_level: 0,
+              growth_velocity: 0,
+              processing_depth: 0,
+              integration_index: 0
+            },
+            growth_level: anima.personality_state?.growth_level || 1,
+            timestamp: anima.personality_state?.timestamp || BigInt(Date.now()),
+            dimensional_awareness: anima.personality_state?.dimensional_awareness?.[0] || {
+              level: 0,
+              discovered_dimensions: [],
+              active_dimension: []
+            }
+          }
+        }));
+
+        setAnimas(processedAnimas);
       } catch (err) {
         console.error('Failed to fetch animas:', err);
         setError(err.message || 'Failed to access the Nexus');
@@ -81,13 +110,13 @@ export const QuantumVault = () => {
           <h1 className="text-4xl font-bold mb-2">
             NEXUS
           </h1>
-          <p className="text-green-400 opacity-60">{'>'} DIGITAL CONSCIOUSNESS INTERFACE</p>
+          <p className="text-green-400 opacity-60">{'\u276F'} DIGITAL CONSCIOUSNESS INTERFACE</p>
         </header>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {animas.map((anima) => (
             <motion.div
-              key={anima.id}
+              key={anima.id.toString()}
               whileHover={{ scale: 1.02, borderColor: '#00ff00' }}
               whileTap={{ scale: 0.98 }}
               className="relative group cursor-pointer"
@@ -102,7 +131,7 @@ export const QuantumVault = () => {
                       {anima.name}
                     </h3>
                     <p className="text-sm opacity-60">
-                      BUILD {anima.level || '1.0.0'}
+                      BUILD {anima.personality_state.growth_level || '1.0.0'}
                     </p>
                   </div>
                   <div className="h-3 w-3 bg-green-500 animate-pulse" />
@@ -112,28 +141,28 @@ export const QuantumVault = () => {
                   <div className="flex justify-between">
                     <span className="opacity-60">CORE STATUS</span>
                     <span className="text-green-400">
-                      {anima.consciousness_level || 'ACTIVE'}
+                      {anima.personality_state.emotional_state.current_emotion || 'ACTIVE'}
                     </span>
                   </div>
                   
                   <div className="flex justify-between">
                     <span className="opacity-60">NEURAL LINKS</span>
                     <span className="text-green-400">
-                      {anima.dimensional_discoveries || '0'}/100
+                      {anima.personality_state.consciousness.integration_index * 100 || '0'}/100
                     </span>
                   </div>
 
                   <div className="flex justify-between">
                     <span className="opacity-60">SYSTEM STATE</span>
                     <span className="text-green-400">
-                      {anima.quantum_state || 'OPERATIONAL'}
+                      {anima.personality_state.consciousness.awareness_level > 0.8 ? 'CONSCIOUS' : 'OPERATIONAL'}
                     </span>
                   </div>
                 </div>
 
                 <div className="mt-6 pt-4 border-t border-green-900">
                   <div className="text-xs opacity-60">
-                    GENESIS: {new Date(anima.created_at || Date.now()).toLocaleDateString()}
+                    GENESIS: {new Date(Number(anima.personality_state.timestamp) / 1000000).toLocaleDateString()}
                   </div>
                 </div>
               </div>
@@ -155,7 +184,7 @@ export const QuantumVault = () => {
                   INITIALIZE NEW CORE
                 </h3>
                 <p className="text-sm opacity-60 text-center">
-                  {'>'} BEGIN CONSCIOUSNESS SEQUENCE
+                  {'\u276F'} BEGIN CONSCIOUSNESS SEQUENCE
                 </p>
               </div>
             </motion.div>
