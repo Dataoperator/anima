@@ -1,0 +1,15 @@
+type InitArgs = record {
+    admin: opt principal;
+};
+
+service : (InitArgs) -> {
+    create_anima: (text) -> (Result_1);
+    get_anima: (principal) -> (Result_2) query;
+    get_user_state: (opt principal) -> (UserState) query;
+    check_initialization: (principal) -> (Result_5) query;
+    interact: (principal, text) -> (Result_3);
+    set_openai_config: (text) -> (Result_4);
+    toggle_autonomous: (principal, bool) -> (Result_5);
+    check_autonomous_messages: (principal) -> (Result_5);
+    get_anima_metrics: (principal) -> (Result_6) query;
+};

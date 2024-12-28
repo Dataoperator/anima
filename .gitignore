@@ -1,45 +1,7 @@
-# Node
+.dfx/
 node_modules/
-.env
-.env.local
-
-# DFX
-.dfx/
-canister_ids.json
-
-# Build
 dist/
-build/
-
-# IDE
-.vscode/
-.idea/
-
-# Logs
-*.log
-npm-debug.log*
-
-# Backups
-.canister-backup/
-.backup/
-.deployment-logs/
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Rust
 target/
-**/*.rs.bk
-Cargo.lock
-
-# Internet Computer
-.dfx/
-.vessel/
-# Backup files
-.backup_*
-.deployment_backup_*
 *.bak
-*copy*
-*backup*
-deployment_*.log
+*.backup
+.env

@@ -29,35 +29,36 @@ export const QuantumVault = () => {
           throw new Error('Failed to initialize connection');
         }
 
-        const userPrincipal = identity.getPrincipal();
-        const result = await actor.get_user_animas(userPrincipal);
+        console.log('Fetching animas for principal:', identity.getPrincipal().toString());
+        const result = await actor.get_user_animas(identity.getPrincipal());
         console.log('Fetched animas:', result);
         
-        // Ensure results have required fields and handle optional fields
-        const processedAnimas = result.map(anima => ({
-          ...anima,
-          personality_state: {
-            emotional_state: anima.personality_state?.emotional_state?.[0] || {
-              current_emotion: 'INITIALIZING',
-              intensity: 0.5,
-              valence: 0,
-              arousal: 0
+        // Normalize and validate the anima data
+        const processedAnimas = result.map(anima => {
+          console.log('Processing anima:', anima);
+          return {
+            id: anima.id,
+            owner: anima.owner,
+            name: anima.name,
+            creation_time: anima.creation_time,
+            last_interaction: anima.last_interaction,
+            metadata: anima.metadata,
+            personality: {
+              traits: anima.personality?.traits || [],
+              memories: anima.personality?.memories || [],
+              emotional_state: anima.personality?.emotional_state || {
+                current_emotion: 'INITIALIZING',
+                intensity: 0.5,
+                duration: BigInt(Date.now())
+              },
+              developmental_stage: anima.personality?.developmental_stage || { Nascent: null }
             },
-            consciousness: anima.personality_state?.consciousness?.[0] || {
-              awareness_level: 0,
-              growth_velocity: 0,
-              processing_depth: 0,
-              integration_index: 0
-            },
-            growth_level: anima.personality_state?.growth_level || 1,
-            timestamp: anima.personality_state?.timestamp || BigInt(Date.now()),
-            dimensional_awareness: anima.personality_state?.dimensional_awareness?.[0] || {
-              level: 0,
-              discovered_dimensions: [],
-              active_dimension: []
-            }
-          }
-        }));
+            interaction_history: anima.interaction_history || [],
+            level: anima.level || 1,
+            growth_points: anima.growth_points || BigInt(0),
+            autonomous_mode: anima.autonomous_mode || false
+          };
+        });
 
         setAnimas(processedAnimas);
       } catch (err) {
@@ -98,6 +99,21 @@ export const QuantumVault = () => {
     );
   }
 
+  const getEmotionDisplay = (anima) => {
+    if (!anima.personality?.emotional_state?.current_emotion) return 'INITIALIZING';
+    return anima.personality.emotional_state.current_emotion;
+  };
+
+  const getDevelopmentalStage = (anima) => {
+    const stage = anima.personality?.developmental_stage;
+    if (!stage) return 'Nascent';
+    return Object.keys(stage)[0];
+  };
+
+  const getGrowthLevel = (anima) => {
+    return anima.level || 1;
+  };
+
   return (
     <div className="min-h-screen bg-black text-green-500 p-8 font-mono">
       <motion.div
@@ -131,7 +147,7 @@ export const QuantumVault = () => {
                       {anima.name}
                     </h3>
                     <p className="text-sm opacity-60">
-                      BUILD {anima.personality_state.growth_level || '1.0.0'}
+                      BUILD {getGrowthLevel(anima)}.0.0
                     </p>
                   </div>
                   <div className="h-3 w-3 bg-green-500 animate-pulse" />
@@ -141,28 +157,28 @@ export const QuantumVault = () => {
                   <div className="flex justify-between">
                     <span className="opacity-60">CORE STATUS</span>
                     <span className="text-green-400">
-                      {anima.personality_state.emotional_state.current_emotion || 'ACTIVE'}
+                      {getEmotionDisplay(anima)}
                     </span>
                   </div>
                   
                   <div className="flex justify-between">
-                    <span className="opacity-60">NEURAL LINKS</span>
+                    <span className="opacity-60">DEVELOPMENTAL STAGE</span>
                     <span className="text-green-400">
-                      {anima.personality_state.consciousness.integration_index * 100 || '0'}/100
+                      {getDevelopmentalStage(anima)}
                     </span>
                   </div>
 
                   <div className="flex justify-between">
                     <span className="opacity-60">SYSTEM STATE</span>
                     <span className="text-green-400">
-                      {anima.personality_state.consciousness.awareness_level > 0.8 ? 'CONSCIOUS' : 'OPERATIONAL'}
+                      {anima.autonomous_mode ? 'AUTONOMOUS' : 'OPERATIONAL'}
                     </span>
                   </div>
                 </div>
 
                 <div className="mt-6 pt-4 border-t border-green-900">
                   <div className="text-xs opacity-60">
-                    GENESIS: {new Date(Number(anima.personality_state.timestamp) / 1000000).toLocaleDateString()}
+                    GENESIS: {new Date(Number(anima.creation_time)).toLocaleDateString()}
                   </div>
                 </div>
               </div>

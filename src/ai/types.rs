@@ -4,14 +4,14 @@ use std::collections::HashMap;
 
 #[derive(CandidType, Serialize, Deserialize, Clone, Debug)]
 pub struct EmotionalAnalysis {
-    pub valence: f32,
-    pub arousal: f32,
-    pub dominance: f32,
+    pub valence: f64,
+    pub arousal: f64,
+    pub dominance: f64,
 }
 
 #[derive(CandidType, Serialize, Deserialize, Clone, Debug)]
 pub struct MemoryImpact {
-    pub intensity: f32,
-    pub relevance: f32,
-    pub trait_impacts: HashMap<String, f32>,
+    pub intensity: f64,
+    pub relevance: f64,
+    pub trait_impacts: HashMap<String, f64>,
 }

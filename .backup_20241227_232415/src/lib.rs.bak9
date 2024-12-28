@@ -1,0 +1,127 @@
+use ic_cdk_macros::{query, update};
+use candid::Principal;
+use std::cell::RefCell;
+use ic_stable_structures::{
+    memory_manager::{MemoryManager, VirtualMemory, MemoryId},
+    DefaultMemoryImpl, 
+    StableCell,
+};
+
+mod types;
+mod nft;
+mod personality;
+
+use personality::EvolvingPersonality;
+use types::{AnimaNFT, AnimaState};
+use nft::{
+    types::TokenIdentifier,
+    minting::create_anima_token,
+};
+
+thread_local! {
+    static MEMORY_MANAGER: RefCell<MemoryManager<DefaultMemoryImpl>> = RefCell::new(
+        MemoryManager::init(DefaultMemoryImpl::default())
+    );
+
+    static STATE: RefCell<StableCell<AnimaState, VirtualMemory<DefaultMemoryImpl>>> = RefCell::new(
+        MEMORY_MANAGER.with(|mm| {
+            StableCell::init(mm.borrow().get(MemoryId::new(0)), AnimaState::default())
+                .unwrap()
+        })
+    );
+}
+
+#[update]
+pub fn create_anima(name: String) -> Result<Principal, String> {
+    let caller = ic_cdk::caller();
+    
+    STATE.with(|cell| {
+        let mut cell_ref = cell.borrow_mut();
+        let mut state = cell_ref.get().clone();
+        
+        let next_token_id = state.next_token_id;
+        let token_id = TokenIdentifier(next_token_id);
+        let token_bytes = next_token_id.to_be_bytes();
+        
+        let token = create_anima_token(caller, token_id.clone(), name);
+        
+        state.animas.insert(token_id.clone(), token);
+        
+        if let Some(tokens) = state.user_animas.get_mut(&caller) {
+            tokens.push(token_id.clone());
+        } else {
+            state.user_animas.insert(caller, vec![token_id.clone()]);
+        }
+        
+        state.next_token_id += 1;
+        state.total_supply += 1;
+        
+        if let Err(_) = cell_ref.set(state.clone()) {
+            return Err("Failed to update state".to_string());
+        }
+
+        Ok(Principal::from_slice(&token_bytes))
+    })
+}
+
+#[query]
+pub fn get_user_animas() -> Vec<AnimaNFT> {
+    let caller = ic_cdk::caller();
+    
+    STATE.with(|cell| {
+        let cell_ref = cell.borrow();
+        let cell_state = cell_ref.get();
+        
+        cell_state.user_animas
+            .get(&caller)
+            .map(|token_ids| {
+                token_ids.iter()
+                    .filter_map(|id| cell_state.animas.get(id).map(AnimaNFT::from))
+                    .collect()
+            })
+            .unwrap_or_default()
+    })
+}
+
+#[update]
+pub fn interact_with_anima(token_id: TokenIdentifier, message: String) -> Result<InteractionResponse, String> {
+    let caller = ic_cdk::caller();
+    
+    STATE.with(|cell| {
+        let mut cell_ref = cell.borrow_mut();
+        let mut state = cell_ref.get().clone();
+        
+        // Verify ownership
+        if !verify_ownership(&state, &caller, &token_id) {
+            return Err("Not the owner of this Anima".to_string());
+        }
+
+        // Get and update anima
+        if let Some(anima) = state.animas.get_mut(&token_id) {
+            let result = anima.personality.interact(&message);
+            
+            // Store interaction in history
+            anima.interaction_history.push(InteractionRecord {
+                timestamp: ic_cdk::api::time(),
+                message,
+                response: result.clone()
+            });
+
+            // Update state
+            if let Err(_) = cell_ref.set(state.clone()) {
+                return Err("Failed to update state".to_string());
+            }
+
+            Ok(result)
+        } else {
+            Err("Anima not found".to_string())
+        }
+    })
+}
+
+fn verify_ownership(state: &AnimaState, caller: &Principal, token_id: &TokenIdentifier) -> bool {
+    state.user_animas
+        .get(caller)
+        .map(|tokens| tokens.contains(token_id))
+        .unwrap_or(false)
+}

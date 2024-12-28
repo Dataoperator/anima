@@ -1,4 +1,4 @@
-use candid::{CandidType, Principal, Decode, Encode};
+use candid::{CandidType, Principal, Encode, Decode};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::borrow::Cow;
@@ -16,12 +16,17 @@ pub struct AnimaState {
 
 impl Storable for AnimaState {
     fn to_bytes(&self) -> std::borrow::Cow<[u8]> {
-        let bytes = Encode!(self).unwrap();
-        Cow::Owned(bytes)
+        match Encode!(self) {
+            Ok(bytes) => Cow::Owned(bytes),
+            Err(e) => ic_cdk::trap(&format!("Failed to encode AnimaState: {}", e)),
+        }
     }
 
     fn from_bytes(bytes: std::borrow::Cow<[u8]>) -> Self {
-        Decode!(bytes.as_ref(), Self).unwrap()
+        match Decode!(&bytes, Self) {
+            Ok(state) => state,
+            Err(e) => ic_cdk::trap(&format!("Failed to decode AnimaState: {}", e)),
+        }
     }
 }
 

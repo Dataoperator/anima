@@ -1,0 +1,67 @@
+type EventType = variant {
+    Initial;
+    UserInteraction;
+    AutonomousThought;
+    EmotionalResponse;
+    LearningMoment;
+    RelationshipDevelopment;
+};
+
+type Memory = record {
+    timestamp: nat64;
+    event_type: EventType;
+    description: text;
+    emotional_impact: float32;
+    importance_score: float32;
+    keywords: vec text;
+};
+
+type NFTPersonality = record {
+    traits: vec record { text; float32; };
+    memories: vec Memory;
+    creation_time: nat64;
+    interaction_count: nat64;
+    growth_level: nat32;
+    developmental_stage: DevelopmentalStage;
+    hash: opt text;  // Changed to optional text to match implementation
+};
+
+type DevelopmentalStage = variant {
+    Initial;
+    Beginner;
+    Intermediate;
+    Advanced;
+    Expert;
+};
+
+type Anima = record {
+    owner: principal;
+    name: text;
+    personality: NFTPersonality;
+    creation_time: nat64;
+    last_interaction: nat64;
+    autonomous_enabled: bool;
+};
+
+type InteractionResult = record {
+    response: text;
+    personality_updates: vec record { text; float32; };
+    memory: Memory;
+    is_autonomous: bool;
+};
+
+type Error = variant {
+    NotFound;
+    NotAuthorized;
+    AlreadyInitialized;
+    Configuration: text;
+    External: text;
+};
+
+service : {
+    create_anima: (text) -> (Result<principal, Error>);
+    get_anima: (principal) -> (Result<Anima, Error>) query;
+    interact: (principal, text) -> (Result<InteractionResult, Error>);
+    set_openai_api_key: (text) -> (Result<null, Error>);
+    check_autonomous_messages: (principal) -> (Result<opt InteractionResult, Error>);
+};

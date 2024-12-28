@@ -21,7 +21,7 @@ impl MemoryFormation {
         &mut self,
         message: String,
         personality: &mut NFTPersonality,
-        emotional_impact: f32,
+        emotional_impact: f64,
     ) -> Memory {
         self.formation_count += 1;
         self.last_formation_time = time();

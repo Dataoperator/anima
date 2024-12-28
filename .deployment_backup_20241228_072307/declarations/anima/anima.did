@@ -1,0 +1,96 @@
+type HealthStatus = record {
+    status : text;
+    memory_used : nat64;
+    heap_memory : nat64;
+    cycles : nat64;
+};
+
+type SystemStats = record {
+    total_animas : nat64;
+    active_users : nat64;
+    total_transactions : nat64;
+    memory_usage_percent : float64;
+};
+
+type Alert = record {
+    id : text;
+    title : text;
+    message : text;
+    severity : text;  // Changed from level to match frontend
+    timestamp : nat64;
+    resolved : bool;
+};
+
+type AlertAction = record {
+    action_type : text;  // Changed from type as it's a reserved word
+    payload : variant {
+        Acknowledge : null;
+        Escalate : record { priority : text };
+        Custom : record { data : text };
+    };
+};
+
+type TokenIdentifier = nat64;
+
+type Listing = record {
+    token_id : TokenIdentifier;
+    seller : principal;
+    price : nat64;
+    created_at : nat64;
+    expires_at : opt nat64;
+};
+
+type PersonalityState = record {
+    timestamp : nat64;
+    growth_level : nat32;
+    dimensional_awareness : opt record {
+        level : nat32;
+        discovered_dimensions : vec text;
+        active_dimension : opt text;
+    };
+    consciousness : opt record {
+        awareness_level : float64;
+        processing_depth : float64;
+        integration_index : float64;
+        growth_velocity : float64;
+    };
+    emotional_state : opt record {
+        current_emotion : text;
+        intensity : float64;
+        valence : float64;
+        arousal : float64;
+    };
+};
+
+service : {
+    // Core NFT operations
+    create_anima : (text) -> (variant { Ok: principal; Err: text });
+    get_user_animas : () -> (vec record { 
+        id : TokenIdentifier;
+        owner : principal;
+        name : text;
+    }) query;
+    get_personality_state : (TokenIdentifier) -> (PersonalityState) query;
+
+    // System metrics
+    get_health_status : () -> (HealthStatus) query;
+    get_system_stats : () -> (SystemStats) query;
+    get_growth_history : () -> (vec record { 
+        time : text;
+        nfts : nat64;
+        users : nat64;
+    }) query;
+
+    // Alert management
+    get_system_alerts : () -> (vec Alert) query;
+    handle_alert_action : (AlertAction) -> (variant { Ok; Err: text });
+
+    // Marketplace operations
+    list_token : (TokenIdentifier, nat64, opt nat64) -> (variant { Ok; Err: text });
+    get_marketplace_listings : () -> (vec Listing) query;
+
+    // Payment operations
+    get_payment_amount : (variant { Creation; Growth; Resurrection; Upgrade }) -> (nat64) query;
+    get_payment_address : () -> (text) query;
+    verify_payment : (nat64) -> (bool);
+};

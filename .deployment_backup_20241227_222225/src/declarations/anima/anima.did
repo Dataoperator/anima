@@ -1,0 +1,38 @@
+type TokenIdentifier = nat64;
+type Listing = record {
+    token_id: TokenIdentifier;
+    seller: principal;
+    price: nat64;
+    created_at: nat64;
+    expires_at: opt nat64;
+};
+type Offer = record {
+    token_id: TokenIdentifier;
+    buyer: principal;
+    price: nat64;
+    created_at: nat64;
+    expires_at: nat64;
+};
+type TokenMetadata = record {
+    name: text;
+    description: opt text;
+    attributes: vec record { trait_type: text; value: text; };
+};
+type AnimaNFT = record {
+    id: TokenIdentifier;
+    owner: principal;
+    name: text;
+    creation_time: nat64;
+    last_interaction: nat64;
+    autonomous_enabled: bool;
+};
+
+service : {
+    // NFT operations
+    create_anima: (text) -> (variant { Ok: principal; Err: text; });
+    get_user_animas: () -> (vec AnimaNFT) query;
+
+    // Marketplace operations
+    list_token: (TokenIdentifier, nat64, opt nat64) -> (variant { Ok; Err: text; });
+    get_marketplace_listings: () -> (vec record { TokenIdentifier; nat64; }) query;
+}

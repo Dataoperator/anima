@@ -1,0 +1,104 @@
+type PaymentType = variant {
+    Creation;
+    Resurrection;
+    GrowthPack : nat64;
+};
+
+type PaymentSettings = record {
+    creation_fee : nat64;
+    resurrection_fee : nat64;
+    growth_pack_base_fee : nat64;
+    fee_recipient : principal;
+};
+
+type PaymentStats = record {
+    total_transactions : nat64;
+    successful_payments : nat64;
+    failed_payments : nat64;
+    average_payment_amount : nat64;
+};
+
+type Memory = record {
+    timestamp : nat64;
+    event_type : text;
+    description : text;
+    emotional_impact : float32;
+    importance_score : float32;
+    keywords : vec text;
+};
+
+type NFTPersonality = record {
+    traits : vec record { text; float32 };
+    interaction_count : nat32;
+    memories : vec Memory;
+    skills : vec text;
+    developmental_stage : text;
+};
+
+type AnimaNFT = record {
+    token_id : nat64;
+    owner : principal;
+    name : text;
+    personality : NFTPersonality;
+    creation_time : nat64;
+    last_interaction : nat64;
+    autonomous_enabled : bool;
+    level : nat32;
+    growth_points : nat32;
+    approved_address : opt principal;
+    listing_price : opt nat64;
+    traits_locked : bool;
+};
+
+type UserState = variant {
+    NotInitialized;
+    Initialized : record { anima_id : principal; name : text };
+};
+
+type InteractionResult = record {
+    response : text;
+    personality_updates : vec record { text; float32 };
+    memory : Memory;
+    is_autonomous : bool;
+};
+
+type Error = variant {
+    NotFound;
+    NotAuthorized;
+    AlreadyInitialized;
+    InvalidToken;
+    PaymentFailed;
+    TransferFailed;
+    Configuration : text;
+    External : text;
+};
+
+type Result = variant {
+    Ok : nat64;
+    Err : Error;
+};
+
+type Result_1 = variant {
+    Ok;
+    Err : Error;
+};
+
+type InteractionResponse = variant {
+    Ok : InteractionResult;
+    Err : Error;
+};
+
+service : {
+    check_initialization : (nat64) -> (opt InteractionResult) query;
+    complete_payment : (nat64) -> (Result_1);
+    get_anima : (nat64) -> (opt AnimaNFT) query;
+    get_payment_settings : () -> (PaymentSettings) query;
+    get_payment_stats : () -> (PaymentStats) query;
+    get_user_state : (opt principal) -> (UserState) query;
+    icrc7_name : () -> (text) query;
+    initiate_payment : (PaymentType, opt nat64) -> (Result);
+    interact : (nat64, text) -> (InteractionResponse);
+    mint_anima : (text) -> (Result);
+    resurrect_anima : (nat64) -> (Result_1);
+    update_payment_settings : (PaymentSettings) -> (Result_1);
+};

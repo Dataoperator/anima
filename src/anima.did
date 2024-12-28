@@ -1,67 +1,84 @@
-type EventType = variant {
-    Initial;
-    UserInteraction;
-    AutonomousThought;
-    EmotionalResponse;
-    LearningMoment;
-    RelationshipDevelopment;
-};
-
-type Memory = record {
-    timestamp: nat64;
-    event_type: EventType;
-    description: text;
-    emotional_impact: float32;
-    importance_score: float32;
-    keywords: vec text;
-};
+type TokenIdentifier = nat64;
 
 type NFTPersonality = record {
-    traits: vec record { text; float32; };
+    traits: vec record { text; float64 };
     memories: vec Memory;
     creation_time: nat64;
     interaction_count: nat64;
     growth_level: nat32;
     developmental_stage: DevelopmentalStage;
-    hash: opt text;  // Changed to optional text to match implementation
+    emotional_state: EmotionalState;
+    hash: opt text;
+};
+
+type Memory = record {
+    timestamp: nat64;
+    content: text;
+    emotional_impact: float64;
+};
+
+type EmotionalState = record {
+    current_emotion: text;
+    intensity: float64;
+    duration: nat64;
 };
 
 type DevelopmentalStage = variant {
-    Initial;
-    Beginner;
-    Intermediate;
-    Advanced;
-    Expert;
+    Nascent;
+    Awakening;
+    Conscious;
+    SelfAware;
+    Transcendent;
 };
 
-type Anima = record {
+type AnimaToken = record {
+    id: TokenIdentifier;
     owner: principal;
     name: text;
-    personality: NFTPersonality;
     creation_time: nat64;
     last_interaction: nat64;
-    autonomous_enabled: bool;
+    metadata: opt TokenMetadata;
+    personality: NFTPersonality;
+    interaction_history: vec InteractionRecord;
+    level: nat32;
+    growth_points: nat64;
+    autonomous_mode: bool;
 };
 
-type InteractionResult = record {
-    response: text;
-    personality_updates: vec record { text; float32; };
-    memory: Memory;
-    is_autonomous: bool;
+type TokenMetadata = record {
+    name: text;
+    description: opt text;
+    image: opt text;
+    attributes: vec MetadataAttribute;
+};
+
+type MetadataAttribute = record {
+    trait_type: text;
+    value: text;
+};
+
+type InteractionRecord = record {
+    timestamp: nat64;
+    message: text;
 };
 
 type Error = variant {
     NotFound;
     NotAuthorized;
     AlreadyInitialized;
-    Configuration: text;
-    External: text;
+    InvalidName;
+    TooManyAnimas;
+    TokenNotFound;
+    StateUpdateFailed;
+    InvalidOperation;
+    LimitExceeded;
+    InsufficientFunds;
+    TechnicalError: text;
 };
 
 service : {
-    create_anima: (text) -> (Result<principal, Error>);
-    get_anima: (principal) -> (Result<Anima, Error>) query;
-    interact: (principal, text) -> (Result<InteractionResult, Error>);
-    set_openai_api_key: (text) -> (Result<null, Error>);
-    check_autonomous_messages: (principal) -> (Result<opt InteractionResult, Error>);
+    create_anima: (text) -> (variant { Ok: principal; Err: Error });
+    get_user_animas: (principal) -> (vec AnimaToken) query;
+    get_anima: (TokenIdentifier) -> (opt AnimaToken) query;
+    transfer_anima: (principal, TokenIdentifier) -> (variant { Ok; Err: Error });
 };

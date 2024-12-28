@@ -1,9 +1,10 @@
 use ic_cdk_macros::{query, update};
 use candid::Principal;
 use std::cell::RefCell;
+use std::collections::HashMap;
 use ic_stable_structures::{
-    memory_manager::{MemoryManager, VirtualMemory, MemoryId},
-    DefaultMemoryImpl, 
+    memory_manager::{MemoryManager},
+    DefaultMemoryImpl,
     StableCell,
 };
 
@@ -17,25 +18,55 @@ mod dimensions;
 mod common;
 mod types;
 
-use nft::types::{TokenIdentifier, AnimaToken};
-use error::{Error, Result};
-use common::AnimaState;
+use crate::nft::types::{TokenIdentifier, AnimaToken};
+use crate::common::AnimaState;
+use crate::error::{Error, Result};
 
 thread_local! {
     static MEMORY_MANAGER: RefCell<MemoryManager<DefaultMemoryImpl>> = RefCell::new(
         MemoryManager::init(DefaultMemoryImpl::default())
     );
 
-    static STATE: RefCell<StableCell<AnimaState, VirtualMemory<DefaultMemoryImpl>>> = RefCell::new(
-        MEMORY_MANAGER.with(|mm| {
-            StableCell::init(mm.borrow().get(MemoryId::new(0)), AnimaState::default())
-                .unwrap()
-        })
-    );
+    static STATE: RefCell<StableCell<AnimaState, DefaultMemoryImpl>> = RefCell::new({
+        let memory = DefaultMemoryImpl::default();
+        StableCell::init(memory, AnimaState::default()).unwrap()
+    });
+}
+
+#[query]
+fn get_user_animas(user: Principal) -> Vec<AnimaToken> {
+    STATE.with(|cell| {
+        let cell_ref = cell.borrow();
+        let state = cell_ref.get();
+        
+        state.user_animas.iter()
+            .find(|(p, _)| **p == user)
+            .map(|(_, tokens)| {
+                tokens.iter()
+                    .filter_map(|token_id| {
+                        state.animas.iter()
+                            .find(|(id, _)| **id == *token_id)
+                            .map(|(_, token)| token.clone())
+                    })
+                    .collect()
+            })
+            .unwrap_or_default()
+    })
+}
+
+#[query]
+fn get_anima(id: TokenIdentifier) -> Option<AnimaToken> {
+    STATE.with(|cell| {
+        let cell_ref = cell.borrow();
+        let state = cell_ref.get();
+        state.animas.iter()
+            .find(|(token_id, _)| **token_id == id)
+            .map(|(_, token)| token.clone())
+    })
 }
 
 #[update]
-pub fn create_anima(name: String) -> Result<Principal> {
+fn create_anima(name: String) -> Result<Principal> {
     if name.trim().is_empty() {
         return Err(Error::InvalidName);
     }
@@ -46,7 +77,9 @@ pub fn create_anima(name: String) -> Result<Principal> {
         let mut cell_ref = cell.borrow_mut();
         let mut current_state = cell_ref.get().clone();
         
-        if let Some(tokens) = current_state.user_animas.get(&caller) {
+        // Check existing animas count
+        if let Some((_, tokens)) = current_state.user_animas.iter()
+            .find(|(p, _)| **p == caller) {
             if tokens.len() >= 5 {
                 return Err(Error::TooManyAnimas);
             }
@@ -62,9 +95,12 @@ pub fn create_anima(name: String) -> Result<Principal> {
             personality::NFTPersonality::new()
         );
         
+        // Add new anima
         current_state.animas.insert(next_token_id, token);
         
-        if let Some(tokens) = current_state.user_animas.get_mut(&caller) {
+        // Update user animas
+        if let Some((_, tokens)) = current_state.user_animas.iter_mut()
+            .find(|(p, _)| **p == caller) {
             tokens.push(next_token_id);
         } else {
             current_state.user_animas.insert(caller, vec![next_token_id]);
@@ -80,40 +116,15 @@ pub fn create_anima(name: String) -> Result<Principal> {
     })
 }
 
-#[query]
-pub fn get_user_animas(user: Principal) -> Vec<AnimaToken> {
-    STATE.with(|cell| {
-        let cell_ref = cell.borrow();
-        let state = cell_ref.get();
-        
-        state.user_animas
-            .get(&user)
-            .map(|token_ids| {
-                token_ids.iter()
-                    .filter_map(|id| state.animas.get(id).cloned())
-                    .collect()
-            })
-            .unwrap_or_default()
-    })
-}
-
-#[query]
-pub fn get_anima(id: TokenIdentifier) -> Option<AnimaToken> {
-    STATE.with(|cell| {
-        let cell_ref = cell.borrow();
-        let state = cell_ref.get();
-        state.animas.get(&id).cloned()
-    })
-}
-
 #[update]
-pub fn transfer_anima(to: Principal, token_id: TokenIdentifier) -> Result<()> {
+fn transfer_anima(to: Principal, token_id: TokenIdentifier) -> Result<()> {
     let caller = ic_cdk::caller();
     
     STATE.with(|cell| {
         let mut cell_ref = cell.borrow_mut();
         let mut current_state = cell_ref.get().clone();
         
+        // Find and verify token
         let token = current_state.animas.get_mut(&token_id)
             .ok_or(Error::TokenNotFound)?;
             
@@ -123,11 +134,14 @@ pub fn transfer_anima(to: Principal, token_id: TokenIdentifier) -> Result<()> {
         
         token.owner = to;
         
-        if let Some(tokens) = current_state.user_animas.get_mut(&caller) {
+        // Update user animas
+        if let Some((_, tokens)) = current_state.user_animas.iter_mut()
+            .find(|(p, _)| **p == caller) {
             tokens.retain(|&id| id != token_id);
         }
         
-        if let Some(tokens) = current_state.user_animas.get_mut(&to) {
+        if let Some((_, tokens)) = current_state.user_animas.iter_mut()
+            .find(|(p, _)| **p == to) {
             tokens.push(token_id);
         } else {
             current_state.user_animas.insert(to, vec![token_id]);
