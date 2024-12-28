@@ -6,6 +6,7 @@ import { LandingPage } from '@/components/pages/LandingPage';
 import { AnimaPage } from '@/components/pages/AnimaPage';
 import { RootLayout } from '@/components/layout/RootLayout';
 import { QuantumVault } from '@/components/quantum-vault/QuantumVault';
+import { Genesis } from '@/components/genesis';
 
 // Admin route is nested deep to be discrete
 const AdminMetrics = React.lazy(() => import('@/components/admin/AdminMetrics'));
@@ -26,6 +27,10 @@ export const router = createBrowserRouter([
       {
         path: '/quantum-vault',
         element: <QuantumVault />,
+      },
+      {
+        path: '/mint',
+        element: <Genesis />,
       },
       {
         path: '/anima/:id',

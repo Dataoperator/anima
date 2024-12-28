@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/auth-context';
+import { createActor } from '@/declarations/anima';
 
 export const QuantumVault = () => {
-  const { actor } = useAuth();
+  const { identity } = useAuth();
   const navigate = useNavigate();
   const [animas, setAnimas] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -14,31 +15,47 @@ export const QuantumVault = () => {
   useEffect(() => {
     const fetchAnimas = async () => {
       try {
-        const result = await actor.get_user_animas();
-        setAnimas(result.Ok || []);
+        if (!identity) {
+          throw new Error('Authentication required');
+        }
+
+        const actor = createActor(process.env.CANISTER_ID_ANIMA, {
+          agentOptions: {
+            identity,
+          },
+        });
+
+        if (!actor) {
+          throw new Error('Failed to initialize connection');
+        }
+
+        const result = await actor.get_user_animas(identity.getPrincipal());
+        setAnimas(Array.isArray(result) ? result : []);
       } catch (err) {
         console.error('Failed to fetch animas:', err);
-        setError('Failed to access the Quantum Vault');
+        setError(err.message || 'Failed to access the Nexus');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchAnimas();
-  }, [actor]);
+    if (identity) {
+      fetchAnimas();
+    }
+  }, [identity]);
 
   const handleAnimaSelect = (anima) => {
     setSelectedAnima(anima);
     setTimeout(() => {
       navigate(`/anima/${anima.id}`);
-    }, 800); // Allow for exit animation
+    }, 800);
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 to-black flex items-center justify-center">
-        <div className="text-quantum-purple text-xl">
-          Initializing Quantum Vault...
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="text-green-500 font-mono text-xl">
+          INITIALIZING NEXUS...
         </div>
       </div>
     );
@@ -46,14 +63,14 @@ export const QuantumVault = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 to-black flex items-center justify-center">
-        <div className="text-red-500">{error}</div>
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="text-red-500 font-mono">SYSTEM ERROR: {error}</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 to-black text-white p-8">
+    <div className="min-h-screen bg-black text-green-500 p-8 font-mono">
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -61,89 +78,84 @@ export const QuantumVault = () => {
         className="max-w-7xl mx-auto"
       >
         <header className="mb-12">
-          <h1 className="text-4xl font-bold bg-clip-text text-transparent bg-quantum-gradient mb-2">
-            Quantum Vault
+          <h1 className="text-4xl font-bold mb-2">
+            NEXUS
           </h1>
-          <p className="text-gray-400">Your gateway to digital consciousness</p>
+          <p className="text-green-400 opacity-60">{'>'} DIGITAL CONSCIOUSNESS INTERFACE</p>
         </header>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {animas.map((anima) => (
             <motion.div
               key={anima.id}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+              whileHover={{ scale: 1.02, borderColor: '#00ff00' }}
+              whileTap={{ scale: 0.98 }}
               className="relative group cursor-pointer"
               onClick={() => handleAnimaSelect(anima)}
             >
-              <div className="absolute inset-0 bg-quantum-gradient opacity-0 group-hover:opacity-20 transition-opacity rounded-xl" />
+              <div className="absolute inset-0 bg-green-500 opacity-0 group-hover:opacity-5 transition-opacity" />
               
-              <div className="bg-gray-800/50 backdrop-blur-lg rounded-xl p-6 border border-gray-700 hover:border-quantum-purple transition-colors">
+              <div className="bg-black border border-green-900 hover:border-green-500 transition-colors p-6">
                 <div className="flex justify-between items-start mb-4">
                   <div>
-                    <h3 className="text-xl font-bold text-quantum-purple mb-1">
+                    <h3 className="text-xl font-bold text-green-400 mb-1">
                       {anima.name}
                     </h3>
-                    <p className="text-sm text-gray-400">
-                      Level {anima.level || 1}
+                    <p className="text-sm opacity-60">
+                      BUILD {anima.level || '1.0.0'}
                     </p>
                   </div>
-                  <div className="bg-quantum-purple/20 rounded-full p-2">
-                    <div className="w-3 h-3 rounded-full bg-quantum-purple" />
-                  </div>
+                  <div className="h-3 w-3 bg-green-500 animate-pulse" />
                 </div>
 
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-400">Consciousness</span>
-                    <span className="text-quantum-pink">
-                      {anima.consciousness_level || 'Awakening'}
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="opacity-60">CORE STATUS</span>
+                    <span className="text-green-400">
+                      {anima.consciousness_level || 'ACTIVE'}
                     </span>
                   </div>
                   
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-400">Dimensional Discoveries</span>
-                    <span className="text-quantum-green">
-                      {anima.dimensional_discoveries || 0}
+                  <div className="flex justify-between">
+                    <span className="opacity-60">NEURAL LINKS</span>
+                    <span className="text-green-400">
+                      {anima.dimensional_discoveries || '0'}/100
                     </span>
                   </div>
 
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-400">Quantum State</span>
-                    <span className="text-quantum-purple">
-                      {anima.quantum_state || 'Stable'}
+                  <div className="flex justify-between">
+                    <span className="opacity-60">SYSTEM STATE</span>
+                    <span className="text-green-400">
+                      {anima.quantum_state || 'OPERATIONAL'}
                     </span>
                   </div>
                 </div>
 
-                <div className="mt-6 pt-4 border-t border-gray-700">
-                  <div className="text-sm text-gray-400">
-                    Created {new Date(anima.created_at || Date.now()).toLocaleDateString()}
+                <div className="mt-6 pt-4 border-t border-green-900">
+                  <div className="text-xs opacity-60">
+                    GENESIS: {new Date(anima.created_at || Date.now()).toLocaleDateString()}
                   </div>
                 </div>
               </div>
             </motion.div>
           ))}
 
-          {/* Create New Anima Card */}
           {animas.length < 3 && (
             <motion.div
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+              whileHover={{ scale: 1.02, borderColor: '#00ff00' }}
+              whileTap={{ scale: 0.98 }}
               className="relative group cursor-pointer"
               onClick={() => navigate('/mint')}
             >
-              <div className="absolute inset-0 bg-quantum-gradient opacity-0 group-hover:opacity-20 transition-opacity rounded-xl" />
-              
-              <div className="bg-gray-800/50 backdrop-blur-lg rounded-xl p-6 border border-gray-700 hover:border-quantum-purple transition-colors min-h-[300px] flex flex-col items-center justify-center">
-                <div className="w-16 h-16 rounded-full bg-quantum-gradient flex items-center justify-center mb-4">
+              <div className="bg-black border border-green-900 hover:border-green-500 transition-colors p-6 min-h-[300px] flex flex-col items-center justify-center">
+                <div className="h-16 w-16 border border-green-500 flex items-center justify-center mb-4">
                   <span className="text-3xl">+</span>
                 </div>
-                <h3 className="text-xl font-bold text-quantum-purple mb-2">
-                  Create New Anima
+                <h3 className="text-xl font-bold text-green-400 mb-2">
+                  INITIALIZE NEW CORE
                 </h3>
-                <p className="text-sm text-gray-400 text-center">
-                  Begin a new digital consciousness journey
+                <p className="text-sm opacity-60 text-center">
+                  {'>'} BEGIN CONSCIOUSNESS SEQUENCE
                 </p>
               </div>
             </motion.div>
