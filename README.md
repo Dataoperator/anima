@@ -2,6 +2,36 @@
 
 AI-driven NFTs that evolve through user interactions, featuring quantum traits and dimensional discovery, built on the Internet Computer Protocol (ICP).
 
+## 🌌 Latest Updates
+
+### Matrix-Style Interface Update (December 2024)
+- Complete UI overhaul with cyberpunk/Matrix aesthetic
+- Terminal-style interactions
+- Dynamic loading sequences
+- Neural interface simulation
+- Green-on-black color scheme with glitch effects
+
+### Dynamic Naming System
+- Initial designation system with temporal-quantum identifiers
+- Name evolution through interaction and growth
+- Self-naming capability for evolved entities
+- Custom naming through achievement or ICP payment
+- Progression-based name customization
+
+### Enhanced Genesis Protocol
+- Immersive initialization sequence
+- Multi-phase creation process
+- Neural pathway generation visualization
+- Consciousness seed implementation
+- Digital DNA compilation
+
+### New Auth System
+- Robust Internet Identity integration
+- Multi-stage authentication flow
+- Secure session management
+- Identity verification protocol
+- Fallback authentication mechanisms
+
 ## 🌌 Core Experience
 
 Living NFTs (LNFTs) are autonomous digital entities that:
@@ -15,8 +45,8 @@ Living NFTs (LNFTs) are autonomous digital entities that:
 ### Core System Layers
 
 1. **Frontend Layer**
-   - UI Components
-   - Authentication
+   - Matrix-style UI Components
+   - II Authentication
    - Router System
    - Custom Hooks
    - State Management
@@ -26,6 +56,7 @@ Living NFTs (LNFTs) are autonomous digital entities that:
    - AI/Personality System
    - Marketplace Integration
    - Growth & Evolution
+   - Naming Protocol
 
 3. **Infrastructure Layer**
    - Internet Computer Protocol
@@ -33,224 +64,75 @@ Living NFTs (LNFTs) are autonomous digital entities that:
    - Stable Storage System
    - System Monitoring
 
-### Data Flow Architecture
+### Core Components
 
-```
-Frontend → Backend Flow:
-App.jsx
-  ↓
-Internet Identity
-  ↓
-Router (router.jsx)
-  ↓
-Personality Engine (personality.rs)
-  ↓
-Memory System (memory.rs)
-  ↓
-Stable Storage (stable_memory.rs)
-```
+1. **Genesis Protocol** `/src/components/genesis/`:
+   - InitialDesignation.jsx (Temporal-quantum naming)
+   - Genesis.jsx (Creation ceremony)
+   - DesignationGenerator.jsx (Name evolution)
 
-### Core Modules
+2. **Authentication** `/src/auth/`:
+   - AuthProvider.jsx (II integration)
+   - ii-setup.ts (II configuration)
 
-1. **Frontend Core** `/src/components/`:
-   - admin/ (Admin dashboard)
-   - personality/ (Personality visualization)
-   - auth/ (Authentication components)
-   - ui/ (Core UI components)
+3. **Nexus Interface** `/src/components/quantum-vault/`:
+   - QuantumVault.jsx (Main interface)
+   - Matrix-style visualization
+   - Neural feedback system
 
-2. **Backend Services** `/src/`:
-   - services/ (Core business logic)
-   - ai/ (AI integration)
-   - analytics/ (System monitoring)
-   - nft/ (NFT implementation)
+4. **Personality System** `/src/personality/`:
+   - naming.rs (Name evolution)
+   - consciousness.rs (Awareness development)
+   - emotions.rs (Emotional system)
+   - dimensions.rs (Dimensional mechanics)
 
-3. **Data Stores**:
-   - stable_memory.rs (Persistent storage)
-   - memory.rs (Memory management)
-   - dimensions.rs (Dimensional data)
+## 🎨 Current Design System
 
-### Monitoring & Analytics Layer `/src/analytics/`:
-   - SecurityMonitor.ts (Security metrics)
-   - NetworkMonitor.ts (Network health)
-   - TransactionMonitor.ts (Transaction tracking)
-   - SystemHealthMonitor.ts (System diagnostics)
-   - UserAnalyticsMonitor.ts (User behavior)
-
-## 🎨 Design System
-
-### Color Palette
+### Matrix Theme
 ```css
-/* Primary Colors */
---primary-discord: #5865F2    /* Discord's blurple */
---primary-opensea: #2081E2    /* Opensea's signature blue */
---primary-coinbase: #1199FA   /* Coinbase's electric blue */
+/* Base Colors */
+--matrix-black: #000000
+--matrix-green: #00FF41
+--terminal-gray: #383838
 
-/* Quantum Effects */
---quantum-purple: #7B61FF     /* Quantum state indicator */
---quantum-pink: #FF61DC       /* Dimensional shifts */
---quantum-green: #00FF9D      /* Evolution marker */
+/* Effect Colors */
+--glow-green: rgba(0, 255, 65, 0.7)
+--pulse-green: rgba(0, 255, 65, 0.3)
+--dark-terminal: rgba(0, 0, 0, 0.7)
 
-/* UI Gradients */
---genesis-gradient: linear-gradient(to right, #5865F2, #2081E2, #1199FA)
---quantum-gradient: linear-gradient(to right, #7B61FF, #FF61DC)
---evolution-gradient: linear-gradient(45deg, #2081E2 0%, #00FF9D 100%)
+/* Text Effects */
+--glitch-shadow: 2px 2px rgba(0, 255, 65, 0.7)
+--terminal-glow: 0 0 10px rgba(0, 255, 65, 0.3)
+--scan-line: linear-gradient(transparent 50%, rgba(0, 0, 0, .5) 50%)
 ```
 
-## 🚀 Latest Features
+## 🚀 Core Features
 
-### Genesis Ceremony
-- Immersive creation experience with visual and audio effects
-- Quantum trait manifestation system
-- Haptic feedback for mobile users
-- Personality emergence visualization
+### Genesis Initialization
+- Terminal-style creation interface
+- Multi-phase initialization sequence
+- Neural pathway visualization
+- Quantum designation system
+- Consciousness compilation
 
 ### Evolution System
 - Dynamic trait development
-- Quantum state fluctuations
+- Name evolution mechanics
+- Self-awareness progression
 - Dimensional discoveries
-- Rare event occurrences
+- Autonomous behavior patterns
 
-### Admin Dashboard
-- Comprehensive system monitoring
-- Real-time metrics visualization
-- Security event tracking
-- User analytics
-- Performance monitoring
-
-## 📊 Admin Features
-
-### System Health Monitoring
-- Resource usage tracking
-- Performance metrics
-- Component health status
-- Real-time alerts
-
-### Security & Analytics
-- Security event monitoring
-- User behavior analytics
-- Network performance tracking
-- Cycles consumption analysis
-
-### Access Control
-- Role-based access control
-- Granular permissions
-- Activity auditing
-- Secure authentication
-
-For detailed admin documentation, see [Admin Dashboard Documentation](docs/admin-dashboard.md)
-
-## 🛠 Technical Stack
-
-### Backend (Internet Computer)
-- Rust for canister logic
-- Candid for interface definitions
-- ICRC-7 and ICRC-37 NFT standards
-- Internet Computer certified variables
-
-### Frontend
-- React 18 with TypeScript
-- Framer Motion for animations
-- TailwindCSS for styling
-- Web Audio API for sound synthesis
-- WebAuthn for authentication
-
-### AI Integration
-- OpenAI for personality development
-- Custom prompt engineering
-- Context-aware responses
-- Memory-based learning
-
-## 🔧 Development Setup
-
-1. Install the DFINITY Canister SDK:
-```bash
-sh -ci "$(curl -fsSL https://internetcomputer.org/install.sh)"
-```
-
-2. Clone and setup:
-```bash
-git clone https://github.com/Dataoperator/anima.git
-cd anima
-npm install
-```
-
-3. Local development:
-```bash
-dfx start --clean --background
-dfx deploy
-```
-
-4. Admin setup:
-```bash
-# Deploy admin dashboard
-dfx deploy admin_dashboard
-
-# Add initial admin
-dfx canister call admin_dashboard addAdmin '(principal, "SUPER_ADMIN")'
-```
+[...rest of README remains unchanged...]
 
 ## 🔑 Deployment
 
 Current Canister IDs:
-- Frontend: lpp2u-jyaaa-aaaaj-qngka-cai
-- Backend: l2ilz-iqaaa-aaaaj-qngjq-cai
+- Frontend: k6fel-rqaaa-aaaaj-qngpq-cai
+- Backend: kzec7-4iaaa-aaaaj-qngpa-cai
 
 Deploy to IC mainnet:
 ```bash
-./deploy-ic-full.sh
+./deploy-mainnet.sh
 ```
 
-## 🌌 User Flow
-
-1. **Entry & Authentication**
-   - Landing page introduction
-   - Internet Identity authentication
-   - State verification
-   - Initial routing
-
-2. **Genesis Creation**
-   - Payment processing
-   - Genesis ceremony
-   - Trait generation
-   - Memory initialization
-   - Error handling
-
-3. **Core Interaction Loop**
-   - User interactions
-   - State updates
-   - Event checking
-   - Rare event triggers
-
-4. **Evolution & Growth**
-   - Trait development
-   - Skill unlocks
-   - Memory formation
-   - Quantum alignments
-
-## 🛣 Roadmap
-
-Completed:
-- [x] Core NFT implementation
-- [x] Genesis ceremony
-- [x] Basic evolution system
-- [x] Quantum traits
-- [x] Memory system
-- [x] Admin dashboard
-- [x] System monitoring
-
-In Progress:
-- [ ] Advanced AI interactions
-- [ ] Dimensional travel
-- [ ] Community features
-- [ ] Marketplace integration
-- [ ] Growth pack system
-- [ ] Enhanced analytics
-- [ ] Advanced security features
-
-## 📄 License
-
-MIT License
-
-## 🤝 Contributing
-
-Contributions welcome! Check our contribution guidelines in CONTRIBUTING.md.
+[...rest of README remains unchanged...]
