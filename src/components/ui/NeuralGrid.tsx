@@ -1,7 +1,30 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
+import { m as motion } from 'framer-motion';
 
-export const NeuralGrid: React.FC = () => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+interface NeuralGridProps {
+  className?: string;
+  intensity?: number;
+}
+
+export const NeuralGrid: React.FC<NeuralGridProps> = ({ 
+  className = '', 
+  intensity = 1.0 
+}) => {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const nodesRef = useRef<Array<{
+    x: number;
+    y: number;
+    vx: number;
+    vy: number;
+    size: number;
+    pulsePhase: number;
+    activity: number;
+  }>>([]);
+  const connectionsRef = useRef<Array<{
+    from: typeof nodesRef.current[0];
+    to: typeof nodesRef.current[0];
+    strength: number;
+  }>>([]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -10,117 +33,145 @@ export const NeuralGrid: React.FC = () => {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Resize handling
-    const resize = () => {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
+    // Set canvas size based on container
+    const resizeCanvas = () => {
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width;
+      canvas.height = rect.height;
     };
-    window.addEventListener('resize', resize);
-    resize();
+    resizeCanvas();
 
-    // Neural node class
-    class Node {
-      x: number;
-      y: number;
-      vx: number;
-      vy: number;
-      connections: Node[];
+    const width = canvas.width;
+    const height = canvas.height;
 
-      constructor(x: number, y: number) {
-        this.x = x;
-        this.y = y;
-        this.vx = (Math.random() - 0.5) * 0.5;
-        this.vy = (Math.random() - 0.5) * 0.5;
-        this.connections = [];
-      }
+    // Initialize nodes
+    const initNodes = () => {
+      nodesRef.current = Array(50).fill(null).map(() => ({
+        x: Math.random() * width,
+        y: Math.random() * height,
+        vx: (Math.random() - 0.5) * 2,
+        vy: (Math.random() - 0.5) * 2,
+        size: Math.random() * 3 + 1,
+        pulsePhase: Math.random() * Math.PI * 2,
+        activity: Math.random()
+      }));
+    };
 
-      update(width: number, height: number) {
-        this.x += this.vx;
-        this.y += this.vy;
-
-        if (this.x <= 0 || this.x >= width) this.vx *= -1;
-        if (this.y <= 0 || this.y >= height) this.vy *= -1;
-      }
-    }
-
-    // Create nodes
-    const nodes: Node[] = [];
-    const numNodes = 50;
-    const connectionDistance = 150;
-
-    for (let i = 0; i < numNodes; i++) {
-      nodes.push(new Node(
-        Math.random() * canvas.width,
-        Math.random() * canvas.height
-      ));
-    }
-
-    // Animation
-    const animate = () => {
-      if (!ctx || !canvas) return;
-
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.globalAlpha = 0.1;
-
+    // Update node positions and connections
+    const update = () => {
+      const nodes = nodesRef.current;
+      
       // Update nodes
       nodes.forEach(node => {
-        node.update(canvas.width, canvas.height);
-        node.connections = [];
-
-        // Find connections
-        nodes.forEach(otherNode => {
-          if (node === otherNode) return;
-          
-          const dx = node.x - otherNode.x;
-          const dy = node.y - otherNode.y;
-          const distance = Math.sqrt(dx * dx + dy * dy);
-
-          if (distance < connectionDistance) {
-            node.connections.push(otherNode);
-          }
-        });
+        node.x += node.vx;
+        node.y += node.vy;
+        node.pulsePhase += 0.05;
+        
+        // Bounce off boundaries
+        if (node.x < 0 || node.x > width) node.vx *= -1;
+        if (node.y < 0 || node.y > height) node.vy *= -1;
+        
+        // Keep within bounds
+        node.x = Math.max(0, Math.min(width, node.x));
+        node.y = Math.max(0, Math.min(height, node.y));
       });
 
-      // Draw connections
-      ctx.strokeStyle = '#3B82F6';
-      ctx.lineWidth = 0.5;
-      nodes.forEach(node => {
-        node.connections.forEach(connectedNode => {
-          const dx = node.x - connectedNode.x;
-          const dy = node.y - connectedNode.y;
+      // Update connections
+      connectionsRef.current = [];
+      for (let i = 0; i < nodes.length; i++) {
+        for (let j = i + 1; j < nodes.length; j++) {
+          const dx = nodes[j].x - nodes[i].x;
+          const dy = nodes[j].y - nodes[i].y;
           const distance = Math.sqrt(dx * dx + dy * dy);
           
-          ctx.globalAlpha = 1 - (distance / connectionDistance);
-          ctx.beginPath();
-          ctx.moveTo(node.x, node.y);
-          ctx.lineTo(connectedNode.x, connectedNode.y);
-          ctx.stroke();
-        });
+          if (distance < 100) {
+            connectionsRef.current.push({
+              from: nodes[i],
+              to: nodes[j],
+              strength: 1 - (distance / 100)
+            });
+          }
+        }
+      }
+    };
+
+    // Draw the neural network
+    const draw = () => {
+      ctx.clearRect(0, 0, width, height);
+      
+      // Draw connections
+      connectionsRef.current.forEach(conn => {
+        const gradient = ctx.createLinearGradient(
+          conn.from.x, conn.from.y,
+          conn.to.x, conn.to.y
+        );
+        
+        const alpha = conn.strength * 0.5 * intensity;
+        gradient.addColorStop(0, `rgba(0, 255, 255, ${alpha})`);
+        gradient.addColorStop(1, `rgba(0, 128, 255, ${alpha})`);
+        
+        ctx.beginPath();
+        ctx.moveTo(conn.from.x, conn.from.y);
+        ctx.lineTo(conn.to.x, conn.to.y);
+        ctx.strokeStyle = gradient;
+        ctx.lineWidth = conn.strength * 2;
+        ctx.stroke();
       });
 
       // Draw nodes
-      ctx.fillStyle = '#3B82F6';
-      nodes.forEach(node => {
-        ctx.globalAlpha = 0.5;
+      nodesRef.current.forEach(node => {
+        const pulse = Math.sin(node.pulsePhase) * 0.5 + 0.5;
+        const size = node.size * (1 + pulse * 0.5);
+        
+        // Glow effect
+        ctx.shadowColor = 'rgba(0, 255, 255, 0.5)';
+        ctx.shadowBlur = 10;
+        
+        // Node fill
         ctx.beginPath();
-        ctx.arc(node.x, node.y, 2, 0, Math.PI * 2);
+        ctx.arc(node.x, node.y, size, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(0, ${155 + pulse * 100}, ${255}, ${0.8 * intensity})`;
         ctx.fill();
+        
+        // Node ring
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, size * 1.5, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(0, 255, 255, ${0.3 * pulse * intensity})`;
+        ctx.lineWidth = 1;
+        ctx.stroke();
       });
-
-      requestAnimationFrame(animate);
     };
 
+    // Animation loop
+    let animationFrame: number;
+    const animate = () => {
+      update();
+      draw();
+      animationFrame = requestAnimationFrame(animate);
+    };
+
+    // Initialize and start animation
+    initNodes();
     animate();
 
+    // Handle resize
+    window.addEventListener('resize', resizeCanvas);
+
+    // Cleanup
     return () => {
-      window.removeEventListener('resize', resize);
+      window.removeEventListener('resize', resizeCanvas);
+      cancelAnimationFrame(animationFrame);
     };
-  }, []);
+  }, [intensity]);
 
   return (
-    <canvas
+    <motion.canvas
       ref={canvasRef}
-      className="absolute inset-0 pointer-events-none opacity-20"
+      className={`w-full h-full ${className}`}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.5 }}
     />
   );
 };

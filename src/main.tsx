@@ -1,80 +1,94 @@
-import React, { Suspense } from 'react';
+import React, { Suspense, lazy } from 'react';
 import ReactDOM from 'react-dom/client';
-import App from '@/components/App';
-import { AuthProvider } from '@/contexts/auth-context';
-import { AnimationProvider } from '@/providers/AnimationProvider';
-import { ErrorBoundary } from '@/components/error-boundary/ErrorBoundary';
-import './styles.css';
+import './index.css';
 
-// Loading component
-const LoadingFallback = () => (
-  <div className="flex items-center justify-center min-h-screen bg-black text-white">
-    <div className="text-center">
-      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto"></div>
-      <p className="mt-4">Loading ANIMA...</p>
-    </div>
-  </div>
-);
+// Initialize error tracking
+const initErrorTracking = () => {
+  window.onerror = (msg, url, lineNo, columnNo, error) => {
+    console.error('Global error:', { msg, url, lineNo, columnNo, error });
+    return false;
+  };
 
-// Error component
-const ErrorFallback = ({ error }: { error: Error }) => (
-  <div className="flex items-center justify-center min-h-screen bg-black text-white">
-    <div className="text-center max-w-lg p-6">
-      <h1 className="text-xl font-bold mb-4">Something went wrong</h1>
-      <p className="text-red-400 mb-4">{error.message}</p>
-      <button 
+  window.onunhandledrejection = (event) => {
+    console.error('Unhandled promise rejection:', event.reason);
+  };
+};
+
+// Lazy load app components
+const App = lazy(() => import('./components/App'));
+const ErrorBoundary = lazy(() => import('./components/error-boundary/ErrorBoundary').then(m => ({ 
+  default: m.ErrorBoundary 
+})));
+const LoadingFallback = lazy(() => import('./components/ui/LoadingFallback').then(m => ({ 
+  default: m.LoadingFallback 
+})));
+
+// Root error fallback
+const RootErrorFallback = ({ error }: { error: Error }) => (
+  <div className="min-h-screen bg-black text-white flex items-center justify-center">
+    <div className="max-w-md text-center p-8">
+      <h1 className="text-xl font-bold mb-4">Neural Interface Error</h1>
+      <p className="text-red-400 mb-6">{error.message}</p>
+      <button
         onClick={() => window.location.reload()}
-        className="px-4 py-2 bg-blue-600 rounded hover:bg-blue-700 transition"
+        className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded"
       >
-        Reload Page
+        Reinitialize
       </button>
     </div>
   </div>
 );
 
-// Initialize IC
+// Initialize Internet Computer connection
 const initIC = async () => {
   try {
     console.log('Initializing Internet Computer connection...');
     await import('./ic-init');
     console.log('IC initialization complete');
   } catch (error) {
-    console.error('Failed to initialize IC:', error);
-    throw error;
+    console.error('IC initialization failed:', error);
+    throw new Error('Failed to establish quantum connection.');
   }
 };
 
-// Initialize the app
+// Initialize app
 const initApp = async () => {
   try {
+    // Initialize error tracking
+    initErrorTracking();
+
+    // Wait for IC initialization
     await initIC();
     
+    // Get root element
     const rootElement = document.getElementById('root');
-    if (!rootElement) throw new Error('Root element not found');
+    if (!rootElement) {
+      throw new Error('Neural interface anchor not found');
+    }
 
+    // Create root and render app
     ReactDOM.createRoot(rootElement).render(
       <React.StrictMode>
-        <ErrorBoundary FallbackComponent={ErrorFallback}>
+        <ErrorBoundary FallbackComponent={RootErrorFallback}>
           <Suspense fallback={<LoadingFallback />}>
-            <AnimationProvider>
-              <AuthProvider>
-                <App />
-              </AuthProvider>
-            </AnimationProvider>
+            <App />
           </Suspense>
         </ErrorBoundary>
       </React.StrictMode>
     );
   } catch (error) {
-    console.error('Failed to initialize app:', error);
+    console.error('App initialization failed:', error);
+    
+    // Render error state
     document.body.innerHTML = `
-      <div style="display:flex;justify-content:center;align-items:center;height:100vh;background:black;color:white;">
-        <div style="text-align:center;padding:20px;">
-          <h1 style="margin-bottom:16px;">Failed to initialize ANIMA</h1>
-          <p style="color:#ff6b6b;margin-bottom:16px;">${error instanceof Error ? error.message : 'Unknown error'}</p>
-          <button onclick="window.location.reload()" 
-                  style="padding:8px 16px;background:#2563eb;border-radius:4px;cursor:pointer;">
-            Retry
+      <div class="min-h-screen bg-black text-white flex items-center justify-center">
+        <div class="max-w-md text-center p-8">
+          <h1 class="text-xl font-bold mb-4">Critical System Error</h1>
+          <p class="text-red-400 mb-6">${error instanceof Error ? error.message : 'Unknown error'}</p>
+          <button 
+            onclick="window.location.reload()" 
+            class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded">
+            Reset System
           </button>
         </div>
       </div>
@@ -82,5 +96,31 @@ const initApp = async () => {
   }
 };
 
-// Start the app
-initApp();
+// Initialize key dependencies before starting app
+Promise.all([
+  // Preload critical components
+  import('./components/App'),
+  import('./components/error-boundary/ErrorBoundary'),
+  import('./components/ui/LoadingFallback'),
+  // Preload key features
+  import('framer-motion'),
+  import('react-router-dom')
+]).then(() => {
+  // Start app
+  initApp().catch(console.error);
+}).catch(error => {
+  console.error('Failed to load critical dependencies:', error);
+  document.body.innerHTML = `
+    <div class="min-h-screen bg-black text-white flex items-center justify-center">
+      <div class="max-w-md text-center p-8">
+        <h1 class="text-xl font-bold mb-4">Critical Loading Error</h1>
+        <p class="text-red-400 mb-6">Failed to load system components</p>
+        <button 
+          onclick="window.location.reload()" 
+          class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded">
+          Retry
+        </button>
+      </div>
+    </div>
+  `;
+});

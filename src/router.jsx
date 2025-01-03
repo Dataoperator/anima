@@ -1,41 +1,57 @@
-import React from 'react';
-import { BrowserRouter, Routes as RouterRoutes, Route, Navigate, useParams } from 'react-router-dom';
-import QuantumVault from './components/quantum-vault/QuantumVault';
+import React, { Suspense } from 'react';
+import { Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { ErrorBoundary } from './components/error-boundary/ErrorBoundary';
 import { AdminRoute } from './components/auth/AdminRoute';
 import { AdminLayout } from './components/admin/AdminLayout';
-import AdminDashboard from './components/admin/Dashboard';
-import { AdminManagement } from './components/admin/AdminManagement';
-import { AdminMetrics } from './components/admin/AdminMetrics';
-import LandingPage from './components/layout/LandingPage';
-import { AuthGuard } from './components/auth/AuthGuard';
-import { EnhancedImmersiveAnimaUI } from './components/chat/EnhancedImmersiveAnimaUI';
 import { useAnima } from './hooks/useAnima';
-import { AnimaPage } from './components/pages/AnimaPage';
-import { Genesis } from './components/genesis';
-import { EnhancedPaymentPanel } from './components/payment/EnhancedPaymentPanel';
+
+// Lazy load components for better performance
+const QuantumVault = React.lazy(() => import('./components/quantum-vault/QuantumVault'));
+const AdminDashboard = React.lazy(() => import('./components/admin/Dashboard'));
+const AdminManagement = React.lazy(() => import('./components/admin/AdminManagement'));
+const AdminMetrics = React.lazy(() => import('./components/admin/AdminMetrics'));
+const LandingPage = React.lazy(() => import('./components/layout/LandingPage'));
+const EnhancedImmersiveAnimaUI = React.lazy(() => import('./components/chat/EnhancedImmersiveAnimaUI'));
+const AnimaPage = React.lazy(() => import('./components/pages/AnimaPage'));
+const Genesis = React.lazy(() => import('./components/genesis'));
+const EnhancedPaymentPanel = React.lazy(() => import('./components/payment/EnhancedPaymentPanel'));
+
+const LoadingFallback = () => (
+  <div className="flex items-center justify-center min-h-screen bg-black text-white">
+    <div className="text-center">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto"></div>
+      <p className="mt-4">Initializing Quantum State...</p>
+    </div>
+  </div>
+);
 
 const NeuralLinkView = () => {
   const { id } = useParams();
   const { anima, loading, error } = useAnima(id);
   
   if (loading) {
-    return <div>Initializing Neural Link...</div>;
+    return <LoadingFallback />;
   }
   
   if (error) {
-    return <div>Error: {error}</div>;
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-black text-red-500">
+        <div className="text-center">
+          <h2 className="text-xl font-bold mb-4">Neural Link Error</h2>
+          <p>{error}</p>
+        </div>
+      </div>
+    );
   }
   
   return <EnhancedImmersiveAnimaUI anima={anima} />;
 };
 
-// Rename our exported component to AppRoutes
 export const AppRoutes = () => {
   return (
-    <BrowserRouter>
-      <ErrorBoundary>
-        <RouterRoutes>
+    <ErrorBoundary>
+      <Suspense fallback={<LoadingFallback />}>
+        <Routes>
           {/* Public landing page */}
           <Route path="/" element={<LandingPage />} />
           
@@ -61,7 +77,7 @@ export const AppRoutes = () => {
           <Route path="/admin/*" element={
             <AdminRoute>
               <AdminLayout>
-                <RouterRoutes>
+                <Routes>
                   <Route index element={<AdminDashboard />} />
                   <Route path="metrics" element={<AdminMetrics />} />
                   <Route path="users" element={<AdminManagement />} />
@@ -69,7 +85,7 @@ export const AppRoutes = () => {
                   <Route path="system" element={<div>System Management</div>} />
                   <Route path="alerts" element={<div>Alert Center</div>} />
                   <Route path="settings" element={<div>Admin Settings</div>} />
-                </RouterRoutes>
+                </Routes>
               </AdminLayout>
             </AdminRoute>
           } />
@@ -79,9 +95,9 @@ export const AppRoutes = () => {
 
           {/* Catch all redirect */}
           <Route path="*" element={<Navigate to="/" replace />} />
-        </RouterRoutes>
-      </ErrorBoundary>
-    </BrowserRouter>
+        </Routes>
+      </Suspense>
+    </ErrorBoundary>
   );
 };
 

@@ -1,70 +1,25 @@
 {
   "compilerOptions": {
     "target": "ESNext",
-    "useDefineForClassFields": true,
     "lib": ["DOM", "DOM.Iterable", "ESNext"],
-    "allowJs": true,
-    "skipLibCheck": true,
-    "esModuleInterop": true,
-    "allowSyntheticDefaultImports": true,
-    "strict": true,
-    "forceConsistentCasingInFileNames": true,
     "module": "ESNext",
-    "moduleResolution": "node",
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
-    "baseUrl": "src",
+    "strict": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "noFallthroughCasesInSwitch": true,
+    "allowSyntheticDefaultImports": true,
+    "baseUrl": ".",
     "paths": {
-      "@/*": ["*"],
-      "@components/*": ["components/*"],
-      "@declarations/*": ["declarations/*"]
-    },
-    "noImplicitAny": true,
-    "strictNullChecks": true,
-    "importHelpers": true,
-    "types": [
-      "node",
-      "react",
-      "react-dom",
-      "jest",
-      "testing-library__jest-dom",
-      "aria-query",
-      "babel__core",
-      "babel__generator",
-      "babel__template",
-      "babel__traverse",
-      "d3-array",
-      "d3-color",
-      "d3-ease",
-      "d3-interpolate",
-      "d3-path",
-      "d3-scale",
-      "d3-shape",
-      "d3-time",
-      "d3-timer",
-      "estree",
-      "graceful-fs",
-      "istanbul-lib-coverage",
-      "istanbul-lib-report",
-      "istanbul-reports",
-      "jsdom"
-    ]
+      "@/*": ["src/*"]
+    }
   },
-  "include": [
-    "src/**/*.ts",
-    "src/**/*.tsx",
-    "src/**/*.d.ts"
-  ],
-  "exclude": [
-    "node_modules",
-    "build",
-    "dist",
-    ".dfx",
-    "**/*.js",
-    "**/*.jsx",
-    "src/declarations/**/*.js"
-  ],
+  "include": ["src"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }
