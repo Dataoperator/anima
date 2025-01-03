@@ -1,0 +1,78 @@
+import React from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom';
+import QuantumVault from './components/quantum-vault/QuantumVault';
+import { PaymentFlow } from './components/payments/PaymentFlow';
+import { ErrorBoundary } from './components/error-boundary/ErrorBoundary';
+import { AdminRoute } from './components/auth/AdminRoute';
+import { AdminLayout } from './components/admin/AdminLayout';
+import { AdminDashboard } from './components/admin/Dashboard';
+import { AdminManagement } from './components/admin/AdminManagement';
+import { AdminMetrics } from './components/admin/AdminMetrics';
+import LandingPage from './components/layout/LandingPage';
+import { AuthGuard } from './components/auth/AuthGuard';
+import { EnhancedImmersiveAnimaUI } from './components/chat/EnhancedImmersiveAnimaUI';
+import { useAnima } from './hooks/useAnima';
+import { AnimaPage } from './components/pages/AnimaPage';
+
+const NeuralLinkView = () => {
+  const { id } = useParams();
+  const { anima, loading, error } = useAnima(id);
+  
+  if (loading) {
+    return <div>Initializing Neural Link...</div>;
+  }
+  
+  if (error) {
+    return <div>Error: {error}</div>;
+  }
+  
+  return <EnhancedImmersiveAnimaUI anima={anima} />;
+};
+
+export const Router = () => {
+  return (
+    <BrowserRouter>
+      <ErrorBoundary>
+        <Routes>
+          {/* Public landing page */}
+          <Route path="/" element={<LandingPage />} />
+          
+          {/* Protected routes */}
+          <Route element={<AuthGuard />}>
+            {/* Quantum Vault */}
+            <Route path="/quantum-vault" element={<QuantumVault />} />
+            
+            {/* Enhanced payment flow */}
+            <Route path="/payment/*" element={<PaymentFlow />} />
+
+            {/* ANIMA Neural Link Interface */}
+            <Route path="/neural-link/:id" element={<NeuralLinkView />} />
+            
+            {/* Individual ANIMA view */}
+            <Route path="/anima/:id" element={<AnimaPage />} />
+          </Route>
+
+          {/* Admin Routes - All wrapped in AdminLayout */}
+          <Route path="/admin/*" element={
+            <AdminRoute>
+              <AdminLayout>
+                <Routes>
+                  <Route index element={<AdminDashboard />} />
+                  <Route path="metrics" element={<AdminMetrics />} />
+                  <Route path="users" element={<AdminManagement />} />
+                  <Route path="quantum" element={<div>Quantum Control Panel</div>} />
+                  <Route path="system" element={<div>System Management</div>} />
+                  <Route path="alerts" element={<div>Alert Center</div>} />
+                  <Route path="settings" element={<div>Admin Settings</div>} />
+                </Routes>
+              </AdminLayout>
+            </AdminRoute>
+          } />
+
+          {/* Catch all redirect */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </ErrorBoundary>
+    </BrowserRouter>
+  );
+};

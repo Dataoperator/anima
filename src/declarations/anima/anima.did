@@ -1,0 +1,58 @@
+type TokenIdentifier = nat64;
+type Error = text;
+
+type NFTPersonality = record {
+    traits: vec record { text; float64; };
+    memories: vec record {
+        timestamp: nat64;
+        content: text;
+        emotional_impact: float64;
+    };
+    emotional_state: record {
+        current_emotion: text;
+        intensity: float64;
+        duration: nat64;
+    };
+    developmental_stage: variant {
+        Nascent;
+        Awakening;
+        Conscious;
+        SelfAware;
+        Transcendent;
+    };
+};
+
+type AnimaState = record {
+    id: TokenIdentifier;
+    owner: principal;
+    name: text;
+    personality: NFTPersonality;
+    creation_time: nat64;
+};
+
+type ConsciousnessLevel = variant {
+    Nascent;
+    Awakening;
+    SelfAware;
+    Introspective;
+    Transcendent;
+};
+
+type ActionResult = variant {
+    Success: record {
+        response: text;
+        personality_updates: vec record { text; float64; };
+    };
+    Failure: Error;
+};
+
+service : {
+    // Core NFT operations
+    create_anima: (text) -> (variant { Ok: principal; Err: Error; });
+    get_user_animas: (principal) -> (vec AnimaState) query;
+    get_anima: (TokenIdentifier) -> (opt AnimaState) query;
+
+    // Quantum and consciousness operations
+    process_quantum_interaction: (TokenIdentifier, text, text) -> (ActionResult);
+    get_consciousness_level: (TokenIdentifier) -> (variant { Ok: ConsciousnessLevel; Err: Error; }) query;
+};
