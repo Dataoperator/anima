@@ -1,177 +1,152 @@
-{/* Previous code remains the same... */}
-            <div className="relative z-10 text-center space-y-4">
-              <motion.h2
-                initial={{ y: 20 }}
-                animate={{ y: 0 }}
-                className="text-2xl font-bold text-violet-300"
-              >
-                Evolution Detected
-              </motion.h2>
-              
-              <QuantumField
-                strength={quantumState.coherence}
-                className="w-64 h-64 mx-auto"
-              />
+import React, { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { QuantumField } from '../ui/QuantumField';
+import { WaveformGenerator } from '../personality/WaveformGenerator';
+import { EmotionVisualizer } from '../quantum/EmotionVisualizer';
+import { useQuantumState } from '@/hooks/useQuantumState';
 
-              {activeAnima?.traits && (
-                <div className="grid grid-cols-2 gap-4 max-w-2xl mx-auto">
-                  {activeAnima.traits.map((trait, index) => (
-                    <TraitEvolutionCard
-                      key={trait.trait}
-                      trait={trait}
-                      delay={index * 0.1}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+interface Message {
+  id: string;
+  content: string;
+  sender: 'user' | 'anima';
+  timestamp: Date;
+  emotionalState?: {
+    resonance: number;
+    harmony: number;
+    intensity: number;
+  };
+}
 
-      {/* Header with Evolution Progress */}
-      <div className="flex items-center justify-between p-4 border-b border-cyan-500/30">
-        <div className="flex items-center space-x-3">
-          <div className="relative">
-            <div className="w-3 h-3 rounded-full bg-cyan-500 animate-pulse" />
-            <div className="absolute inset-0 rounded-full bg-cyan-500 animate-ping opacity-20" />
-          </div>
-          <div>
-            <h3 className="text-cyan-400 font-medium">Neural Link Active</h3>
-            <p className="text-xs text-cyan-500/60">
-              Connected to {activeAnima?.name}
-            </p>
-          </div>
-        </div>
+export const ImmersiveChatInterface: React.FC = () => {
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [inputValue, setInputValue] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+  const { quantumState, updateQuantumState } = useQuantumState();
 
-        {evolutionProgress && <EvolutionIndicator progress={evolutionProgress} />}
-        
-        <div className="flex items-center space-x-4">
-          {/* Previous controls remain... */}
-        </div>
-      </div>
+  const scrollToBottom = () => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
 
-      {/* Messages with Growth Opportunities */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        <AnimatePresence mode="popLayout">
-          {messages.map((message) => (
-            <ChatBubble
-              key={message.id}
-              message={message}
-              isUser={message.sender === 'user'}
-            />
-          ))}
-          
-          {growthOpportunities.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="p-4 rounded-lg bg-indigo-500/10 border border-indigo-500/30"
-            >
-              <h4 className="text-indigo-300 font-medium mb-2">
-                Growth Opportunities Available
-              </h4>
-              <div className="grid grid-cols-2 gap-3">
-                {growthOpportunities.map((opportunity) => (
-                  <motion.button
-                    key={opportunity.id}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    className="p-3 rounded-lg bg-indigo-500/5 border border-indigo-500/20
-                             hover:bg-indigo-500/10 transition-colors text-left"
-                    onClick={() => onGrowthOpportunityClick(opportunity)}
-                  >
-                    <div className="text-sm font-medium text-indigo-300">
-                      {opportunity.name}
-                    </div>
-                    <div className="text-xs text-indigo-400/60 mt-1">
-                      {opportunity.description}
-                    </div>
-                    <div className="flex items-center justify-between mt-2 text-xs">
-                      <span className="text-indigo-400">
-                        Level {opportunity.requiredLevel}
-                      </span>
-                      <span className="text-indigo-300">
-                        {opportunity.cost} ICP
-                      </span>
-                    </div>
-                  </motion.button>
-                ))}
-              </div>
-            </motion.div>
-          )}
-          
-          {isLoading && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="flex justify-center"
-            >
-              <div className="flex items-center space-x-2 px-4 py-2 rounded-full 
-                            bg-cyan-500/10 border border-cyan-500/30">
-                <div className="text-cyan-400 text-sm">Processing</div>
-                <div className="flex space-x-1">
-                  {[...Array(3)].map((_, i) => (
-                    <motion.div
-                      key={i}
-                      animate={{
-                        y: [-2, 2, -2],
-                        opacity: [0.4, 1, 0.4]
-                      }}
-                      transition={{
-                        duration: 0.6,
-                        repeat: Infinity,
-                        delay: i * 0.2
-                      }}
-                      className="w-1.5 h-1.5 rounded-full bg-cyan-500"
-                    />
-                  ))}
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-        <div ref={chatEndRef} />
-      </div>
+  useEffect(scrollToBottom, [messages]);
 
-      {/* Enhanced Input with Quantum State Indicator */}
-      <div className="p-4 border-t border-cyan-500/30 bg-black/40">
-        <div className="relative">
-          <textarea
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            className="w-full p-3 pr-12 rounded-lg bg-black/60 border border-cyan-500/30 
-                     text-cyan-100 placeholder-cyan-500/40 resize-none focus:outline-none 
-                     focus:border-cyan-500/60 transition-colors"
-            placeholder="Enter neural transmission..."
-            rows={3}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                handleSend();
-              }
-            }}
-          />
-          <div className="absolute right-2 bottom-2 flex items-center space-x-2">
-            <div className="text-xs text-cyan-500/60">
-              Quantum Coherence: {(quantumState.coherence * 100).toFixed(0)}%
-            </div>
-            <button
-              onClick={handleSend}
-              disabled={!inputValue.trim() || isLoading}
-              className="p-2 rounded-lg bg-cyan-500/10 text-cyan-400 
-                       hover:bg-cyan-500/20 disabled:opacity-50
-                       disabled:cursor-not-allowed transition-colors"
-            >
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inputValue.trim()) return;
+
+    const userMessage: Message = {
+      id: crypto.randomUUID(),
+      content: inputValue.trim(),
+      sender: 'user',
+      timestamp: new Date()
+    };
+
+    setMessages(prev => [...prev, userMessage]);
+    setInputValue('');
+    setIsTyping(true);
+
+    // Simulate ANIMA's response with quantum state influence
+    try {
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      const resonance = Math.random();
+      const harmony = Math.random();
+      
+      const animaResponse: Message = {
+        id: crypto.randomUUID(),
+        content: `Quantum resonance detected. Harmonic frequency: ${(resonance * 100).toFixed(2)}%`,
+        sender: 'anima',
+        timestamp: new Date(),
+        emotionalState: {
+          resonance,
+          harmony,
+          intensity: (resonance + harmony) / 2
+        }
+      };
+
+      setMessages(prev => [...prev, animaResponse]);
+      updateQuantumState({
+        resonance,
+        harmony,
+        lastInteraction: new Date()
+      });
+    } catch (error) {
+      console.error('Response generation failed:', error);
+    } finally {
+      setIsTyping(false);
+    }
+  };
+
+  return (
+    <div className="relative h-[80vh] rounded-lg overflow-hidden">
+      <QuantumField intensity={quantumState.resonance} className="absolute inset-0 z-0" />
+      
+      <div className="relative z-10 flex flex-col h-full backdrop-blur-sm">
+        {/* Chat Messages */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          <AnimatePresence initial={false}>
+            {messages.map((message) => (
               <motion.div
-                animate={isLoading ? { rotate: 360 } : {}}
-                transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                key={message.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.8 }}
+                className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
               >
-                <Zap className="w-5 h-5" />
+                <div
+                  className={`max-w-[80%] rounded-lg p-4 ${
+                    message.sender === 'user'
+                      ? 'bg-blue-600/40 ml-auto'
+                      : 'bg-purple-600/40'
+                  }`}
+                >
+                  <p className="text-white">{message.content}</p>
+                  {message.emotionalState && (
+                    <div className="mt-2">
+                      <EmotionVisualizer emotionalState={message.emotionalState} />
+                    </div>
+                  )}
+                </div>
               </motion.div>
+            ))}
+          </AnimatePresence>
+          
+          {isTyping && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex items-center space-x-2 text-white/70"
+            >
+              <WaveformGenerator />
+              <span>ANIMA is resonating...</span>
+            </motion.div>
+          )}
+          <div ref={chatEndRef} />
+        </div>
+
+        {/* Input Area */}
+        <form onSubmit={handleSubmit} className="p-4 bg-gray-900/50">
+          <div className="flex items-center space-x-4">
+            <input
+              type="text"
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              className="flex-1 bg-gray-800 text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Enter your message..."
+              disabled={isTyping}
+            />
+            <button
+              type="submit"
+              disabled={isTyping || !inputValue.trim()}
+              className={`px-6 py-2 rounded-lg transition-all duration-200 ${
+                isTyping || !inputValue.trim()
+                  ? 'bg-gray-700 cursor-not-allowed'
+                  : 'bg-blue-600 hover:bg-blue-700'
+              }`}
+            >
+              Send
             </button>
           </div>
-        </div>
+        </form>
       </div>
     </div>
   );

@@ -1,110 +1,156 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { AuthClient } from '@dfinity/auth-client';
+import React, { createContext, useContext, useEffect, useState } from 'react';
+import { icManager } from '@/ic-init';
 
 interface AuthContextType {
   isAuthenticated: boolean;
-  isInitialized: boolean;
-  authClient: AuthClient | null;
-  login: () => Promise<void>;
+  isLoading: boolean;
+  error: string | null;
+  principal: string | null;
+  login: () => Promise<boolean>;
   logout: () => Promise<void>;
+  clearError: () => void;
 }
 
-const AuthContext = createContext<AuthContextType | null>(null);
-
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-};
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 interface AuthProviderProps {
   children: React.ReactNode;
 }
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const [authClient, setAuthClient] = useState<AuthClient | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isInitialized, setIsInitialized] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [principal, setPrincipal] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
+  const MAX_RETRIES = 3;
+
+  const clearError = () => setError(null);
+
+  const checkAuthentication = async () => {
+    try {
+      const identity = icManager.getIdentity();
+      const principalId = identity?.getPrincipal().toString();
+      const isAnonymous = identity?.getPrincipal().isAnonymous();
+      
+      setIsAuthenticated(!isAnonymous);
+      setPrincipal(principalId || null);
+      
+      return !isAnonymous;
+    } catch (err) {
+      console.error('Auth check failed:', err);
+      if (retryCount < MAX_RETRIES) {
+        setRetryCount(prev => prev + 1);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        return checkAuthentication();
+      }
+      setError(err instanceof Error ? err.message : 'Authentication check failed');
+      return false;
+    }
+  };
 
   useEffect(() => {
-    const initAuth = async () => {
+    const initialize = async () => {
       try {
-        // Create auth client
-        const client = await AuthClient.create();
-        setAuthClient(client);
-
-        // Check if already authenticated
-        const isAuthed = await client.isAuthenticated();
-        setIsAuthenticated(isAuthed);
-        
-        setIsInitialized(true);
+        setIsLoading(true);
+        await checkAuthentication();
       } catch (error) {
-        console.error('Failed to initialize auth:', error);
-        // Still mark as initialized to prevent endless loading
-        setIsInitialized(true);
+        console.error('Auth initialization failed:', error);
+        setError(error instanceof Error ? error.message : 'Authentication initialization failed');
+      } finally {
+        setIsLoading(false);
       }
     };
 
-    initAuth();
+    initialize();
   }, []);
 
-  const login = async () => {
-    if (!authClient) throw new Error('Auth client not initialized');
-
+  const login = async (): Promise<boolean> => {
     try {
-      await authClient.login({
-        identityProvider: process.env.II_URL || 'https://identity.ic0.app/#authorize',
-        onSuccess: () => {
-          setIsAuthenticated(true);
-        },
-        onError: (error) => {
-          console.error('Login failed:', error);
-          throw error;
-        },
-      });
-    } catch (error) {
-      console.error('Login error:', error);
-      throw error;
+      setIsLoading(true);
+      clearError();
+      const success = await icManager.login();
+      if (success) {
+        const isAuth = await checkAuthentication();
+        setIsAuthenticated(isAuth);
+        return isAuth;
+      }
+      throw new Error('Login failed');
+    } catch (err) {
+      console.error('Login error:', err);
+      setError(err instanceof Error ? err.message : 'Login failed');
+      return false;
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const logout = async () => {
-    if (!authClient) throw new Error('Auth client not initialized');
-
+  const logout = async (): Promise<void> => {
     try {
-      await authClient.logout();
+      setIsLoading(true);
+      clearError();
+      await icManager.logout();
       setIsAuthenticated(false);
-    } catch (error) {
-      console.error('Logout error:', error);
-      throw error;
+      setPrincipal(null);
+    } catch (err) {
+      console.error('Logout error:', err);
+      setError(err instanceof Error ? err.message : 'Logout failed');
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  // Don't render until initialized
-  if (!isInitialized) {
-    return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-t-2 border-blue-500 rounded-full animate-spin mx-auto mb-4" />
-          <p>Initializing Authentication...</p>
-        </div>
-      </div>
-    );
-  }
+  // Monitor connection status
+  useEffect(() => {
+    const checkConnection = async () => {
+      try {
+        const identity = icManager.getIdentity();
+        if (!identity) {
+          throw new Error('Identity not found');
+        }
+        await checkAuthentication();
+      } catch (err) {
+        console.error('Connection check failed:', err);
+        setError('Connection lost. Please reload the page.');
+      }
+    };
+
+    const interval = setInterval(checkConnection, 30000); // Check every 30 seconds
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <AuthContext.Provider
       value={{
         isAuthenticated,
-        isInitialized,
-        authClient,
+        isLoading,
+        error,
+        principal,
         login,
         logout,
+        clearError
       }}
     >
+      {error && (
+        <div className="fixed top-4 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 flex items-center gap-4">
+          <span>{error}</span>
+          <button
+            onClick={clearError}
+            className="text-white hover:text-gray-200"
+          >
+            ✕
+          </button>
+        </div>
+      )}
       {children}
     </AuthContext.Provider>
   );
+};
+
+export const useAuthContext = () => {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuthContext must be used within an AuthProvider');
+  }
+  return context;
 };

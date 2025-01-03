@@ -1,38 +1,22 @@
-import { Principal } from '@dfinity/principal';
+import { useEffect } from 'react';
 
-export enum ErrorSeverity {
-  LOW = 'LOW',
-  MEDIUM = 'MEDIUM',
-  HIGH = 'HIGH',
-  CRITICAL = 'CRITICAL'
+interface ErrorEvent {
+  type: string;
+  message: string;
+  timestamp: Date;
+  context?: Record<string, any>;
+  stackTrace?: string;
 }
 
-export enum ErrorCategory {
-  PAYMENT = 'PAYMENT',
-  LEDGER = 'LEDGER',
-  QUANTUM = 'QUANTUM',
-  AUTHENTICATION = 'AUTH',
-  NETWORK = 'NETWORK',
-  STATE = 'STATE',
-  CONTRACT = 'CONTRACT'
-}
-
-interface ErrorContext {
-  timestamp: number;
-  principal?: Principal;
-  transactionId?: string;
-  quantumState?: string;
-  ledgerEndpoint?: string;
-  componentStack?: string;
-  extraData?: Record<string, any>;
-}
-
-export class ErrorTracker {
+class ErrorTracker {
   private static instance: ErrorTracker;
-  private errors: Map<string, Array<{error: Error, context: ErrorContext}>> = new Map();
-  private errorCallbacks: Set<(category: ErrorCategory, error: Error, context: ErrorContext) => void> = new Set();
+  private errors: ErrorEvent[] = [];
+  private readonly MAX_ERRORS = 100;
+  private listeners: ((error: ErrorEvent) => void)[] = [];
 
-  private constructor() {}
+  private constructor() {
+    this.setupGlobalHandlers();
+  }
 
   static getInstance(): ErrorTracker {
     if (!ErrorTracker.instance) {
@@ -41,167 +25,120 @@ export class ErrorTracker {
     return ErrorTracker.instance;
   }
 
-  trackError(
-    category: ErrorCategory,
-    error: Error,
-    severity: ErrorSeverity,
-    context: Partial<ErrorContext> = {}
-  ): string {
-    const errorId = this.generateErrorId();
-    const fullContext: ErrorContext = {
-      timestamp: Date.now(),
-      ...context
+  private setupGlobalHandlers() {
+    window.addEventListener('unhandledrejection', (event) => {
+      this.trackError({
+        type: 'UnhandledPromiseRejection',
+        message: event.reason?.message || 'Unknown Promise Error',
+        timestamp: new Date(),
+        context: {
+          reason: event.reason
+        }
+      });
+    });
+
+    window.addEventListener('error', (event) => {
+      this.trackError({
+        type: 'GlobalError',
+        message: event.message,
+        timestamp: new Date(),
+        context: {
+          filename: event.filename,
+          lineno: event.lineno,
+          colno: event.colno
+        },
+        stackTrace: event.error?.stack
+      });
+    });
+  }
+
+  trackError(error: ErrorEvent) {
+    const enhancedError = {
+      ...error,
+      context: {
+        ...error.context,
+        url: window.location.href,
+        userAgent: navigator.userAgent,
+        timestamp: new Date().toISOString()
+      }
     };
 
-    // Store error with context
-    if (!this.errors.has(category)) {
-      this.errors.set(category, []);
-    }
-    this.errors.get(category)!.push({ error, context: fullContext });
+    this.errors = [enhancedError, ...this.errors].slice(0, this.MAX_ERRORS);
+    this.notifyListeners(enhancedError);
+    this.persistErrors();
 
-    // Log detailed error information
-    console.error(`[${severity}] ${category} Error (${errorId}):`, {
-      message: error.message,
-      stack: error.stack,
-      context: fullContext
-    });
-
-    // Notify error subscribers
-    this.notifyErrorCallbacks(category, error, fullContext);
-
-    // Special handling for critical errors
-    if (severity === ErrorSeverity.CRITICAL) {
-      this.handleCriticalError(category, error, fullContext);
-    }
-
-    return errorId;
-  }
-
-  async getErrorReport(category?: ErrorCategory): Promise<string> {
-    const errors = category ? 
-      this.errors.get(category) || [] :
-      Array.from(this.errors.values()).flat();
-
-    return JSON.stringify(errors.map(({ error, context }) => ({
-      timestamp: new Date(context.timestamp).toISOString(),
-      category,
-      message: error.message,
-      stack: error.stack,
-      context: {
-        ...context,
-        principal: context.principal?.toString(),
-      }
-    })), null, 2);
-  }
-
-  subscribeToErrors(
-    callback: (category: ErrorCategory, error: Error, context: ErrorContext) => void
-  ): () => void {
-    this.errorCallbacks.add(callback);
-    return () => this.errorCallbacks.delete(callback);
-  }
-
-  clearErrors(category?: ErrorCategory): void {
-    if (category) {
-      this.errors.delete(category);
-    } else {
-      this.errors.clear();
+    // Log to console in development
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Tracked Error:', enhancedError);
     }
   }
 
-  private generateErrorId(): string {
-    return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  private notifyListeners(error: ErrorEvent) {
+    this.listeners.forEach(listener => listener(error));
   }
 
-  private notifyErrorCallbacks(
-    category: ErrorCategory,
-    error: Error,
-    context: ErrorContext
-  ): void {
-    this.errorCallbacks.forEach(callback => {
-      try {
-        callback(category, error, context);
-      } catch (callbackError) {
-        console.error('Error in error callback:', callbackError);
-      }
-    });
+  addListener(listener: (error: ErrorEvent) => void) {
+    this.listeners.push(listener);
+    return () => {
+      this.listeners = this.listeners.filter(l => l !== listener);
+    };
   }
 
-  private handleCriticalError(
-    category: ErrorCategory,
-    error: Error,
-    context: ErrorContext
-  ): void {
-    // Log to permanent storage
-    this.logToPermanentStorage({
-      category,
-      error: error.message,
-      stack: error.stack,
-      context,
-      timestamp: new Date().toISOString()
-    });
-
-    // Attempt recovery actions based on category
-    switch (category) {
-      case ErrorCategory.PAYMENT:
-        this.recoverPaymentState(error, context);
-        break;
-      case ErrorCategory.QUANTUM:
-        this.recoverQuantumState(error, context);
-        break;
-      case ErrorCategory.LEDGER:
-        this.recoverLedgerConnection(error, context);
-        break;
-      // Add other category-specific recovery actions
-    }
-  }
-
-  private async logToPermanentStorage(errorData: any): Promise<void> {
+  private persistErrors() {
     try {
-      // Implement permanent storage logging
-      // This could be to a canister, local storage, or external service
-      console.warn('Critical error logged:', errorData);
-    } catch (error) {
-      console.error('Failed to log to permanent storage:', error);
+      localStorage.setItem('anima_error_log', JSON.stringify(this.errors));
+    } catch (e) {
+      console.warn('Failed to persist errors:', e);
     }
   }
 
-  private async recoverPaymentState(error: Error, context: ErrorContext): Promise<void> {
-    try {
-      // Implement payment state recovery logic
-      // This could include:
-      // 1. Verifying transaction status
-      // 2. Rolling back incomplete transactions
-      // 3. Notifying admin system
-      console.warn('Attempting payment state recovery:', { error, context });
-    } catch (recoveryError) {
-      console.error('Failed to recover payment state:', recoveryError);
-    }
+  getErrors() {
+    return this.errors;
   }
 
-  private async recoverQuantumState(error: Error, context: ErrorContext): Promise<void> {
-    try {
-      // Implement quantum state recovery
-      // This could include:
-      // 1. State verification
-      // 2. Coherence check
-      // 3. State reset if necessary
-      console.warn('Attempting quantum state recovery:', { error, context });
-    } catch (recoveryError) {
-      console.error('Failed to recover quantum state:', recoveryError);
-    }
+  clearErrors() {
+    this.errors = [];
+    this.persistErrors();
   }
 
-  private async recoverLedgerConnection(error: Error, context: ErrorContext): Promise<void> {
-    try {
-      // Implement ledger connection recovery
-      // This could include:
-      // 1. Connection retry with backoff
-      // 2. Endpoint failover
-      // 3. State verification
-      console.warn('Attempting ledger connection recovery:', { error, context });
-    } catch (recoveryError) {
-      console.error('Failed to recover ledger connection:', recoveryError);
-    }
+  getErrorSummary() {
+    const summary = this.errors.reduce((acc, error) => {
+      acc[error.type] = (acc[error.type] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    return {
+      total: this.errors.length,
+      byType: summary,
+      mostRecent: this.errors[0],
+      mostCommonType: Object.entries(summary)
+        .sort(([,a], [,b]) => b - a)[0]?.[0]
+    };
   }
 }
+
+export const errorTracker = ErrorTracker.getInstance();
+
+// React hook for error tracking
+export const useErrorTracking = (options: {
+  onError?: (error: ErrorEvent) => void;
+} = {}) => {
+  useEffect(() => {
+    const removeListener = options.onError
+      ? errorTracker.addListener(options.onError)
+      : undefined;
+
+    return () => removeListener?.();
+  }, [options.onError]);
+
+  return {
+    trackError: (error: Omit<ErrorEvent, 'timestamp'>) => {
+      errorTracker.trackError({
+        ...error,
+        timestamp: new Date()
+      });
+    },
+    getErrorSummary: () => errorTracker.getErrorSummary(),
+    clearErrors: () => errorTracker.clearErrors()
+  };
+};

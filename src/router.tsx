@@ -1,48 +1,54 @@
-import React from 'react';
-import { createBrowserRouter } from 'react-router-dom';
-import { AuthGuard } from '@/components/auth/AuthGuard';
-import LandingPage from '@/components/pages/LandingPage';
-import { EnhancedImmersiveAnimaUI } from '@/components/chat/EnhancedImmersiveAnimaUI';
-import { QuantumVault } from '@/components/quantum-vault/QuantumVault.tsx';
-import { Genesis } from '@/components/genesis';
+import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom';
+import { Suspense, lazy } from 'react';
+import { LoadingFallback } from './components/ui/LoadingFallback';
+import { ErrorBoundary } from './components/error-boundary/ErrorBoundary';
 
-// Create router with future flags enabled
-export const router = createBrowserRouter([
-  // Public Routes
-  {
-    path: '/',
-    element: <LandingPage />,
-  },
+// Lazy load components
+const LandingPage = lazy(() => import('./components/pages/LandingPage'));
+const AnimaPage = lazy(() => import('./components/pages/AnimaPage'));
+const GenesisPage = lazy(() => import('./components/pages/GenesisPage'));
+const NeuralLinkPage = lazy(() => import('./components/pages/NeuralLinkPage'));
+const AdminManagement = lazy(() => import('./components/admin/AdminManagement'));
 
-  // Protected Routes
+const withSuspense = (Component: React.ComponentType<any>) => (
+  <Suspense fallback={<LoadingFallback />}>
+    <ErrorBoundary>
+      <Component />
+    </ErrorBoundary>
+  </Suspense>
+);
+
+export const router = createBrowserRouter(
+  [
+    {
+      path: '/',
+      element: withSuspense(LandingPage),
+    },
+    {
+      path: '/anima',
+      element: withSuspense(AnimaPage),
+    },
+    {
+      path: '/genesis',
+      element: withSuspense(GenesisPage),
+    },
+    {
+      path: '/neural-link',
+      element: withSuspense(NeuralLinkPage),
+    },
+    {
+      path: '/admin',
+      element: withSuspense(AdminManagement),
+    },
+    {
+      path: '*',
+      element: <Navigate to="/" replace />,
+    }
+  ],
   {
-    path: '/quantum-vault',
-    element: (
-      <AuthGuard>
-        <QuantumVault />
-      </AuthGuard>
-    ),
-  },
-  {
-    path: '/genesis',
-    element: (
-      <AuthGuard>
-        <Genesis />
-      </AuthGuard>
-    ),
-  },
-  {
-    path: '/anima/:id',
-    element: (
-      <AuthGuard>
-        <EnhancedImmersiveAnimaUI />
-      </AuthGuard>
-    ),
+    future: {
+      v7_startTransition: true,
+      v7_relativeSplatPath: true
+    }
   }
-], {
-  // Enable React Router v7 future flags
-  future: {
-    v7_startTransition: true,
-    v7_relativeSplatPath: true
-  }
-});
+);
