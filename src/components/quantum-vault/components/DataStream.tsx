@@ -1,96 +1,85 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { DataStreamProps } from '../types';
+import { Activity, Database, Zap } from 'lucide-react';
 
-const DataStream: React.FC<DataStreamProps> = ({ state }) => {
-  const [history, setHistory] = useState<Array<{ value: number; timestamp: number }>>([]);
+interface DataStreamProps {
+  data: {
+    coherence: number;
+    energy: number;
+    entanglement?: {
+      level: number;
+      connections: number;
+    };
+  };
+}
+
+export const DataStream: React.FC<DataStreamProps> = ({ data }) => {
+  const [streamData, setStreamData] = useState<string[]>([]);
+  const streamRef = useRef<HTMLDivElement>(null);
+  
+  useEffect(() => {
+    // Generate quantum-inspired data stream
+    const timestamp = new Date().toISOString();
+    const newData = [
+      `[${timestamp}] Coherence Level: ${data.coherence.toFixed(4)}`,
+      `[${timestamp}] Energy State: ${data.energy.toFixed(4)}`,
+      data.entanglement && `[${timestamp}] Entanglement Strength: ${data.entanglement.level.toFixed(4)}`,
+      data.entanglement && `[${timestamp}] Active Connections: ${data.entanglement.connections}`
+    ].filter(Boolean) as string[];
+
+    setStreamData(prev => [...newData, ...prev].slice(0, 50));
+  }, [data]);
 
   useEffect(() => {
-    // Keep last 10 readings
-    setHistory(prev => {
-      const newHistory = [...prev, { 
-        value: state.coherence, 
-        timestamp: Date.now() 
-      }].slice(-10);
-      return newHistory;
-    });
-  }, [state]);
+    if (streamRef.current) {
+      streamRef.current.scrollTop = 0;
+    }
+  }, [streamData]);
 
   return (
-    <div className="bg-gray-800/50 rounded-xl p-6 backdrop-blur-sm">
-      <h2 className="text-xl font-bold mb-4 text-blue-300">Quantum Data Stream</h2>
-      
-      <div className="space-y-4">
-        {/* Core Metrics */}
-        <div className="grid grid-cols-2 gap-4">
-          <div className="bg-gray-700/50 p-4 rounded-lg">
-            <h3 className="text-sm font-medium text-gray-300">Coherence</h3>
-            <motion.p 
-              key={state.coherence}
-              initial={{ scale: 1.2, color: '#60A5FA' }}
-              animate={{ scale: 1, color: '#F3F4F6' }}
-              className="text-2xl font-bold"
+    <div className="h-full bg-gray-900/50 rounded-xl p-6 backdrop-blur-sm border border-violet-500/20">
+      <div className="flex items-center mb-4 space-x-2">
+        <Activity className="w-5 h-5 text-violet-400" />
+        <h2 className="text-lg font-semibold text-violet-300">Quantum Data Stream</h2>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+        <div className="bg-gray-800/50 p-4 rounded-lg flex items-center space-x-3">
+          <Database className="w-5 h-5 text-blue-400" />
+          <div>
+            <p className="text-sm text-gray-400">Active Streams</p>
+            <p className="text-xl font-bold text-blue-400">{data.entanglement?.connections || 0}</p>
+          </div>
+        </div>
+
+        <div className="bg-gray-800/50 p-4 rounded-lg flex items-center space-x-3">
+          <Zap className="w-5 h-5 text-yellow-400" />
+          <div>
+            <p className="text-sm text-gray-400">Energy Level</p>
+            <p className="text-xl font-bold text-yellow-400">{data.energy.toFixed(2)}</p>
+          </div>
+        </div>
+      </div>
+
+      <div 
+        ref={streamRef}
+        className="h-[calc(100%-8rem)] overflow-y-auto custom-scrollbar"
+      >
+        <AnimatePresence mode="popLayout">
+          {streamData.map((line, index) => (
+            <motion.div
+              key={line + index}
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              transition={{ duration: 0.2 }}
+              className="font-mono text-sm py-1 border-b border-gray-700/50 last:border-0"
             >
-              {state.coherence.toFixed(3)}
-            </motion.p>
-          </div>
-          
-          <div className="bg-gray-700/50 p-4 rounded-lg">
-            <h3 className="text-sm font-medium text-gray-300">Stability</h3>
-            <motion.p 
-              key={state.stability}
-              initial={{ scale: 1.2, color: '#34D399' }}
-              animate={{ scale: 1, color: '#F3F4F6' }}
-              className="text-2xl font-bold"
-            >
-              {state.stability.toFixed(3)}
-            </motion.p>
-          </div>
-        </div>
-
-        {/* Coherence History */}
-        <div className="bg-gray-700/50 p-4 rounded-lg">
-          <h3 className="text-sm font-medium text-gray-300 mb-2">Coherence History</h3>
-          <div className="h-24 flex items-end space-x-2">
-            <AnimatePresence mode="popLayout">
-              {history.map((item, i) => (
-                <motion.div
-                  key={item.timestamp}
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ 
-                    height: `${item.value * 100}%`,
-                    opacity: 1 
-                  }}
-                  exit={{ height: 0, opacity: 0 }}
-                  className="flex-1 bg-blue-500/50 rounded-t"
-                  style={{
-                    minWidth: '20px',
-                  }}
-                />
-              ))}
-            </AnimatePresence>
-          </div>
-        </div>
-
-        {/* Quantum Stats */}
-        <div className="grid grid-cols-2 gap-4">
-          <div className="bg-gray-700/50 p-4 rounded-lg">
-            <h3 className="text-sm font-medium text-gray-300">Energy Level</h3>
-            <p className="text-xl font-bold text-indigo-400">
-              {state.energy.toFixed(2)} qE
-            </p>
-          </div>
-
-          <div className="bg-gray-700/50 p-4 rounded-lg">
-            <h3 className="text-sm font-medium text-gray-300">Last Update</h3>
-            <p className="text-xl font-bold text-indigo-400">
-              {(Number(state.lastUpdate) / 1_000_000_000).toFixed(1)}s ago
-            </p>
-          </div>
-        </div>
+              <span className="text-gray-400">{line}</span>
+            </motion.div>
+          ))}
+        </AnimatePresence>
       </div>
     </div>
   );
 };
-
-export default DataStream;

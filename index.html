@@ -4,22 +4,13 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ANIMA: Quantum-Enhanced NFTs</title>
-    <script type="module">
-        import { Buffer } from 'buffer';
-        window.Buffer = Buffer;
+    <script>
+        const global = window;
+        window.process = { env: { NODE_ENV: 'production' } };
     </script>
-    <!-- Preload critical modules -->
-    <link rel="modulepreload" href="/src/main.tsx" as="script" type="application/javascript" />
-    <!-- Prevent flash of unstyled content -->
-    <style>
-        body { background: #000; color: #fff; }
-        #root { opacity: 0; animation: fadeIn 0.3s ease-in forwards; }
-        @keyframes fadeIn { to { opacity: 1; } }
-    </style>
 </head>
 <body>
     <div id="root">
-        <!-- Initial loading state -->
         <div style="display: flex; justify-content: center; align-items: center; height: 100vh; background: black; color: white;">
             <div style="text-align: center;">
                 <div style="border: 2px solid #3b82f6; border-radius: 50%; width: 40px; height: 40px; margin: 0 auto 1rem; animation: spin 1s linear infinite;"></div>

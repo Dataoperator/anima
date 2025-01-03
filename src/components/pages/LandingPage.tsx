@@ -35,7 +35,7 @@ const MotionFeature: React.FC<{
   );
 };
 
-export const LandingPage: React.FC = () => {
+const LandingPage: React.FC = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
   const shouldReduceMotion = useReducedMotion();
@@ -130,3 +130,5 @@ export const LandingPage: React.FC = () => {
     </div>
   );
 };
+
+export default LandingPage;

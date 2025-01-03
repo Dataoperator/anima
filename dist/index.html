@@ -4,22 +4,17 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ANIMA: Quantum-Enhanced NFTs</title>
-    <!-- Preload critical modules -->
-    <link rel="modulepreload" href="data:application/octet-stream;base64,aW1wb3J0IFJlYWN0LCB7IFN1c3BlbnNlIH0gZnJvbSAncmVhY3QnOwppbXBvcnQgUmVhY3RET00gZnJvbSAncmVhY3QtZG9tL2NsaWVudCc7CmltcG9ydCAnLi9pbmRleC5jc3MnOwoKLy8gSW1wb3J0IGNvbXBvbmVudHMgZGlyZWN0bHkgdG8gYXZvaWQgbGF6eSBsb2FkaW5nIGlzc3VlcwppbXBvcnQgQXBwIGZyb20gJy4vY29tcG9uZW50cy9BcHAnOwppbXBvcnQgeyBFcnJvckJvdW5kYXJ5IH0gZnJvbSAnLi9jb21wb25lbnRzL2Vycm9yLWJvdW5kYXJ5L0Vycm9yQm91bmRhcnknOwppbXBvcnQgeyBMb2FkaW5nRmFsbGJhY2sgfSBmcm9tICcuL2NvbXBvbmVudHMvdWkvTG9hZGluZ0ZhbGxiYWNrJzsKCmNvbnN0IFJvb3RFcnJvckZhbGxiYWNrID0gKHsgZXJyb3IgfTogeyBlcnJvcjogRXJyb3IgfSkgPT4gKAogIDxkaXYgY2xhc3NOYW1lPSJtaW4taC1zY3JlZW4gYmctYmxhY2sgdGV4dC13aGl0ZSBmbGV4IGl0ZW1zLWNlbnRlciBqdXN0aWZ5LWNlbnRlciI+CiAgICA8ZGl2IGNsYXNzTmFtZT0idGV4dC1jZW50ZXIgbWF4LXctbGcgcC02Ij4KICAgICAgPGgxIGNsYXNzTmFtZT0idGV4dC14bCBmb250LWJvbGQgbWItNCI+U3lzdGVtIEVycm9yPC9oMT4KICAgICAgPHAgY2xhc3NOYW1lPSJ0ZXh0LXJlZC00MDAgbWItNCI+e2Vycm9yLm1lc3NhZ2V9PC9wPgogICAgICA8YnV0dG9uIAogICAgICAgIG9uQ2xpY2s9eygpID0+IHdpbmRvdy5sb2NhdGlvbi5yZWxvYWQoKX0KICAgICAgICBjbGFzc05hbWU9InB4LTQgcHktMiBiZy1ibHVlLTYwMCByb3VuZGVkIGhvdmVyOmJnLWJsdWUtNzAwIHRyYW5zaXRpb24iCiAgICAgID4KICAgICAgICBSZXNldCBTeXN0ZW0KICAgICAgPC9idXR0b24+CiAgICA8L2Rpdj4KICA8L2Rpdj4KKTsKCmFzeW5jIGZ1bmN0aW9uIGluaXRpYWxpemVBcHAoKSB7CiAgdHJ5IHsKICAgIGNvbnNvbGUubG9nKCdJbml0aWFsaXppbmcgSW50ZXJuZXQgQ29tcHV0ZXIgY29ubmVjdGlvbi4uLicpOwogICAgYXdhaXQgaW1wb3J0KCcuL2ljLWluaXQnKTsKICAgIGNvbnNvbGUubG9nKCdJQyBpbml0aWFsaXphdGlvbiBjb21wbGV0ZScpOwogICAgCiAgICBjb25zdCByb290RWxlbWVudCA9IGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCdyb290Jyk7CiAgICBpZiAoIXJvb3RFbGVtZW50KSB7CiAgICAgIHRocm93IG5ldyBFcnJvcignUm9vdCBlbGVtZW50IG5vdCBmb3VuZCcpOwogICAgfQoKICAgIC8vIENyZWF0ZSByb290IGRpcmVjdGx5CiAgICBjb25zdCByb290ID0gUmVhY3RET00uY3JlYXRlUm9vdChyb290RWxlbWVudCk7CgogICAgcm9vdC5yZW5kZXIoCiAgICAgIDxSZWFjdC5TdHJpY3RNb2RlPgogICAgICAgIDxFcnJvckJvdW5kYXJ5IEZhbGxiYWNrQ29tcG9uZW50PXtSb290RXJyb3JGYWxsYmFja30+CiAgICAgICAgICA8U3VzcGVuc2UgZmFsbGJhY2s9ezxMb2FkaW5nRmFsbGJhY2sgLz59PgogICAgICAgICAgICA8QXBwIC8+CiAgICAgICAgICA8L1N1c3BlbnNlPgogICAgICAgIDwvRXJyb3JCb3VuZGFyeT4KICAgICAgPC9SZWFjdC5TdHJpY3RNb2RlPgogICAgKTsKICB9IGNhdGNoIChlcnJvcikgewogICAgY29uc29sZS5lcnJvcignRmFpbGVkIHRvIGluaXRpYWxpemUgYXBwOicsIGVycm9yKTsKICB9Cn0KCi8vIEluaXRpYWxpemUKaW5pdGlhbGl6ZUFwcCgpOw==" as="script" type="application/javascript" />
-    <!-- Prevent flash of unstyled content -->
-    <style>
-        body { background: #000; color: #fff; }
-        #root { opacity: 0; animation: fadeIn 0.3s ease-in forwards; }
-        @keyframes fadeIn { to { opacity: 1; } }
-    </style>
-  <script type="module" crossorigin src="/assets/main-D5zhtvQC.js"></script>
-  <link rel="modulepreload" crossorigin href="/assets/vendor-B3N3Dm4y.js">
-  <link rel="modulepreload" crossorigin href="/assets/framer-BAQLW2sr.js">
-  <link rel="stylesheet" crossorigin href="/assets/main-J7S7RHCt.css">
+    <script>
+        const global = window;
+        window.process = { env: { NODE_ENV: 'production' } };
+    </script>
+  <script type="module" crossorigin src="/assets/main-lC8JAQGs.js"></script>
+  <link rel="modulepreload" crossorigin href="/assets/vendor-PFVG4O2J.js">
+  <link rel="modulepreload" crossorigin href="/assets/framer-B_u6kgex.js">
+  <link rel="stylesheet" crossorigin href="/assets/main-CkALNdA_.css">
 </head>
 <body>
     <div id="root">
-        <!-- Initial loading state -->
         <div style="display: flex; justify-content: center; align-items: center; height: 100vh; background: black; color: white;">
             <div style="text-align: center;">
                 <div style="border: 2px solid #3b82f6; border-radius: 50%; width: 40px; height: 40px; margin: 0 auto 1rem; animation: spin 1s linear infinite;"></div>

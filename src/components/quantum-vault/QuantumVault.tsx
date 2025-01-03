@@ -2,14 +2,15 @@ import React from 'react';
 import { Motion, quantum, defaultTransition } from '@/providers/MotionProvider';
 import { useQuantumState } from '@/hooks/useQuantumState';
 import { QuantumStateVisualizer } from './components/QuantumStateVisualizer';
-import { DataStream } from './components/DataStream';
-import { WalletPanel } from './components/WalletPanel';
+import { DataStream } from './DataStream';
+import { Wallet } from '@/components/ui/Wallet';
+import { PaymentPanel } from '@/components/payment/PaymentPanel';
 
 interface QuantumVaultProps {
-  tokenId: string;
+  tokenId?: string;
 }
 
-const QuantumVault: React.FC<QuantumVaultProps> = ({ tokenId }) => {
+export const QuantumVault: React.FC<QuantumVaultProps> = ({ tokenId = '0' }) => {
   const { state, loading, error } = useQuantumState(tokenId);
 
   if (loading) {
@@ -42,20 +43,21 @@ const QuantumVault: React.FC<QuantumVaultProps> = ({ tokenId }) => {
 
   return (
     <Motion.div
-      className="quantum-vault-container"
+      className="quantum-vault-container p-6 space-y-6"
       initial="hidden"
       animate="visible"
       exit="exit"
       variants={quantum}
       transition={defaultTransition}
     >
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <QuantumStateVisualizer state={state} />
-        <DataStream data={state} />
+        <DataStream quantumState={state} />
       </div>
-      <WalletPanel tokenId={tokenId} />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Wallet className="bg-gray-800/50 border border-violet-500/20" />
+        <PaymentPanel />
+      </div>
     </Motion.div>
   );
 };
-
-export default QuantumVault;

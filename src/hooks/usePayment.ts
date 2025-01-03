@@ -1,10 +1,1 @@
-import { useContext } from 'react';
-import { PaymentContext, PaymentContextType } from '../contexts/PaymentContext';
-
-export function usePayment(): PaymentContextType {
-  const context = useContext(PaymentContext);
-  if (!context) {
-    throw new Error('usePayment must be used within a PaymentProvider');
-  }
-  return context;
-}
+export { usePayment } from '../contexts/PaymentContext';

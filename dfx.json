@@ -6,40 +6,12 @@
       "candid": "src/lib.did",
       "declarations": {
         "node_compatibility": true
-      },
-      "build": [
-        "cargo clean",
-        "cargo update",
-        "cargo build --target wasm32-unknown-unknown --release -p anima"
-      ],
-      "optimize": "O3",
-      "gzip": true,
-      "init_arg": "(record { admin = null; })",
-      "metadata": [
-        {
-          "name": "candid:service",
-          "visibility": "public"
-        },
-        {
-          "name": "candid:args",
-          "visibility": "public",
-          "content": "file:src/constructor.did"
-        },
-        {
-          "name": "https_outcalls",
-          "content": "{\"allowed_methods\":[\"GET\",\"POST\"],\"allowed_headers\":[\"Accept\",\"Accept-Language\",\"Authorization\",\"Content-Language\",\"Content-Type\",\"OpenAI-Beta\"],\"cycles_per_call\":800000000000,\"cycles_per_byte\":50,\"max_request_bytes\":4096,\"max_response_bytes\":5242880,\"timeout_secs\":30,\"permitted_origins\":null,\"urls\":[\"https://api.openai.com/v1/chat/completions\"]}"
-        }
-      ]
+      }
     },
     "anima_assets": {
       "type": "assets",
-      "source": ["dist/"],
-      "dependencies": ["anima"],
-      "declarations": {
-        "node_compatibility": true
-      },
-      "build": ["npm run build"],
-      "gzip": true
+      "source": ["dist"],
+      "dependencies": ["anima"]
     }
   },
   "networks": {

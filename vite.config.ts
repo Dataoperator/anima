@@ -7,54 +7,28 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src'),
-    },
-  },
-  css: {
-    modules: {
-      localsConvention: 'camelCase',
-      scopeBehaviour: 'local',
-    },
-    preprocessorOptions: {
-      less: {
-        javascriptEnabled: true,
-      },
-    },
-    postcss: {
-      plugins: [
-        require('tailwindcss'),
-        require('autoprefixer'),
-      ],
-    },
+    }
   },
   build: {
-    sourcemap: true,
-    target: 'esnext',
+    target: 'modules',
     outDir: 'dist',
     assetsDir: 'assets',
-    minify: 'esbuild',
-    cssMinify: true,
+    emptyOutDir: true,
+    manifest: true,
     rollupOptions: {
       input: {
-        main: path.resolve(__dirname, 'index.html')
+        app: path.resolve(__dirname, 'index.html')
       },
       output: {
-        manualChunks: {
-          'quantum': [
-            './src/components/quantum-vault'
-          ],
-          'vendor': [
-            'react',
-            'react-dom',
-            'react-router-dom',
-            'framer-motion'
-          ]
-        }
+        format: 'systemjs',
+        entryFileNames: 'assets/[name].[hash].js',
+        chunkFileNames: 'assets/[name].[hash].js',
+        assetFileNames: 'assets/[name].[hash].[ext]'
       }
     }
   },
-  server: {
-    port: 3000,
-    strictPort: true,
-    host: true
+  optimizeDeps: {
+    include: ['react', 'react-dom', 'react-router-dom', 'framer-motion'],
+    exclude: ['@dfinity/agent', '@dfinity/candid', '@dfinity/principal']
   }
 });
