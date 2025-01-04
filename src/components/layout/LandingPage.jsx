@@ -33,8 +33,8 @@ const LandingPage = () => {
     });
 
     if (!isLoading && isAuthenticated && actor) {
-      logger.info('LandingPage', 'Redirecting to quantum vault - authenticated with actor');
-      navigate('/quantum-vault');
+      logger.info('LandingPage', 'Redirecting to vault - authenticated with actor');
+      navigate('/vault');
     }
   }, [isAuthenticated, isLoading, actor, navigate]);
 
@@ -56,7 +56,7 @@ const LandingPage = () => {
       setIsLoggingIn(true);
       setAuthError(null);
       await login();
-      navigate('/quantum-vault');
+      navigate('/vault');
     } catch (error) {
       logger.error('LandingPage', 'Login failed', { error });
       setAuthError('Failed to connect. Please try again.');

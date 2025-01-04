@@ -1,14 +1,35 @@
 import { useEffect } from 'react';
 
-interface ErrorEvent {
+export enum ErrorCategory {
+  Network = 'NETWORK',
+  Authentication = 'AUTHENTICATION',
+  Authorization = 'AUTHORIZATION',
+  Validation = 'VALIDATION',
+  Business = 'BUSINESS',
+  Technical = 'TECHNICAL',
+  Security = 'SECURITY',
+  Quantum = 'QUANTUM'
+}
+
+export enum ErrorSeverity {
+  Critical = 'CRITICAL',
+  High = 'HIGH',
+  Medium = 'MEDIUM',
+  Low = 'LOW',
+  Info = 'INFO'
+}
+
+export interface ErrorEvent {
   type: string;
+  category?: ErrorCategory;
+  severity?: ErrorSeverity;
   message: string;
   timestamp: Date;
   context?: Record<string, any>;
   stackTrace?: string;
 }
 
-class ErrorTracker {
+export class ErrorTracker {
   private static instance: ErrorTracker;
   private errors: ErrorEvent[] = [];
   private readonly MAX_ERRORS = 100;
@@ -29,6 +50,8 @@ class ErrorTracker {
     window.addEventListener('unhandledrejection', (event) => {
       this.trackError({
         type: 'UnhandledPromiseRejection',
+        category: ErrorCategory.Technical,
+        severity: ErrorSeverity.High,
         message: event.reason?.message || 'Unknown Promise Error',
         timestamp: new Date(),
         context: {
@@ -40,6 +63,8 @@ class ErrorTracker {
     window.addEventListener('error', (event) => {
       this.trackError({
         type: 'GlobalError',
+        category: ErrorCategory.Technical,
+        severity: ErrorSeverity.Critical,
         message: event.message,
         timestamp: new Date(),
         context: {

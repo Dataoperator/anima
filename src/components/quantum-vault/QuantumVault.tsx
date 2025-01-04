@@ -2,11 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useQuantumState } from '@/hooks/useQuantumState';
+import { useAnima } from '@/contexts/anima-context';
 import { QuantumField } from '../ui/QuantumField';
 import { WaveformGenerator } from '../personality/WaveformGenerator';
-import { PaymentPanel } from '../payment/PaymentPanel';
 import { LaughingMan } from '../ui/LaughingMan';
 import { useAuth } from '@/hooks/useAuth';
+import { WalletService } from '@/services/icp/wallet.service';
 
 interface QuantumVaultProps {
   returnFromGenesis?: boolean;
@@ -16,17 +17,36 @@ const QuantumVault: React.FC<QuantumVaultProps> = ({ returnFromGenesis = false }
   const navigate = useNavigate();
   const { quantumState } = useQuantumState();
   const { isAuthenticated } = useAuth();
+  const { selectedAnima } = useAnima();
   const [hasAnima, setHasAnima] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [wallet, setWallet] = useState<WalletService | null>(null);
+
+  useEffect(() => {
+    const initializeWallet = async () => {
+      if (isAuthenticated) {
+        const walletService = WalletService.getInstance();
+        setWallet(walletService);
+        try {
+          await walletService.initialize();
+        } catch (error) {
+          console.error('Failed to initialize wallet:', error);
+        }
+      }
+    };
+
+    initializeWallet();
+  }, [isAuthenticated]);
 
   useEffect(() => {
     const checkAnimaStatus = async () => {
       try {
-        // TODO: Replace with actual anima check
-        // This would check if the user has minted an anima
-        setHasAnima(false);
+        if (selectedAnima) {
+          setHasAnima(true);
+        }
       } catch (error) {
         console.error('Error checking anima status:', error);
+        setHasAnima(false);
       } finally {
         setIsLoading(false);
       }
@@ -35,14 +55,16 @@ const QuantumVault: React.FC<QuantumVaultProps> = ({ returnFromGenesis = false }
     if (isAuthenticated) {
       checkAnimaStatus();
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, selectedAnima]);
 
   const handleStartGenesis = () => {
     navigate('/genesis');
   };
 
   const handleEnterAnimaPage = () => {
-    navigate('/anima');
+    if (selectedAnima) {
+      navigate(`/anima/${selectedAnima.token_id.toString()}`);
+    }
   };
 
   return (
@@ -133,9 +155,6 @@ const QuantumVault: React.FC<QuantumVaultProps> = ({ returnFromGenesis = false }
             </>
           )}
         </motion.div>
-
-        {/* Payment Panel - Only show during genesis */}
-        {!hasAnima && <PaymentPanel className="mt-12" />}
       </div>
     </div>
   );
