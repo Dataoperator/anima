@@ -1,6 +1,5 @@
 import { createBrowserRouter } from 'react-router-dom';
 import { lazy, Suspense } from 'react';
-import { AnimaConnector } from './components/anima/AnimaConnector';
 import { ErrorBoundary } from './components/error-boundary/ErrorBoundary';
 import { QuantumLoadingState } from './components/ui/LoadingStates';
 
@@ -8,6 +7,7 @@ import { QuantumLoadingState } from './components/ui/LoadingStates';
 const LandingPage = lazy(() => import('./components/pages/LandingPage'));
 const CyberpunkQuantumVault = lazy(() => import('./components/quantum-vault/CyberpunkQuantumVault'));
 const GenesisPage = lazy(() => import('./components/pages/GenesisPage'));
+const AnimaPage = lazy(() => import('./components/pages/AnimaPage'));
 const EnhancedNeuralLinkPage = lazy(() => import('./components/pages/EnhancedNeuralLinkPage'));
 
 const withSuspense = (Component: React.ComponentType) => (
@@ -33,7 +33,7 @@ export const router = createBrowserRouter([
   },
   {
     path: '/anima/:id',
-    element: withSuspense(AnimaConnector),
+    element: withSuspense(AnimaPage),
   },
   {
     path: '/neural-link/:id?',

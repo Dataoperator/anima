@@ -1,33 +1,54 @@
-use candid::{CandidType, Deserialize, Principal};
-use serde::Serialize;
+use candid::Principal;
 
-#[derive(Clone, Debug, CandidType, Deserialize, Serialize, PartialEq)]
-pub enum PaymentType {
-    ICP,
-    ICRC1,
-    ICRC2
+#[derive(Debug, Clone)]
+pub struct QuantumPaymentMetrics {
+    pub coherence_level: f64,
+    pub stability_index: f64,
+    pub entanglement_factor: f64,
+    pub last_sync: u64,
 }
 
-#[derive(Clone, Debug, CandidType, Deserialize, Serialize)]
-pub struct PaymentSettings {
-    pub payment_type: PaymentType,
-    pub amount: u64,
-    pub token_address: Option<Principal>,
+#[derive(Debug, Clone)]
+pub enum PaymentStrategy {
+    Standard,
+    QuantumEnhanced,
+    Neural
 }
 
-#[derive(Clone, Debug, CandidType, Deserialize, Serialize, PartialEq)]
-pub enum PaymentState {
-    Pending,
-    Processing,
-    Completed,
-    Failed(String),
+#[derive(Debug, Clone)]
+pub struct TransactionResult {
+    pub success: bool,
+    pub tx_id: Option<String>,
+    pub quantum_metrics: QuantumPaymentMetrics,
+    pub timestamp: u64,
 }
 
-#[derive(Clone, Debug, CandidType, Deserialize, Serialize)]
-pub struct PendingPayment {
-    pub payment_type: PaymentType,
-    pub amount: u64,
-    pub payer: Principal,
-    pub created_at: u64,
-    pub state: PaymentState,
+#[derive(Debug, Clone)]
+pub struct WalletConfig {
+    pub owner: Principal,
+    pub quantum_threshold: f64,
+    pub stability_threshold: f64,
+    pub auto_stabilize: bool,
+}
+
+impl Default for QuantumPaymentMetrics {
+    fn default() -> Self {
+        Self {
+            coherence_level: 1.0,
+            stability_index: 1.0,
+            entanglement_factor: 0.0,
+            last_sync: ic_cdk::api::time(),
+        }
+    }
+}
+
+impl Default for WalletConfig {
+    fn default() -> Self {
+        Self {
+            owner: Principal::anonymous(),
+            quantum_threshold: 0.3,
+            stability_threshold: 0.5,
+            auto_stabilize: true,
+        }
+    }
 }

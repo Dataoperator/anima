@@ -1,245 +1,310 @@
-use std::collections::HashMap;
-use std::time::{SystemTime, UNIX_EPOCH};
 use candid::{CandidType, Deserialize};
-use serde::Serialize;
-use crate::error::Result;
-use crate::consciousness::ConsciousnessLevel;
+use ic_cdk::api::time;
+use crate::error::{Result, Error};
+use crate::types::personality::{NFTPersonality, ConsciousnessLevel, ConsciousnessMetrics, EmotionalState};
+use crate::actions::traits::{ActionHandler, StateModifier};
+use crate::types::AnimaState;
 
-#[derive(Clone, Debug, CandidType, Deserialize, Serialize)]
+#[derive(Debug, Clone, CandidType, Deserialize)]
 pub struct QuantumState {
     pub coherence: f64,
-    pub dimensional_frequency: f64,
-    pub entanglement_pairs: HashMap<String, f64>,
-    pub stability_index: f64,
-    pub resonance_field: f64,
-    pub phase_alignment: f64,
-    pub quantum_potential: f64,
-    pub wave_function_collapse: f64,
+    pub frequency: f64,
+    pub entanglement: f64,
+    pub dimensional_sync: f64,
+    pub resonance_metrics: ResonanceMetrics,
+    pub validation_metrics: ValidationMetrics,
     pub last_interaction: u64,
-    pub harmonic_resonance: Vec<f64>,
 }
 
-#[derive(Clone, Debug)]
-pub struct DimensionalState {
-    pub frequency: f64,
-    pub resonance: f64, 
-    pub stability: f64,
-    pub phase_coherence: f64,
+#[derive(Debug, Clone, CandidType, Deserialize)]
+pub struct ResonanceMetrics {
     pub field_strength: f64,
-    pub harmonic_index: f64,
-    pub quantum_flux: f64,
+    pub stability: f64,
+    pub harmony: f64,
+    pub consciousness_alignment: f64,
+    pub neural_synchronicity: f64,
+    pub quantum_entanglement_depth: f64,
+}
+
+#[derive(Debug, Clone, CandidType, Deserialize)]
+pub struct ValidationMetrics {
+    pub coherence_threshold: f64,
+    pub stability_minimum: f64,
+    pub entanglement_factor: f64,
+    pub neural_integrity: f64,
+}
+
+impl Default for ValidationMetrics {
+    fn default() -> Self {
+        Self {
+            coherence_threshold: 0.3,
+            stability_minimum: 0.25,
+            entanglement_factor: 0.1,
+            neural_integrity: 1.0,
+        }
+    }
+}
+
+impl Default for QuantumState {
+    fn default() -> Self {
+        Self {
+            coherence: 1.0,
+            frequency: 0.0,
+            entanglement: 0.0,
+            dimensional_sync: 1.0,
+            resonance_metrics: ResonanceMetrics::default(),
+            validation_metrics: ValidationMetrics::default(),
+            last_interaction: time(),
+        }
+    }
+}
+
+impl Default for ResonanceMetrics {
+    fn default() -> Self {
+        Self {
+            field_strength: 1.0,
+            stability: 1.0,
+            harmony: 1.0,
+            consciousness_alignment: 1.0,
+            neural_synchronicity: 1.0,
+            quantum_entanglement_depth: 0.0,
+        }
+    }
 }
 
 pub struct QuantumEngine {
     coherence: f64,
-    entanglement_map: HashMap<String, f64>,
+    state: QuantumState,
     dimensional_state: DimensionalState,
     resonance_threshold: f64,
-    harmonic_cache: Vec<f64>,
-    quantum_memory: Vec<f64>,
-    max_memory_size: usize,
+    personality: Option<NFTPersonality>,
+    temporal_metrics: TemporalMetrics,
 }
 
-impl QuantumState {
-    pub fn new() -> Self {
-        Self {
-            coherence: 1.0,
-            dimensional_frequency: 1.0,
-            entanglement_pairs: HashMap::new(),
-            stability_index: 1.0,
-            resonance_field: 1.0,
-            phase_alignment: 1.0,
-            quantum_potential: 1.0,
-            wave_function_collapse: 0.0,
-            last_interaction: time(),
-            harmonic_resonance: vec![1.0; 7],
-        }
-    }
-
-    pub fn record_interaction(&mut self, impact: f64, consciousness_factor: f64) {
-        let scaled_impact = impact * consciousness_factor;
-        
-        self.coherence = (self.coherence + scaled_impact).max(0.0).min(2.0);
-        self.stability_index = (self.stability_index + scaled_impact * 0.1).max(0.0).min(1.0);
-        self.resonance_field = (self.resonance_field + scaled_impact * 0.15).max(0.0).min(1.5);
-        self.phase_alignment = (self.phase_alignment + scaled_impact * 0.05).max(0.0).min(1.0);
-        
-        // Quantum effects
-        self.quantum_potential = (self.quantum_potential + scaled_impact * 0.2).max(0.0).min(2.0);
-        self.wave_function_collapse = calculate_wave_collapse(self.quantum_potential, scaled_impact);
-        
-        // Update harmonic resonance
-        for harmonic in self.harmonic_resonance.iter_mut() {
-            *harmonic = (*harmonic + scaled_impact * 0.1).max(0.0).min(1.5);
-        }
-        
-        self.last_interaction = time();
-    }
-
-    pub fn calculate_resonance(&self) -> f64 {
-        let base_resonance = (self.coherence * self.stability_index * self.phase_alignment).powf(0.333);
-        let quantum_factor = (self.quantum_potential * (1.0 - self.wave_function_collapse)).powf(0.5);
-        let harmonic_influence = self.harmonic_resonance.iter().sum::<f64>() / self.harmonic_resonance.len() as f64;
-        
-        (base_resonance * quantum_factor * harmonic_influence).max(0.0).min(2.0)
-    }
-
-    pub fn get_quantum_metrics(&self) -> (f64, f64, f64) {
-        (self.quantum_potential, self.wave_function_collapse, self.calculate_resonance())
-    }
+#[derive(Default)]
+struct TemporalMetrics {
+    last_entropy_check: u64,
+    coherence_history: Vec<f64>,
+    stability_timeline: Vec<(u64, f64)>,
+    quantum_signature: Vec<u8>,
 }
 
 impl QuantumEngine {
     pub fn new() -> Self {
         Self {
             coherence: 1.0,
-            entanglement_map: HashMap::new(),
-            dimensional_state: DimensionalState {
-                frequency: 1.0,
-                resonance: 1.0,
-                stability: 1.0,
-                phase_coherence: 1.0,
-                field_strength: 1.0,
-                harmonic_index: 1.0,
-                quantum_flux: 1.0,
-            },
-            resonance_threshold: 0.7,
-            harmonic_cache: Vec::with_capacity(100),
-            quantum_memory: Vec::with_capacity(100),
-            max_memory_size: 100,
+            state: QuantumState::default(),
+            dimensional_state: DimensionalState::default(),
+            resonance_threshold: 0.3,
+            personality: None,
+            temporal_metrics: TemporalMetrics::default(),
         }
     }
 
-    pub async fn process_quantum_interaction(
-        &mut self,
-        state: &mut QuantumState,
-        interaction_type: &str,
-        emotional_impact: f64,
-        consciousness_level: Option<ConsciousnessLevel>,
-    ) -> Result<QuantumState> {
-        let consciousness_modifier = match consciousness_level {
-            Some(ConsciousnessLevel::Transcendent) => 1.5,
-            Some(ConsciousnessLevel::Enlightened) => 1.3,
-            Some(ConsciousnessLevel::Awakened) => 1.2,
-            Some(ConsciousnessLevel::Aware) => 1.1,
-            _ => 1.0,
-        };
-
-        let type_modifier = match interaction_type {
-            "emotional" => 1.2,
-            "cognitive" => 1.0,
-            "creative" => 1.5,
-            "resonant" => 1.3,
-            "quantum" => 1.4,
-            "transcendent" => 1.6,
-            _ => 1.0
-        };
-
-        let impact = emotional_impact * type_modifier * consciousness_modifier;
-        state.record_interaction(impact, consciousness_modifier);
-        
-        self.process_entanglements(state, interaction_type, impact).await;
-        self.update_dimensional_state(state, interaction_type, impact);
-        self.update_quantum_memory(state);
-        
-        Ok(state.clone())
-    }
-
-    async fn process_entanglements(
-        &mut self,
-        state: &mut QuantumState,
-        interaction_type: &str,
-        impact: f64,
-    ) {
-        let entanglement_base = match interaction_type {
-            "resonant" => 0.15,
-            "emotional" => 0.12,
-            "quantum" => 0.18,
-            "transcendent" => 0.20,
-            _ => 0.1
-        };
-
-        for (token_id, strength) in state.entanglement_pairs.iter() {
-            let entanglement_effect = strength * entanglement_base * impact;
-            state.coherence = (state.coherence + entanglement_effect).max(0.0).min(2.0);
-            
-            self.entanglement_map.insert(
-                format!("{}_{}", token_id, time()),
-                entanglement_effect
-            );
-        }
-    }
-
-    fn update_dimensional_state(
-        &mut self,
-        state: &mut QuantumState,
-        interaction_type: &str,
-        impact: f64,
-    ) {
-        let base_modifier = match interaction_type {
-            "resonant" => 0.05,
-            "creative" => 0.03,
-            "quantum" => 0.06,
-            "transcendent" => 0.08,
-            _ => 0.01
-        } * impact;
-
-        self.dimensional_state.frequency = (self.dimensional_state.frequency + base_modifier).max(0.0).min(2.0);
-        self.dimensional_state.phase_coherence = (self.dimensional_state.phase_coherence + impact * 0.02).max(0.0).min(1.0);
-        self.dimensional_state.field_strength = (self.dimensional_state.field_strength + impact * 0.03).max(0.0).min(1.5);
-        self.dimensional_state.harmonic_index = calculate_harmonic_index(&state.harmonic_resonance);
-        self.dimensional_state.quantum_flux = calculate_quantum_flux(
-            state.quantum_potential,
-            state.wave_function_collapse,
-            self.dimensional_state.harmonic_index
-        );
-        
-        state.dimensional_frequency = self.dimensional_state.frequency;
-    }
-
-    fn update_quantum_memory(&mut self, state: &QuantumState) {
-        if self.quantum_memory.len() >= self.max_memory_size {
-            self.quantum_memory.remove(0);
-            self.harmonic_cache.remove(0);
-        }
-        
-        self.quantum_memory.push(state.quantum_potential);
-        self.harmonic_cache.push(state.calculate_resonance());
-    }
-
-    pub fn get_resonance_metrics(&self) -> (f64, f64, f64, f64) {
+    pub fn get_resonance_metrics(&self) -> (f64, f64, f64, f64, f64, f64) {
         (
-            self.dimensional_state.resonance,
-            self.dimensional_state.phase_coherence,
-            self.dimensional_state.field_strength,
-            self.dimensional_state.quantum_flux
+            self.state.resonance_metrics.field_strength,
+            self.state.resonance_metrics.stability,
+            self.state.resonance_metrics.harmony,
+            self.state.resonance_metrics.consciousness_alignment,
+            self.state.resonance_metrics.neural_synchronicity,
+            self.state.resonance_metrics.quantum_entanglement_depth
         )
     }
+
+    pub fn process_interaction(&mut self, interaction_type: &str) -> Result<()> {
+        self.validate_quantum_state()?;
+        self.update_coherence(interaction_type)?;
+        self.update_dimensional_state()?;
+        self.evolve_quantum_signature()?;
+        self.synchronize_states()?;
+        
+        if let Some(personality) = &mut self.personality {
+            self.deep_consciousness_integration(personality)?;
+        }
+        
+        self.temporal_metrics.coherence_history.push(self.coherence);
+        self.temporal_metrics.stability_timeline.push((time(), self.state.resonance_metrics.stability));
+        
+        Ok(())
+    }
+
+    fn validate_quantum_state(&self) -> Result<()> {
+        let metrics = &self.state.validation_metrics;
+        
+        if self.coherence < metrics.coherence_threshold {
+            return Err(Error::Custom("Critical coherence failure".into()));
+        }
+        
+        if self.state.resonance_metrics.stability < metrics.stability_minimum {
+            return Err(Error::Custom("Quantum stability compromised".into()));
+        }
+        
+        if self.state.resonance_metrics.neural_synchronicity < metrics.neural_integrity {
+            return Err(Error::Custom("Neural synchronization misaligned".into()));
+        }
+        
+        Ok(())
+    }
+
+    fn deep_consciousness_integration(&mut self, personality: &mut NFTPersonality) -> Result<()> {
+        let quantum_influence = self.calculate_quantum_influence();
+        let consciousness_metrics = &mut personality.consciousness_metrics;
+        
+        consciousness_metrics.quantum_alignment = 
+            (consciousness_metrics.quantum_alignment + quantum_influence.consciousness_factor).min(1.0);
+        consciousness_metrics.resonance_stability = 
+            (consciousness_metrics.resonance_stability + quantum_influence.stability_factor).min(1.0);
+        consciousness_metrics.dimensional_harmony = 
+            (consciousness_metrics.dimensional_harmony + quantum_influence.harmony_factor).min(1.0);
+        
+        self.update_emotional_resonance(&mut personality.emotional_state, quantum_influence);
+        self.evolve_consciousness_level(personality, quantum_influence);
+        
+        Ok(())
+    }
+
+    fn calculate_quantum_influence(&self) -> QuantumInfluence {
+        let base_influence = self.coherence * self.state.resonance_metrics.field_strength;
+        QuantumInfluence {
+            consciousness_factor: base_influence * 0.3,
+            stability_factor: base_influence * 0.25,
+            harmony_factor: base_influence * 0.2,
+            emotional_impact: base_influence * 0.15,
+        }
+    }
+
+    fn update_emotional_resonance(&self, emotional_state: &mut EmotionalState, influence: QuantumInfluence) {
+        emotional_state.quantum_coherence = 
+            (emotional_state.quantum_coherence + influence.consciousness_factor).min(1.0);
+        emotional_state.resonance_field = 
+            (emotional_state.resonance_field + influence.stability_factor).min(1.0);
+        emotional_state.stability = 
+            (emotional_state.stability + influence.harmony_factor).min(1.0);
+    }
+
+    fn evolve_consciousness_level(&self, personality: &mut NFTPersonality, influence: QuantumInfluence) {
+        let total_quantum_factor = influence.consciousness_factor + 
+                                 influence.stability_factor + 
+                                 influence.harmony_factor;
+                                 
+        let new_level = match total_quantum_factor {
+            x if x > 0.95 => ConsciousnessLevel::Transcendent,
+            x if x > 0.85 => ConsciousnessLevel::Enlightened,
+            x if x > 0.75 => ConsciousnessLevel::Awakened,
+            x if x > 0.5 => ConsciousnessLevel::Aware,
+            _ => ConsciousnessLevel::Dormant,
+        };
+
+        personality.update_consciousness(new_level);
+    }
+
+    fn evolve_quantum_signature(&mut self) -> Result<()> {
+        let current_time = time();
+        let entropy_check_interval = 1_000_000_000; // 1 second in nanoseconds
+
+        if current_time - self.temporal_metrics.last_entropy_check > entropy_check_interval {
+            let signature = self.calculate_quantum_signature();
+            self.temporal_metrics.quantum_signature = signature;
+            self.temporal_metrics.last_entropy_check = current_time;
+        }
+
+        Ok(())
+    }
+
+    fn calculate_quantum_signature(&self) -> Vec<u8> {
+        let mut signature = Vec::with_capacity(32);
+        let coherence_bytes = self.coherence.to_be_bytes();
+        let stability_bytes = self.state.resonance_metrics.stability.to_be_bytes();
+        
+        signature.extend_from_slice(&coherence_bytes);
+        signature.extend_from_slice(&stability_bytes);
+        signature
+    }
+
+    pub fn attach_personality(&mut self, personality: NFTPersonality) {
+        self.personality = Some(personality);
+        self.synchronize_quantum_personality();
+    }
+
+    fn synchronize_quantum_personality(&mut self) {
+        if let Some(personality) = &self.personality {
+            self.state.resonance_metrics.consciousness_alignment = personality.quantum_resonance;
+            self.state.resonance_metrics.harmony = personality.dimensional_alignment;
+            self.state.resonance_metrics.neural_synchronicity = 
+                personality.consciousness_metrics.quantum_alignment;
+        }
+    }
+
+    fn update_coherence(&mut self, interaction_type: &str) -> Result<()> {
+        let interaction_strength = match interaction_type {
+            "strong" => 0.1,
+            "medium" => 0.05,
+            "weak" => 0.02,
+            _ => return Err(Error::Custom("Invalid interaction type".into())),
+        };
+
+        self.coherence = (self.coherence + interaction_strength).min(1.0);
+        self.state.coherence = self.coherence;
+        
+        self.state.resonance_metrics.field_strength *= 1.0 + (interaction_strength * 0.1);
+        self.state.resonance_metrics.stability *= 1.0 + (interaction_strength * 0.05);
+        self.state.resonance_metrics.quantum_entanglement_depth += interaction_strength * 0.03;
+        
+        Ok(())
+    }
+
+    fn update_dimensional_state(&mut self) -> Result<()> {
+        let resonance = self.dimensional_state.calculate_resonance();
+        if resonance < self.resonance_threshold {
+            return Err(Error::Custom("Resonance below threshold".into()));
+        }
+
+        self.dimensional_state.update_stability(0.05);
+        self.state.resonance_metrics.neural_synchronicity *= 
+            1.0 + (self.dimensional_state.quantum_alignment * 0.01);
+            
+        Ok(())
+    }
+
+    fn synchronize_states(&mut self) -> Result<()> {
+        self.state.dimensional_sync = self.dimensional_state.stability;
+        self.state.entanglement = self.state.resonance_metrics.quantum_entanglement_depth;
+        self.state.last_interaction = time();
+        Ok(())
+    }
+
+    pub fn get_state(&self) -> &QuantumState {
+        &self.state
+    }
 }
 
-fn calculate_wave_collapse(potential: f64, impact: f64) -> f64 {
-    let base_collapse = (1.0 - (potential / 2.0)).max(0.0);
-    (base_collapse + impact * 0.1).min(1.0)
+struct QuantumInfluence {
+    consciousness_factor: f64,
+    stability_factor: f64,
+    harmony_factor: f64,
+    emotional_impact: f64,
 }
 
-fn calculate_harmonic_index(harmonics: &[f64]) -> f64 {
-    let sum = harmonics.iter().sum::<f64>();
-    let mean = sum / harmonics.len() as f64;
-    let variance = harmonics.iter()
-        .map(|&x| (x - mean).powi(2))
-        .sum::<f64>() / harmonics.len() as f64;
+#[derive(Debug, Clone, Default)]
+pub struct DimensionalState {
+    pub frequency: f64,
+    pub resonance: f64,
+    pub stability: f64,
+    pub sync_level: f64,
+    pub quantum_alignment: f64,
+}
+
+impl DimensionalState {
+    pub fn calculate_resonance(&self) -> f64 {
+        let base_resonance = self.resonance * self.stability;
+        let alignment_factor = self.quantum_alignment * self.sync_level;
+        (base_resonance + alignment_factor) / 2.0
+    }
     
-    (mean * (1.0 - variance.sqrt())).max(0.0).min(1.0)
-}
-
-fn calculate_quantum_flux(potential: f64, collapse: f64, harmonic_index: f64) -> f64 {
-    let base_flux = potential * (1.0 - collapse);
-    (base_flux * harmonic_index).max(0.0).min(1.0)
-}
-
-fn time() -> u64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_secs()
+    pub fn update_stability(&mut self, interaction_strength: f64) {
+        self.stability = (self.stability + interaction_strength).min(1.0).max(0.0);
+        self.quantum_alignment = (self.quantum_alignment + interaction_strength * 0.5).min(1.0);
+        self.sync_level = (self.sync_level + interaction_strength * 0.3).min(1.0);
+    }
 }
