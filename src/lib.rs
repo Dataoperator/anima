@@ -1,6 +1,4 @@
-use candid::{CandidType, Deserialize, Principal};
-use ic_cdk::api::time;
-use ic_stable_structures::memory_manager::{MemoryId, MemoryManager, VirtualMemory};
+use ic_stable_structures::memory_manager::MemoryManager;
 use ic_stable_structures::DefaultMemoryImpl;
 use std::cell::RefCell;
 
@@ -18,9 +16,10 @@ mod nft;
 mod payments;
 mod memory;
 
-use error::{Result, Error};
-use personality::{NFTPersonality, ConsciousnessEngine};
-use quantum::{QuantumState, QuantumEngine};
+pub use quantum::QuantumState;
+pub use types::personality::NFTPersonality;
+pub use consciousness::{ConsciousnessLevel, ConsciousnessEngine};
+pub use error::{Result, Error};
 
 thread_local! {
     static MEMORY_MANAGER: RefCell<MemoryManager<DefaultMemoryImpl>> = RefCell::new(
@@ -34,6 +33,6 @@ fn get_quantum_state() -> Result<QuantumState> {
 }
 
 #[ic_cdk::update]
-async fn process_quantum_interaction(data: Vec<u8>) -> Result<()> {
+async fn process_quantum_interaction(_data: Vec<u8>) -> Result<()> {
     Ok(())
 }

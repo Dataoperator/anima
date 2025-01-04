@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Plus, Brain, Shield, Cpu, Network } from 'lucide-react';
 import { useAnima } from '@/hooks/useAnima';
 import { useQuantumState } from '@/hooks/useQuantumState';
-import { WalletService, QuantumMetrics } from '@/services/icp/wallet.service';
+import { WalletService, WalletQuantumMetrics } from '@/services/icp/wallet.service';
 import { MatrixRain } from '../ui/MatrixRain';
 import { QuantumHexGrid } from './components/QuantumHexGrid';
 import { DataStream } from './components/DataStream';
@@ -75,10 +75,11 @@ const AnimaNode: React.FC<AnimaNodeProps> = ({ anima, onClick, position }) => (
 
 const WalletDisplay: React.FC = () => {
     const [balance, setBalance] = useState<bigint>(BigInt(0));
-    const [metrics, setMetrics] = useState<QuantumMetrics>({
+    const [metrics, setMetrics] = useState<WalletQuantumMetrics>({
         coherenceLevel: 1.0,
         stabilityIndex: 1.0,
-        entanglementFactor: 0.0
+        entanglementFactor: 0.0,
+        stabilityStatus: 'stable'
     });
 
     useEffect(() => {
@@ -99,14 +100,6 @@ const WalletDisplay: React.FC = () => {
         return `${Number(amount) / 100_000_000} ICP`;
     };
     
-    const handleRefresh = () => {
-        const wallet = WalletService.getInstance();
-        if (wallet.isInitialized()) {
-            setBalance(wallet.getBalance());
-            setMetrics(wallet.getQuantumMetrics());
-        }
-    };
-    
     return (
         <motion.div 
             initial={{ opacity: 0, y: -20 }}
@@ -120,14 +113,6 @@ const WalletDisplay: React.FC = () => {
                         {formatICP(balance)}
                     </span>
                 </div>
-                <motion.button
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
-                    onClick={handleRefresh}
-                    className="w-8 h-8 rounded-full border border-cyan-500/30 flex items-center justify-center text-cyan-300 hover:bg-cyan-500/20"
-                >
-                    ↻
-                </motion.button>
             </div>
             <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
                 <div className="text-cyan-300/50">
@@ -146,27 +131,6 @@ const WalletDisplay: React.FC = () => {
         </motion.div>
     );
 };
-
-const StatusMetric: React.FC<{
-    icon: React.ElementType;
-    label: string;
-    value: number;
-}> = ({ icon: Icon, label, value }) => (
-    <div className="space-y-1">
-        <div className="flex items-center gap-2 text-xs text-cyan-300 opacity-50">
-            <Icon size={12} />
-            <span>{label}</span>
-        </div>
-        <div className="h-1 bg-black/50 rounded-full overflow-hidden">
-            <motion.div
-                className="h-full bg-cyan-500"
-                initial={{ width: 0 }}
-                animate={{ width: `${value}%` }}
-                transition={{ duration: 1 }}
-            />
-        </div>
-    </div>
-);
 
 const StatusPanel: React.FC = () => {
     const [metrics] = useState({
@@ -190,7 +154,28 @@ const StatusPanel: React.FC = () => {
     );
 };
 
-const CyberpunkQuantumVault: React.FC = () => {
+const StatusMetric: React.FC<{
+    icon: any;
+    label: string;
+    value: number;
+}> = ({ icon: Icon, label, value }) => (
+    <div className="space-y-1">
+        <div className="flex items-center gap-2 text-xs text-cyan-300 opacity-50">
+            <Icon size={12} />
+            <span>{label}</span>
+        </div>
+        <div className="h-1 bg-black/50 rounded-full overflow-hidden">
+            <motion.div
+                className="h-full bg-cyan-500"
+                initial={{ width: 0 }}
+                animate={{ width: `${value}%` }}
+                transition={{ duration: 1 }}
+            />
+        </div>
+    </div>
+);
+
+export const CyberpunkQuantumVault: React.FC = () => {
     const navigate = useNavigate();
     const { animas } = useAnima();
     const { quantumState } = useQuantumState();

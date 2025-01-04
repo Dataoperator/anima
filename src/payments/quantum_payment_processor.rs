@@ -1,141 +1,59 @@
-use candid::Principal;
-use ic_cdk::api::time;
+use candid::{CandidType, Deserialize};
+use serde::Serialize;
 use crate::error::{Result, Error};
-use super::types::{QuantumPaymentMetrics, PaymentStrategy, TransactionResult, WalletConfig};
+use crate::quantum::QuantumState;
+
+#[derive(Debug, Clone, CandidType, Deserialize, Serialize)]
+pub struct QuantumPaymentMetrics {
+    pub state: QuantumState,
+    pub verification_level: u8,
+    pub processing_time: u64,
+}
+
+#[derive(Debug, Clone, CandidType, Deserialize, Serialize)]
+pub enum PaymentStrategy {
+    Standard,
+    QuantumEnhanced,
+    Neural
+}
 
 pub struct QuantumPaymentProcessor {
-    config: WalletConfig,
     metrics: QuantumPaymentMetrics,
-    last_update: u64,
+    verification_threshold: f64,
 }
 
 impl QuantumPaymentProcessor {
-    pub fn new(owner: Principal) -> Self {
-        let config = WalletConfig {
-            owner,
-            ..Default::default()
-        };
-        
+    pub fn new(initial_state: QuantumState) -> Self {
         Self {
-            config,
-            metrics: Default::default(),
-            last_update: time(),
+            metrics: QuantumPaymentMetrics {
+                state: initial_state,
+                verification_level: 1,
+                processing_time: ic_cdk::api::time()
+            },
+            verification_threshold: 0.7,
         }
     }
 
-    pub fn get_metrics(&self) -> &QuantumPaymentMetrics {
-        &self.metrics
-    }
-
-    pub async fn process_quantum_transaction(
-        &mut self,
-        amount: u64,
-        strategy: PaymentStrategy,
-    ) -> Result<TransactionResult> {
-        // Verify quantum stability
-        self.verify_quantum_state()?;
-
-        // Apply quantum enhancement based on strategy
-        match strategy {
-            PaymentStrategy::Standard => self.process_standard_transaction(amount).await,
-            PaymentStrategy::QuantumEnhanced => self.process_quantum_enhanced_transaction(amount).await,
-            PaymentStrategy::Neural => self.process_neural_transaction(amount).await,
-        }
-    }
-
-    fn verify_quantum_state(&self) -> Result<()> {
-        if self.metrics.stability_index < self.config.stability_threshold {
-            return Err(Error::Custom("Quantum state too unstable for transaction".into()));
+    pub fn verify_quantum_state(&self, state: &QuantumState) -> Result<()> {
+        if state.coherence < self.verification_threshold {
+            return Err(Error::QuantumVerificationFailed("Coherence below threshold".to_string()));
         }
 
-        if self.metrics.coherence_level < self.config.quantum_threshold {
-            return Err(Error::Custom("Quantum coherence too low for transaction".into()));
+        if state.resonance_metrics.stability < self.verification_threshold {
+            return Err(Error::QuantumVerificationFailed("Stability below threshold".to_string()));
         }
 
         Ok(())
     }
 
-    async fn process_standard_transaction(&mut self, amount: u64) -> Result<TransactionResult> {
-        // Standard transaction processing
-        self.update_metrics(0.01, 0.01, 0.005);
-        
-        Ok(TransactionResult {
-            success: true,
-            tx_id: Some(format!("tx_{}", time())),
-            quantum_metrics: self.metrics.clone(),
-            timestamp: time(),
-        })
+    pub fn get_quantum_metrics(&self) -> &QuantumPaymentMetrics {
+        &self.metrics
     }
 
-    async fn process_quantum_enhanced_transaction(&mut self, amount: u64) -> Result<TransactionResult> {
-        // Enhanced transaction with quantum optimization
-        self.update_metrics(0.02, 0.015, 0.01);
-
-        Ok(TransactionResult {
-            success: true,
-            tx_id: Some(format!("qtx_{}", time())),
-            quantum_metrics: self.metrics.clone(),
-            timestamp: time(),
-        })
-    }
-
-    async fn process_neural_transaction(&mut self, amount: u64) -> Result<TransactionResult> {
-        // Neural network enhanced transaction
-        self.update_metrics(0.03, 0.02, 0.015);
-
-        Ok(TransactionResult {
-            success: true,
-            tx_id: Some(format!("ntx_{}", time())),
-            quantum_metrics: self.metrics.clone(),
-            timestamp: time(),
-        })
-    }
-
-    fn update_metrics(&mut self, coherence_delta: f64, stability_delta: f64, entanglement_delta: f64) {
-        let time_now = time();
-        let time_factor = ((time_now - self.last_update) as f64 / 1_000_000_000.0).min(1.0);
-
-        // Update coherence
-        self.metrics.coherence_level = (self.metrics.coherence_level + coherence_delta * time_factor)
-            .max(0.0)
-            .min(1.0);
-
-        // Update stability
-        self.metrics.stability_index = (self.metrics.stability_index + stability_delta * time_factor)
-            .max(0.0)
-            .min(1.0);
-
-        // Update entanglement
-        self.metrics.entanglement_factor = (self.metrics.entanglement_factor + entanglement_delta * time_factor)
-            .max(0.0)
-            .min(1.0);
-
-        self.metrics.last_sync = time_now;
-        self.last_update = time_now;
-
-        // Auto-stabilize if enabled
-        if self.config.auto_stabilize {
-            self.stabilize_quantum_state();
+    pub fn update_verification_level(&mut self) {
+        let state = &self.metrics.state;
+        if state.coherence > 0.9 && state.resonance_metrics.stability > 0.9 {
+            self.metrics.verification_level = self.metrics.verification_level.saturating_add(1);
         }
-    }
-
-    fn stabilize_quantum_state(&mut self) {
-        // Apply quantum stabilization algorithm
-        if self.metrics.stability_index < self.config.stability_threshold {
-            self.metrics.stability_index += (self.config.stability_threshold - self.metrics.stability_index) * 0.1;
-        }
-
-        if self.metrics.coherence_level < self.config.quantum_threshold {
-            self.metrics.coherence_level += (self.config.quantum_threshold - self.metrics.coherence_level) * 0.1;
-        }
-    }
-
-    pub fn calculate_quantum_fee(&self, base_fee: u64) -> u64 {
-        let quantum_multiplier = 1.0 + 
-            (1.0 - self.metrics.stability_index) * 0.5 +
-            (1.0 - self.metrics.coherence_level) * 0.3 +
-            self.metrics.entanglement_factor * 0.2;
-
-        (base_fee as f64 * quantum_multiplier) as u64
     }
 }

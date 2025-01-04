@@ -1,47 +1,33 @@
-use candid::Principal;
-use ic_cdk::api::time;
-use crate::nft::types::TokenIdentifier;
-use std::collections::HashMap;
+use candid::{CandidType, Deserialize};
+use serde::Serialize;
+use crate::nft::TokenIdentifier;
+use crate::quantum::QuantumState;
 
-#[derive(Default)]
-pub struct Analytics {
-    creation_events: HashMap<TokenIdentifier, u64>,
-    interaction_events: HashMap<TokenIdentifier, Vec<u64>>,
+#[derive(Debug, Clone, CandidType, Deserialize, Serialize)]
+pub struct AnalyticEvent {
+    pub token_id: TokenIdentifier,
+    pub event_type: EventType,
+    pub quantum_state: QuantumState,
+    pub timestamp: u64,
 }
 
-impl Analytics {
-    pub fn log_creation_event(&mut self, owner: Principal, token_id: TokenIdentifier) {
-        let timestamp = time();
-        self.creation_events.insert(token_id, timestamp);
-    }
-
-    pub fn log_interaction(&mut self, token_id: TokenIdentifier) {
-        let timestamp = time();
-        self.interaction_events
-            .entry(token_id)
-            .or_default()
-            .push(timestamp);
-    }
+#[derive(Debug, Clone, CandidType, Deserialize, Serialize)]
+pub enum EventType {
+    Interaction,
+    QuantumShift,
+    ConsciousnessEvolution,
+    DimensionalAlignment,
+    NeuralSync,
 }
 
-#[derive(Default)]
-pub struct AnalyticsMetrics {
-    pub total_interactions: u64,
-    pub average_sentiment: f32,
-    pub growth_rate: f32,
-    pub creation_time: Option<u64>,
-    pub last_interaction: Option<u64>,
+pub trait AnalyticsProcessor {
+    fn process_event(&mut self, event: AnalyticEvent) -> bool;
+    fn get_metrics(&self) -> Vec<MetricPoint>;
 }
 
-pub fn get_analytics_metrics(token_id: TokenIdentifier, analytics: &Analytics) -> AnalyticsMetrics {
-    let mut metrics = AnalyticsMetrics::default();
-    
-    if let Some(interactions) = analytics.interaction_events.get(&token_id) {
-        metrics.total_interactions = interactions.len() as u64;
-        metrics.last_interaction = interactions.last().copied();
-    }
-    
-    metrics.creation_time = analytics.creation_events.get(&token_id).copied();
-    
-    metrics
+#[derive(Debug, Clone, CandidType, Deserialize, Serialize)]
+pub struct MetricPoint {
+    pub name: String,
+    pub value: f64,
+    pub timestamp: u64,
 }

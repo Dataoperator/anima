@@ -10,23 +10,35 @@
 ├── dfx.json
 ├── dist
 │   ├── assets
-│   │   ├── EnhancedNeuralLinkPage-BhyqH7K1.js
-│   │   ├── EnhancedNeuralLinkPage-BhyqH7K1.js.map
-│   │   ├── GenesisPage-fjDzFq1v.js
-│   │   ├── GenesisPage-fjDzFq1v.js.map
-│   │   ├── LandingPage-DohU19gp.js
-│   │   ├── LandingPage-DohU19gp.js.map
-│   │   ├── QuantumVault-fU-bfpj_.js
-│   │   ├── QuantumVault-fU-bfpj_.js.map
-│   │   ├── WaveformGenerator-B0-VEVzA.js
-│   │   ├── WaveformGenerator-B0-VEVzA.js.map
-│   │   ├── framer-D79sEl8e.js
-│   │   ├── framer-D79sEl8e.js.map
-│   │   ├── main-D7RLgzO9.css
-│   │   ├── main-D8BO8o_c.js
-│   │   ├── main-D8BO8o_c.js.map
-│   │   ├── vendor-CEyPKXok.js
-│   │   └── vendor-CEyPKXok.js.map
+│   │   ├── AnimaPage-DQIHXVKn.js
+│   │   ├── AnimaPage-DQIHXVKn.js.map
+│   │   ├── CyberpunkQuantumVault-BS1EuCLE.js
+│   │   ├── CyberpunkQuantumVault-BS1EuCLE.js.map
+│   │   ├── EmotionalState-D_SfqYF2.js
+│   │   ├── EmotionalState-D_SfqYF2.js.map
+│   │   ├── EnhancedNeuralLinkPage-rlql2LQq.js
+│   │   ├── EnhancedNeuralLinkPage-rlql2LQq.js.map
+│   │   ├── GenesisPage-CXOIE6Yi.js
+│   │   ├── GenesisPage-CXOIE6Yi.js.map
+│   │   ├── LandingPage-B8vXCE3Y.js
+│   │   ├── LandingPage-B8vXCE3Y.js.map
+│   │   ├── MatrixRain-DPsl7GoI.js
+│   │   ├── MatrixRain-DPsl7GoI.js.map
+│   │   ├── QuantumField-DHV91S0x.js
+│   │   ├── QuantumField-DHV91S0x.js.map
+│   │   ├── WaveformGenerator-BVUp_W1l.js
+│   │   ├── WaveformGenerator-BVUp_W1l.js.map
+│   │   ├── anima-context-Di824KZf.js
+│   │   ├── anima-context-Di824KZf.js.map
+│   │   ├── framer-DtKNVek7.js
+│   │   ├── framer-DtKNVek7.js.map
+│   │   ├── main-62z6StZH.js
+│   │   ├── main-62z6StZH.js.map
+│   │   ├── main-C60j6wRR.css
+│   │   ├── useAuth-DGQ0HXN9.js
+│   │   ├── useAuth-DGQ0HXN9.js.map
+│   │   ├── vendor-5D7zIO-3.js
+│   │   └── vendor-5D7zIO-3.js.map
 │   ├── index.html
 │   └── web.config
 ├── index.html
@@ -7134,8 +7146,6 @@
 │   │   │   ├── PaymentPanel.tsx
 │   │   │   ├── PaymentRecoverySystem.tsx
 │   │   │   └── TransactionHistory.tsx
-│   │   ├── payments
-│   │   │   └── PaymentPanel.jsx
 │   │   ├── personality
 │   │   │   ├── ConnectionStatus.tsx
 │   │   │   ├── ConsciousnessMetrics.tsx
@@ -7247,7 +7257,6 @@
 │   │   └── systemMessages.js
 │   ├── contexts
 │   │   ├── AnimaContext.tsx
-│   │   ├── PaymentContext.tsx
 │   │   ├── QuantumContext.tsx
 │   │   ├── WalletContext.tsx
 │   │   ├── anima-context.tsx
@@ -7327,7 +7336,6 @@
 │   │   ├── useLedgerInit.ts
 │   │   ├── useMediaPatternAnalysis.ts
 │   │   ├── useNeuralLink.ts
-│   │   ├── usePayment.ts
 │   │   ├── usePaymentInit.ts
 │   │   ├── usePaymentRecovery.ts
 │   │   ├── useQuantum.ts
@@ -7391,17 +7399,11 @@
 │   │   ├── standards.rs
 │   │   └── types.rs
 │   ├── payments
-│   │   ├── icrc.rs
-│   │   ├── ledger.rs
 │   │   ├── mod.rs
 │   │   ├── pricing_config.rs
-│   │   ├── processor.rs
 │   │   ├── quantum_payment_processor.rs
-│   │   ├── quantum_verification.rs
 │   │   ├── transaction_processor.rs
 │   │   ├── types.rs
-│   │   ├── validator.rs
-│   │   ├── verification.rs
 │   │   └── verification_system.ts
 │   ├── personality
 │   │   ├── consciousness.rs
@@ -7420,8 +7422,11 @@
 │   │   ├── MotionProvider.tsx
 │   │   └── ThemeProvider.tsx
 │   ├── quantum
+│   │   ├── consciousness_bridge.rs
 │   │   ├── dimensional_resonance.rs
-│   │   └── mod.rs
+│   │   ├── dimensional_state.rs
+│   │   ├── mod.rs
+│   │   └── state_memory.rs
 │   ├── rarity
 │   │   ├── dragon_traits.rs
 │   │   ├── faction_traits.rs
@@ -7448,7 +7453,8 @@
 │   │   │   ├── actor.ts
 │   │   │   ├── ledger.did.ts
 │   │   │   ├── payment.service.ts
-│   │   │   └── wallet.service.ts
+│   │   │   ├── wallet.service.ts
+│   │   │   └── wallet.stability.ts
 │   │   ├── metrics.ts
 │   │   ├── openai.ts
 │   │   ├── realtime.ts
@@ -7456,6 +7462,7 @@
 │   │   ├── transaction-logger.ts
 │   │   ├── types.ts
 │   │   └── websocket.ts
+│   ├── setup.d.ts
 │   ├── setupTests.ts
 │   ├── state
 │   │   ├── mod.rs
@@ -7488,7 +7495,6 @@
 │   │   ├── mod.rs:12:23
 │   │   ├── nft.rs
 │   │   ├── payment-enums.ts
-│   │   ├── payment.ts
 │   │   ├── personality.rs
 │   │   ├── personality.ts
 │   │   ├── quantum.rs
@@ -7497,7 +7503,8 @@
 │   │   ├── realtime.ts
 │   │   ├── security.rs
 │   │   ├── sound.ts
-│   │   └── storage.rs
+│   │   ├── storage.rs
+│   │   └── wallet.ts
 │   ├── utils
 │   │   ├── RateLimiter.ts
 │   │   ├── account.ts
@@ -7881,8 +7888,6 @@
 │   └── wasm32-unknown-unknown
 │       ├── CACHEDIR.TAG
 │       └── release
-│           ├── anima.d
-│           ├── anima.wasm
 │           ├── build
 │           ├── deps
 │           ├── examples
@@ -7894,4 +7899,4 @@
 ├── vite.config.js
 └── vite.config.ts
 
-1219 directories, 6675 files
+1218 directories, 6681 files
