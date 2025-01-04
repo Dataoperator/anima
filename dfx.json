@@ -6,12 +6,24 @@
       "candid": "src/lib.did",
       "declarations": {
         "node_compatibility": true
+      },
+      "settings": {
+        "memory_allocation": "8GB",
+        "compute_allocation": "1",
+        "reserved_cycles": "40000000000000",
+        "freezing_threshold": "2592000"
       }
     },
     "anima_assets": {
       "type": "assets",
       "source": ["dist"],
-      "dependencies": ["anima"]
+      "dependencies": ["anima"],
+      "settings": {
+        "memory_allocation": "4GB",
+        "compute_allocation": "0.5",
+        "reserved_cycles": "15000000000000",
+        "freezing_threshold": "2592000"
+      }
     }
   },
   "networks": {

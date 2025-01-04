@@ -30,14 +30,33 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const clearError = () => setError(null);
 
+  const safelyGetPrincipal = (identity: Identity | null): string | null => {
+    if (!identity) return null;
+    try {
+      const principal = identity.getPrincipal();
+      return principal ? principal.toString() : null;
+    } catch (err) {
+      console.error('Failed to get principal:', err);
+      return null;
+    }
+  };
+
   const checkAuthentication = async () => {
     try {
       const currentIdentity = icManager.getIdentity();
-      const principalId = currentIdentity?.getPrincipal().toString();
-      const isAnonymous = currentIdentity?.getPrincipal().isAnonymous();
+      
+      if (!currentIdentity) {
+        setIsAuthenticated(false);
+        setPrincipal(null);
+        setIdentity(null);
+        return false;
+      }
+
+      const principalId = safelyGetPrincipal(currentIdentity);
+      const isAnonymous = currentIdentity.getPrincipal().isAnonymous();
       
       setIsAuthenticated(!isAnonymous);
-      setPrincipal(principalId || null);
+      setPrincipal(principalId);
       setIdentity(currentIdentity);
       
       return !isAnonymous;
@@ -54,19 +73,31 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   useEffect(() => {
+    let mounted = true;
+
     const initialize = async () => {
+      if (!mounted) return;
+      
       try {
         setIsLoading(true);
         await checkAuthentication();
       } catch (error) {
         console.error('Auth initialization failed:', error);
-        setError(error instanceof Error ? error.message : 'Authentication initialization failed');
+        if (mounted) {
+          setError(error instanceof Error ? error.message : 'Authentication initialization failed');
+        }
       } finally {
-        setIsLoading(false);
+        if (mounted) {
+          setIsLoading(false);
+        }
       }
     };
 
     initialize();
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   const login = async (): Promise<boolean> => {
@@ -107,7 +138,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Monitor connection status
   useEffect(() => {
+    let mounted = true;
+    let interval: NodeJS.Timeout;
+
     const checkConnection = async () => {
+      if (!mounted) return;
+
       try {
         const identity = icManager.getIdentity();
         if (!identity) {
@@ -116,27 +152,36 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         await checkAuthentication();
       } catch (err) {
         console.error('Connection check failed:', err);
-        setError('Connection lost. Please reload the page.');
+        if (mounted) {
+          setError('Connection lost. Please reload the page.');
+        }
       }
     };
 
-    const interval = setInterval(checkConnection, 30000); // Check every 30 seconds
-    return () => clearInterval(interval);
+    interval = setInterval(checkConnection, 30000); // Check every 30 seconds
+
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+    };
   }, []);
 
+  const memoizedValue = React.useMemo(
+    () => ({
+      isAuthenticated,
+      isLoading,
+      error,
+      principal,
+      identity,
+      login,
+      logout,
+      clearError
+    }),
+    [isAuthenticated, isLoading, error, principal, identity]
+  );
+
   return (
-    <AuthContext.Provider
-      value={{
-        isAuthenticated,
-        isLoading,
-        error,
-        principal,
-        identity,
-        login,
-        logout,
-        clearError
-      }}
-    >
+    <AuthContext.Provider value={memoizedValue}>
       {error && (
         <div className="fixed top-4 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 flex items-center gap-4">
           <span>{error}</span>
@@ -153,7 +198,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   );
 };
 
-// Export the hook for use in other components
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
