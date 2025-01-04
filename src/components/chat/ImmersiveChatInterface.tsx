@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { QuantumField } from '../ui/QuantumField';
-import { WaveformGenerator } from '../personality/WaveformGenerator';
-import { EmotionVisualizer } from '../quantum/EmotionVisualizer';
 import { useQuantumState } from '@/hooks/useQuantumState';
 
 interface Message {
@@ -10,11 +8,6 @@ interface Message {
   content: string;
   sender: 'user' | 'anima';
   timestamp: Date;
-  emotionalState?: {
-    resonance: number;
-    harmony: number;
-    intensity: number;
-  };
 }
 
 export const ImmersiveChatInterface: React.FC = () => {
@@ -23,6 +16,9 @@ export const ImmersiveChatInterface: React.FC = () => {
   const [isTyping, setIsTyping] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const { quantumState, updateQuantumState } = useQuantumState();
+
+  // Ensure we have a valid quantum state
+  const quantumIntensity = quantumState?.resonance ?? 0.5;
 
   const scrollToBottom = () => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -45,32 +41,36 @@ export const ImmersiveChatInterface: React.FC = () => {
     setInputValue('');
     setIsTyping(true);
 
-    // Simulate ANIMA's response with quantum state influence
     try {
+      // Simulate ANIMA response
       await new Promise(resolve => setTimeout(resolve, 1500));
+      
       const resonance = Math.random();
       const harmony = Math.random();
       
-      const animaResponse: Message = {
-        id: crypto.randomUUID(),
-        content: `Quantum resonance detected. Harmonic frequency: ${(resonance * 100).toFixed(2)}%`,
-        sender: 'anima',
-        timestamp: new Date(),
-        emotionalState: {
-          resonance,
-          harmony,
-          intensity: (resonance + harmony) / 2
-        }
-      };
-
-      setMessages(prev => [...prev, animaResponse]);
       updateQuantumState({
         resonance,
         harmony,
         lastInteraction: new Date()
       });
+
+      const animaMessage: Message = {
+        id: crypto.randomUUID(),
+        content: `Quantum resonance detected. Processing neural patterns...`,
+        sender: 'anima',
+        timestamp: new Date()
+      };
+
+      setMessages(prev => [...prev, animaMessage]);
     } catch (error) {
       console.error('Response generation failed:', error);
+      // Add error message to chat
+      setMessages(prev => [...prev, {
+        id: crypto.randomUUID(),
+        content: 'Neural connection temporarily disrupted. Please try again.',
+        sender: 'anima',
+        timestamp: new Date()
+      }]);
     } finally {
       setIsTyping(false);
     }
@@ -78,10 +78,10 @@ export const ImmersiveChatInterface: React.FC = () => {
 
   return (
     <div className="relative h-[80vh] rounded-lg overflow-hidden">
-      <QuantumField intensity={quantumState.resonance} className="absolute inset-0 z-0" />
+      <QuantumField intensity={quantumIntensity} className="absolute inset-0 z-0" />
       
       <div className="relative z-10 flex flex-col h-full backdrop-blur-sm">
-        {/* Chat Messages */}
+        {/* Messages Area */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           <AnimatePresence initial={false}>
             {messages.map((message) => (
@@ -100,11 +100,6 @@ export const ImmersiveChatInterface: React.FC = () => {
                   }`}
                 >
                   <p className="text-white">{message.content}</p>
-                  {message.emotionalState && (
-                    <div className="mt-2">
-                      <EmotionVisualizer emotionalState={message.emotionalState} />
-                    </div>
-                  )}
                 </div>
               </motion.div>
             ))}
@@ -116,8 +111,12 @@ export const ImmersiveChatInterface: React.FC = () => {
               animate={{ opacity: 1, y: 0 }}
               className="flex items-center space-x-2 text-white/70"
             >
-              <WaveformGenerator />
-              <span>ANIMA is resonating...</span>
+              <div className="flex space-x-1">
+                <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse" />
+                <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse delay-100" />
+                <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse delay-200" />
+              </div>
+              <span>ANIMA is processing...</span>
             </motion.div>
           )}
           <div ref={chatEndRef} />

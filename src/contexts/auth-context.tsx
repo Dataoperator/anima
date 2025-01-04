@@ -1,11 +1,13 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { icManager } from '@/ic-init';
+import type { Identity } from '@dfinity/agent';
 
 interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
   principal: string | null;
+  identity: Identity | null;
   login: () => Promise<boolean>;
   logout: () => Promise<void>;
   clearError: () => void;
@@ -22,6 +24,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [principal, setPrincipal] = useState<string | null>(null);
+  const [identity, setIdentity] = useState<Identity | null>(null);
   const [retryCount, setRetryCount] = useState(0);
   const MAX_RETRIES = 3;
 
@@ -29,12 +32,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const checkAuthentication = async () => {
     try {
-      const identity = icManager.getIdentity();
-      const principalId = identity?.getPrincipal().toString();
-      const isAnonymous = identity?.getPrincipal().isAnonymous();
+      const currentIdentity = icManager.getIdentity();
+      const principalId = currentIdentity?.getPrincipal().toString();
+      const isAnonymous = currentIdentity?.getPrincipal().isAnonymous();
       
       setIsAuthenticated(!isAnonymous);
       setPrincipal(principalId || null);
+      setIdentity(currentIdentity);
       
       return !isAnonymous;
     } catch (err) {
@@ -92,6 +96,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       await icManager.logout();
       setIsAuthenticated(false);
       setPrincipal(null);
+      setIdentity(null);
     } catch (err) {
       console.error('Logout error:', err);
       setError(err instanceof Error ? err.message : 'Logout failed');
@@ -126,6 +131,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         isLoading,
         error,
         principal,
+        identity,
         login,
         logout,
         clearError
@@ -147,10 +153,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   );
 };
 
-export const useAuthContext = () => {
+// Export the hook for use in other components
+export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuthContext must be used within an AuthProvider');
+    throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
 };

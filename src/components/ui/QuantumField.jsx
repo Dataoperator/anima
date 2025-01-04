@@ -1,161 +1,105 @@
 import React, { useEffect, useRef } from 'react';
-import { motion } from 'framer-motion';
 
-const PARTICLE_COUNT = 100;
-const MAX_DEPTH = 500;
-
-class QuantumParticle {
-  constructor(width, height) {
-    this.reset(width, height);
-    this.z = Math.random() * MAX_DEPTH;
-  }
-
-  reset(width, height) {
-    this.x = (Math.random() - 0.5) * width;
-    this.y = (Math.random() - 0.5) * height;
-    this.z = MAX_DEPTH;
-    this.phase = Math.random() * Math.PI * 2;
-    this.quantumState = Math.random();
-    this.entangled = Math.random() < 0.3;
-    this.entangledWith = null;
-  }
-
-  update(width, height, deltaTime) {
-    this.z -= 200 * deltaTime;
-    this.phase += deltaTime * 2;
-    
-    if (this.z < -50) {
-      this.reset(width, height);
-    }
-
-    // Quantum fluctuations
-    this.quantumState = (this.quantumState + Math.sin(this.phase) * 0.1) % 1;
-  }
-}
-
-export const QuantumField = ({ className = '', intensity = 1.0 }) => {
+export const QuantumField = ({ intensity = 0.5, className = '' }) => {
   const canvasRef = useRef(null);
-  const particlesRef = useRef([]);
-  const lastTimeRef = useRef(0);
+  const particles = useRef([]);
+  const requestIdRef = useRef();
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     const ctx = canvas.getContext('2d');
-    const width = canvas.width;
-    const height = canvas.height;
+    if (!ctx) return;
 
-    // Initialize particles
-    particlesRef.current = Array(PARTICLE_COUNT)
-      .fill()
-      .map(() => new QuantumParticle(width, height));
+    // Ensure intensity is within valid range
+    const safeIntensity = Math.max(0.1, Math.min(1, intensity));
 
-    // Create entangled pairs
-    for (let i = 0; i < particlesRef.current.length; i += 2) {
-      if (particlesRef.current[i].entangled) {
-        particlesRef.current[i].entangledWith = particlesRef.current[i + 1];
-        particlesRef.current[i + 1].entangledWith = particlesRef.current[i];
-      }
-    }
-
-    // Animation loop
-    const animate = (timestamp) => {
-      const deltaTime = (timestamp - lastTimeRef.current) / 1000;
-      lastTimeRef.current = timestamp;
-
-      ctx.clearRect(0, 0, width, height);
-      ctx.save();
-      ctx.translate(width / 2, height / 2);
-
-      // Update and draw particles
-      particlesRef.current.forEach(particle => {
-        particle.update(width, height, deltaTime);
-
-        const scale = MAX_DEPTH / (MAX_DEPTH + particle.z);
-        const x = particle.x * scale;
-        const y = particle.y * scale;
-        
-        // Particle size based on depth and quantum state
-        const size = (scale * 3 + particle.quantumState * 2) * intensity;
-        
-        // Quantum glow effect
-        ctx.shadowColor = particle.entangled ? 'rgba(0, 255, 255, 0.5)' : 'rgba(0, 128, 255, 0.5)';
-        ctx.shadowBlur = size * 2;
-        
-        // Draw quantum particle
-        ctx.beginPath();
-        ctx.arc(x, y, size, 0, Math.PI * 2);
-        
-        const alpha = (0.5 + particle.quantumState * 0.5) * intensity;
-        ctx.fillStyle = particle.entangled 
-          ? `rgba(0, 255, 255, ${alpha})`
-          : `rgba(0, 128, 255, ${alpha})`;
-        ctx.fill();
-
-        // Draw quantum field lines
-        if (particle.entangledWith) {
-          const other = particle.entangledWith;
-          const otherScale = MAX_DEPTH / (MAX_DEPTH + other.z);
-          const ox = other.x * otherScale;
-          const oy = other.y * otherScale;
-
-          // Quantum entanglement visualization
-          const gradient = ctx.createLinearGradient(x, y, ox, oy);
-          gradient.addColorStop(0, `rgba(0, 255, 255, ${0.3 * intensity})`);
-          gradient.addColorStop(0.5, `rgba(0, 255, 255, ${0.1 * intensity})`);
-          gradient.addColorStop(1, `rgba(0, 128, 255, ${0.3 * intensity})`);
-
-          // Draw entanglement line
-          ctx.beginPath();
-          ctx.moveTo(x, y);
-          ctx.lineTo(ox, oy);
-          ctx.strokeStyle = gradient;
-          ctx.lineWidth = 1;
-          ctx.stroke();
-
-          // Quantum interference pattern
-          const midX = (x + ox) / 2;
-          const midY = (y + oy) / 2;
-          const phase = (particle.phase + other.phase) / 2;
-          
-          ctx.beginPath();
-          for (let i = 0; i < 10; i++) {
-            const t = i / 9;
-            const wave = Math.sin(phase + t * Math.PI * 4) * 10;
-            ctx.lineTo(
-              x + (ox - x) * t + Math.cos(phase) * wave,
-              y + (oy - y) * t + Math.sin(phase) * wave
-            );
-          }
-          ctx.strokeStyle = `rgba(0, 255, 255, ${0.15 * intensity})`;
-          ctx.stroke();
-        }
-      });
-
-      ctx.restore();
-      requestAnimationFrame(animate);
+    const updateCanvasSize = () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
     };
 
-    animate(0);
+    const initParticles = () => {
+      const numParticles = Math.floor(50 * safeIntensity);
+      particles.current = Array.from({ length: numParticles }, () => ({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        radius: Math.max(1, Math.random() * 3 * safeIntensity),
+        speed: Math.max(0.2, Math.random() * safeIntensity)
+      }));
+    };
 
-    // Cleanup
+    const drawParticle = (particle) => {
+      // Ensure positive radius
+      const radius = Math.max(0.1, particle.radius);
+      
+      // Create gradient with safe radius
+      const gradient = ctx.createRadialGradient(
+        particle.x, particle.y, 0,
+        particle.x, particle.y, radius
+      );
+      gradient.addColorStop(0, `rgba(0, 150, 255, ${safeIntensity})`);
+      gradient.addColorStop(1, 'rgba(0, 150, 255, 0)');
+
+      ctx.beginPath();
+      ctx.arc(particle.x, particle.y, radius, 0, Math.PI * 2);
+      ctx.fillStyle = gradient;
+      ctx.fill();
+    };
+
+    const animate = () => {
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      particles.current.forEach(particle => {
+        // Update position with bounds checking
+        particle.y = (particle.y - particle.speed + canvas.height) % canvas.height;
+        
+        // Draw particle
+        drawParticle(particle);
+      });
+
+      // Draw connections
+      ctx.strokeStyle = `rgba(0, 150, 255, ${safeIntensity * 0.2})`;
+      ctx.lineWidth = 0.5;
+
+      particles.current.forEach((p1, i) => {
+        particles.current.slice(i + 1).forEach(p2 => {
+          const dx = p1.x - p2.x;
+          const dy = p1.y - p2.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+
+          if (distance < 100) {
+            ctx.beginPath();
+            ctx.moveTo(p1.x, p1.y);
+            ctx.lineTo(p2.x, p2.y);
+            ctx.stroke();
+          }
+        });
+      });
+
+      requestIdRef.current = requestAnimationFrame(animate);
+    };
+
+    window.addEventListener('resize', updateCanvasSize);
+    updateCanvasSize();
+    initParticles();
+    animate();
+
     return () => {
-      cancelAnimationFrame(animate);
+      window.removeEventListener('resize', updateCanvasSize);
+      if (requestIdRef.current) {
+        cancelAnimationFrame(requestIdRef.current);
+      }
     };
   }, [intensity]);
 
   return (
-    <motion.canvas
+    <canvas
       ref={canvasRef}
-      className={`w-full h-full ${className}`}
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      style={{ 
-        background: 'transparent',
-        mixBlendMode: 'screen'
-      }}
+      className={`fixed inset-0 pointer-events-none ${className}`}
+      style={{ background: 'transparent' }}
     />
   );
 };
