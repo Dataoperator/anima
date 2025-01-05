@@ -1,10 +1,18 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useAuth } from './auth-context';
 import { DimensionalStateImpl } from '@/quantum/dimensional_state';
 import { MemorySystem } from '@/memory/memory';
 import { GrowthSystem } from '@/growth/growth_system';
 import { Memory } from '@/memory/types';
 import { GrowthMetrics } from '@/growth/types';
+import { Principal } from '@dfinity/principal';
+import { useQuantumState } from '@/hooks/useQuantumState';
+
+interface AnimaMintResult {
+  id: string;
+  quantumSignature: string;
+  timestamp: bigint;
+}
 
 interface AnimaContextType {
   dimensionalState: DimensionalStateImpl;
@@ -14,15 +22,21 @@ interface AnimaContextType {
   evolutionFactor: number;
   recentMemories: Memory[];
   growthMetrics: GrowthMetrics;
+  isInitialized: boolean;
+  isMinting: boolean;
+  mintError: string | null;
   processInteraction: (strength: number) => Promise<void>;
   syncQuantumState: () => Promise<void>;
   createMemory: (description: string, importance: number, keywords?: string[]) => void;
+  mintAnima: (name: string) => Promise<AnimaMintResult>;
+  createActor: () => any;
 }
 
 const AnimaContext = createContext<AnimaContextType | null>(null);
 
 export function AnimaProvider({ children }: { children: React.ReactNode }) {
-  const { principal, quantumState } = useAuth();
+  const { principal, actor } = useAuth();
+  const { quantumState, updateQuantumState, validateState } = useQuantumState();
   const [dimensionalState] = useState(() => new DimensionalStateImpl());
   const [memorySystem] = useState(() => new MemorySystem());
   const [growthSystem] = useState(() => new GrowthSystem());
@@ -30,8 +44,10 @@ export function AnimaProvider({ children }: { children: React.ReactNode }) {
   const [evolutionFactor, setEvolutionFactor] = useState(0);
   const [recentMemories, setRecentMemories] = useState<Memory[]>([]);
   const [growthMetrics, setGrowthMetrics] = useState<GrowthMetrics>(() => growthSystem.getMetrics());
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [isMinting, setIsMinting] = useState(false);
+  const [mintError, setMintError] = useState<string | null>(null);
 
-  // Initialize ANIMA systems when quantum state changes
   useEffect(() => {
     if (quantumState && principal) {
       initializeAnimaSystems();
@@ -42,39 +58,103 @@ export function AnimaProvider({ children }: { children: React.ReactNode }) {
     try {
       console.log('🧬 Initializing ANIMA systems...');
       
-      // Initialize dimensional state with quantum alignment
       dimensionalState.quantumAlignment = quantumState?.coherence || 1.0;
-
-      // Generate quantum signature
       const signature = generateQuantumSignature();
       setQuantumSignature(signature);
-
-      // Calculate evolution factor
       const evolution = calculateEvolutionFactor();
       setEvolutionFactor(evolution);
-
-      // Update recent memories
       updateRecentMemories();
-
+      
+      setIsInitialized(true);
       console.log('✨ ANIMA systems initialized');
     } catch (error) {
       console.error('Failed to initialize ANIMA systems:', error);
+      setIsInitialized(false);
+    }
+  };
+
+  const mintAnima = async (name: string): Promise<AnimaMintResult> => {
+    if (!actor || !isInitialized) {
+      throw new Error('System not ready for minting');
+    }
+
+    setIsMinting(true);
+    setMintError(null);
+
+    try {
+      // Initialize quantum field
+      const quantumField = await actor.initialize_quantum_field();
+      if (!quantumField.Ok) throw new Error('Quantum field initialization failed');
+
+      // Generate neural patterns
+      const neuralPatterns = await actor.generate_neural_patterns();
+      if (!neuralPatterns.Ok) throw new Error('Neural pattern generation failed');
+
+      // Calculate initial quantum state
+      const initialState = {
+        resonance: neuralPatterns.Ok.resonance,
+        harmony: quantumField.Ok.harmony,
+        coherence: (neuralPatterns.Ok.resonance + quantumField.Ok.harmony) / 2,
+        lastInteraction: new Date(),
+        evolutionStage: 1,
+        consciousness: {
+          awareness: neuralPatterns.Ok.awareness,
+          understanding: quantumField.Ok.understanding,
+          growth: 0.1
+        }
+      };
+
+      if (!validateState(initialState)) {
+        throw new Error('Invalid initial quantum state');
+      }
+
+      // Create the Anima
+      const result = await actor.create_anima({
+        name,
+        quantum_signature: quantumField.Ok.signature,
+        neural_pattern: neuralPatterns.Ok.pattern,
+        initial_state: initialState
+      });
+
+      if (!result.Ok) {
+        throw new Error(result.Err || 'Anima creation failed');
+      }
+
+      // Update quantum state with initial values
+      await updateQuantumState(initialState);
+
+      // Create initial memory
+      createMemory(
+        'Genesis quantum crystallization complete',
+        1.0,
+        ['genesis', 'quantum', 'initialization']
+      );
+
+      return {
+        id: result.Ok.id,
+        quantumSignature: result.Ok.quantum_signature,
+        timestamp: result.Ok.timestamp
+      };
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Minting failed';
+      setMintError(errorMessage);
+      throw new Error(errorMessage);
+    } finally {
+      setIsMinting(false);
     }
   };
 
   const processInteraction = async (strength: number) => {
     try {
-      // Update dimensional state
       dimensionalState.updateStability(strength);
 
-      // Process growth event
       await growthSystem.processGrowthEvent({
         strength,
         quantum_state: quantumState!,
         dimensional_state: dimensionalState
       });
 
-      // Create memory if significant
       if (strength > 0.5) {
         createMemory(
           `Significant quantum interaction (${strength.toFixed(2)})`,
@@ -83,15 +163,12 @@ export function AnimaProvider({ children }: { children: React.ReactNode }) {
         );
       }
 
-      // Update states
       setGrowthMetrics(growthSystem.getMetrics());
       updateRecentMemories();
       
-      // Generate new quantum signature
       const newSignature = generateQuantumSignature();
       setQuantumSignature(newSignature);
 
-      // Update evolution factor
       const newEvolution = calculateEvolutionFactor();
       setEvolutionFactor(newEvolution);
 
@@ -105,13 +182,21 @@ export function AnimaProvider({ children }: { children: React.ReactNode }) {
       const resonance = dimensionalState.calculateResonance();
       const stability = dimensionalState.getStabilityMetrics();
       
-      // Update quantum state if it exists
       if (quantumState) {
-        quantumState.resonanceMetrics.fieldStrength = resonance;
-        quantumState.coherence = stability[0];
-        quantumState.phaseAlignment = stability[1];
-      }
+        const updatedState = {
+          ...quantumState,
+          resonanceMetrics: {
+            ...quantumState.resonanceMetrics,
+            fieldStrength: resonance
+          },
+          coherence: stability[0],
+          phaseAlignment: stability[1]
+        };
 
+        if (validateState(updatedState)) {
+          await updateQuantumState(updatedState);
+        }
+      }
     } catch (error) {
       console.error('Failed to sync quantum state:', error);
     }
@@ -127,7 +212,6 @@ export function AnimaProvider({ children }: { children: React.ReactNode }) {
     setRecentMemories(memorySystem.getRecentMemories(5));
   };
 
-  // Helper functions
   const generateQuantumSignature = (): string => {
     const timestamp = Date.now();
     const resonance = dimensionalState.resonance.toFixed(4);
@@ -144,6 +228,13 @@ export function AnimaProvider({ children }: { children: React.ReactNode }) {
     return (resonance + coherence + stability + memoryResonance) / 4;
   };
 
+  const createActor = useCallback(() => {
+    if (!actor) {
+      throw new Error('Actor not initialized');
+    }
+    return actor;
+  }, [actor]);
+
   const contextValue = {
     dimensionalState,
     memorySystem,
@@ -152,9 +243,14 @@ export function AnimaProvider({ children }: { children: React.ReactNode }) {
     evolutionFactor,
     recentMemories,
     growthMetrics,
+    isInitialized,
+    isMinting,
+    mintError,
     processInteraction,
     syncQuantumState,
-    createMemory
+    createMemory,
+    mintAnima,
+    createActor
   };
 
   return (
