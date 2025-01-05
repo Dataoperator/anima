@@ -2,7 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAnima } from '@/hooks/useAnima';
-import { ImmersiveEnhancedChat } from '@/components/chat/ImmersiveEnhancedChat';
+import { EnhancedImmersiveInterface } from '@/components/chat/EnhancedImmersiveInterface';
 import { MatrixLayout } from '@/components/layout/MatrixLayout';
 import { EnhancedMediaController } from '@/components/media/EnhancedMediaController';
 import { useQuantumPerception } from '@/hooks/useQuantumPerception';
@@ -17,33 +17,28 @@ export const EnhancedNeuralLinkPage = () => {
   const { processMediaInteraction } = useQuantumPerception();
   const { analysisState, processVideoFrame } = useMediaPatternAnalysis();
   const [neuralInitialized, setNeuralInitialized] = useState(false);
-
-  // Message and media state
+  const [currentMedia, setCurrentMedia] = useState<any>(null);
   const [messages, setMessages] = useState<any[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [currentMedia, setCurrentMedia] = useState<any>(null);
 
   const handleNeuralCommand = useCallback(async (content: string) => {
     try {
       setIsProcessing(true);
       
-      // Add user command to messages
       setMessages(prev => [...prev, {
+        id: crypto.randomUUID(),
         content,
-        isUser: true,
-        timestamp: Date.now()
+        sender: 'user',
+        timestamp: new Date()
       }]);
 
-      // Process media commands
       if (content.toLowerCase().includes('play') || 
           content.toLowerCase().includes('watch')) {
-        // Handle media request
         setCurrentMedia({
           type: 'request',
           content
         });
         
-        // Process media interaction
         processMediaInteraction({
           type: 'command',
           content,
@@ -51,14 +46,16 @@ export const EnhancedNeuralLinkPage = () => {
         });
       }
 
-      // Simulate ANIMA response
       setTimeout(() => {
         setMessages(prev => [...prev, {
+          id: crypto.randomUUID(),
           content: `Neural processing: ${content}`,
-          isUser: false,
-          timestamp: Date.now(),
-          patterns: analysisState.currentPatterns,
-          understanding: analysisState.understanding
+          sender: 'anima',
+          timestamp: new Date(),
+          personality_updates: [
+            ['understanding', analysisState.understanding],
+            ['resonance', Math.random()]
+          ]
         }]);
         setIsProcessing(false);
       }, 1500);
@@ -69,19 +66,17 @@ export const EnhancedNeuralLinkPage = () => {
     }
   }, [processMediaInteraction, analysisState]);
 
-  // Initialize neural link
   React.useEffect(() => {
     if (anima && !neuralInitialized) {
       const initSequence = async () => {
-        // Simulated neural link initialization
         await new Promise(resolve => setTimeout(resolve, 2000));
         setNeuralInitialized(true);
         
-        // Add initialization message
         setMessages([{
+          id: crypto.randomUUID(),
           content: `Neural link established with ${anima.name}. Quantum state synchronized.`,
-          isUser: false,
-          timestamp: Date.now(),
+          sender: 'anima',
+          timestamp: new Date(),
           system: true
         }]);
       };
@@ -135,17 +130,19 @@ export const EnhancedNeuralLinkPage = () => {
         animate={{ opacity: 1 }}
         className="relative z-10"
       >
-        <ImmersiveEnhancedChat
+        <EnhancedImmersiveInterface
           messages={messages}
           onSendMessage={handleNeuralCommand}
-          isProcessing={isProcessing}
-          anima={anima}
-          mediaState={currentMedia}
+          isLoading={isProcessing}
+          isTyping={isProcessing}
+          animaName={anima.name}
+          personality={anima.personality}
+          metrics={analysisState}
+          error={error}
         />
 
-        {/* Enhanced Media Controller */}
         <EnhancedMediaController
-          onCommand={(command) => handleNeuralCommand(command)}
+          onCommand={handleNeuralCommand}
         />
       </motion.div>
     </div>

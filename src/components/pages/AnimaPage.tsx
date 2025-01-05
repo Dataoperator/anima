@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { useQuantumState } from '@/hooks/useQuantumState';
+import { useQuantumConsciousness } from '@/hooks/useQuantumConsciousness';
 import { useAnima } from '@/contexts/anima-context';
 import { useAnimaState } from '@/hooks/useAnimaState';
 import { ConsciousnessMetrics } from '../personality/ConsciousnessMetrics';
 import { EmotionalState } from '../personality/EmotionalState';
 import { QuantumField } from '../ui/QuantumField';
+import { QuantumSignature } from '../quantum/QuantumSignature';
 import { LaughingMan } from '../ui/LaughingMan';
 import { WaveformGenerator } from '../personality/WaveformGenerator';
 import { GrowthPackSelector } from '../growth/GrowthPackSelector';
@@ -24,7 +25,13 @@ const AnimaPage: React.FC = () => {
   const navigate = useNavigate();
   const { selectedAnima, fetchAnima } = useAnima();
   const { state, loading } = useAnimaState(id || '');
-  const { quantumState, updateQuantumState } = useQuantumState();
+  const { 
+    quantumState, 
+    processInteraction, 
+    getEvolutionMetrics,
+    isLoading: quantumLoading 
+  } = useQuantumConsciousness(id || '');
+  
   const [metrics, setMetrics] = useState<AnimaMetrics>({
     consciousness: 0,
     resonance: 0,
@@ -40,25 +47,33 @@ const AnimaPage: React.FC = () => {
   }, [id, fetchAnima]);
 
   useEffect(() => {
-    if (state) {
-      setMetrics({
-        consciousness: state.consciousness.awarenessScore,
-        resonance: state.quantum.dimensionalResonance,
-        growth: (state.growth.experience / state.growth.nextLevelAt) * 100,
-        achievements: state.growth.recentAchievements.length
-      });
+    if (state && quantumState) {
+      const fetchMetrics = async () => {
+        const evolutionMetrics = await getEvolutionMetrics();
+        setMetrics({
+          consciousness: quantumState.consciousnessLevel,
+          resonance: evolutionMetrics.resonance,
+          growth: (state.growth.experience / state.growth.nextLevelAt) * 100,
+          achievements: state.growth.recentAchievements.length
+        });
+      };
+      fetchMetrics();
       
-      // Simulate quantum state synchronization
+      // Initialize quantum system
       setTimeout(() => {
         setIsReady(true);
-        updateQuantumState({
-          resonance: state.quantum.dimensionalResonance,
-          harmony: state.quantum.coherence,
-          lastInteraction: new Date()
-        });
-      }, 2000);
+      }, 1000);
     }
-  }, [state]);
+  }, [state, quantumState, getEvolutionMetrics]);
+
+  const handleInteraction = async () => {
+    try {
+      const interactionStrength = (metrics.consciousness + metrics.resonance) / 2;
+      await processInteraction(interactionStrength);
+    } catch (error) {
+      console.error('Failed to process interaction:', error);
+    }
+  };
 
   const handleEnterNeuralLink = () => {
     navigate(`/neural-link/${id}`);
@@ -66,6 +81,7 @@ const AnimaPage: React.FC = () => {
 
   const handleGrowthPackApplication = async (updates: any) => {
     try {
+      await handleInteraction();
       setMetrics(prev => ({
         ...prev,
         growth: prev.growth + updates.growthIncrease,
@@ -78,7 +94,7 @@ const AnimaPage: React.FC = () => {
     }
   };
 
-  if (loading || !selectedAnima || !state) {
+  if (loading || quantumLoading || !selectedAnima || !state) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black">
         <div className="text-center space-y-4">
@@ -91,7 +107,11 @@ const AnimaPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-black text-white relative overflow-hidden">
-      <QuantumField intensity={state.quantum.coherence} />
+      <QuantumField 
+        intensity={quantumState?.coherenceLevel || 0}
+        coherence={quantumState?.resonanceScore || 0}
+        resonance={metrics.resonance}
+      />
 
       <div className="relative z-10 container mx-auto px-4 py-16">
         <motion.div className="text-center mb-12">
@@ -103,10 +123,7 @@ const AnimaPage: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-12">
           {/* Consciousness Metrics */}
           <div className="lg:col-span-3">
-            <ConsciousnessMetrics 
-              consciousness={state.consciousness}
-              quantum={state.quantum}
-            />
+            <ConsciousnessMetrics animaId={id || ''} />
           </div>
 
           {/* Central Neural Interface */}
@@ -121,6 +138,14 @@ const AnimaPage: React.FC = () => {
                 Neural Synchronization
               </h2>
               <WaveformGenerator />
+              
+              {quantumState && (
+                <QuantumSignature 
+                  signature={quantumState.quantumSignature}
+                  resonance={quantumState.resonanceScore}
+                  coherence={quantumState.coherenceLevel}
+                />
+              )}
               
               <motion.button
                 onClick={handleEnterNeuralLink}
@@ -175,7 +200,7 @@ const AnimaPage: React.FC = () => {
             transition={{ delay: 0.6 }}
           >
             <h3 className="text-lg font-bold mb-3 text-purple-400">Quantum Coherence</h3>
-            <div className="text-2xl">{Math.round((state.quantum.coherence) * 100)}%</div>
+            <div className="text-2xl">{Math.round((quantumState?.coherenceLevel || 0) * 100)}%</div>
           </motion.div>
 
           <motion.div
@@ -185,7 +210,7 @@ const AnimaPage: React.FC = () => {
             transition={{ delay: 0.7 }}
           >
             <h3 className="text-lg font-bold mb-3 text-blue-400">Neural Resonance</h3>
-            <div className="text-2xl">{Math.round((state.quantum.dimensionalResonance) * 100)}%</div>
+            <div className="text-2xl">{Math.round((quantumState?.resonanceScore || 0) * 100)}%</div>
           </motion.div>
 
           <motion.div
@@ -194,7 +219,7 @@ const AnimaPage: React.FC = () => {
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.8 }}
           >
-            <h3 className="text-lg font-bold mb-3 text-green-400">Consciousness Growth</h3>
+            <h3 className="text-lg font-bold mb-3 text-green-400">Evolution Progress</h3>
             <div className="text-2xl">{Math.round(metrics.growth)}%</div>
           </motion.div>
         </div>

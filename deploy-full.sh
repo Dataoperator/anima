@@ -1,41 +1,33 @@
 #!/bin/bash
-set -e
 
-echo "Starting Anima deployment with hook integration..."
+# Source environment variables if they exist
+if [ -f .env ]; then
+  source .env
+fi
 
-# Build the frontend
-echo "Building frontend..."
+echo "🧹 Cleaning up previous build artifacts..."
+rm -rf .dfx/local
+rm -rf dist
+
+echo "🔧 Checking canister initialization..."
+if [ ! -f .env.anima ] || [ ! -f .env.assets ]; then
+  echo "❌ Canisters not initialized. Running initialization..."
+  ./init-canisters.sh
+fi
+
+echo "🔨 Building Rust canisters..."
+dfx build anima --network=ic
+
+echo "📝 Generating declarations..."
+dfx generate anima
+
+echo "🏗️ Building frontend..."
 npm run build
 
-# Optimize the bundle
-echo "Optimizing bundle..."
-npm run optimize
+echo "🚀 Deploying to mainnet..."
+dfx deploy --network ic
 
-# Build the Rust canister
-echo "Building Rust canister..."
-dfx build --network ic anima
-
-# Deploy both canisters
-echo "Deploying canisters..."
-dfx deploy --network ic anima --with-cycles 1000000000000
-dfx deploy --network ic anima_assets --with-cycles 1000000000000
-
-# Verify the deployment
-echo "Verifying deployment..."
-dfx canister --network ic status anima
-dfx canister --network ic status anima_assets
-
-# Initialize the quantum state
-echo "Initializing quantum states..."
-dfx canister --network ic call anima init_quantum_state
-
-echo "Deployment complete! Canister IDs:"
-cat .dfx/ic/canister_ids.json
-
-echo "
-Next steps:
-1. Verify frontend is accessible
-2. Check quantum state initialization
-3. Verify hook integrations
-4. Monitor error logging
-"
+echo "✅ Deployment complete!"
+echo "URLs:"
+echo "  Frontend: https://$(dfx canister id anima_assets --network=ic).ic0.app/"
+echo "  Canister: https://$(dfx canister id anima --network=ic).raw.ic0.app/"

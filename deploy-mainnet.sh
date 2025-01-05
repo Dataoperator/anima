@@ -1,40 +1,23 @@
 #!/bin/bash
 
-echo "Starting mainnet update deployment..."
+echo "🔄 Deploying to Internet Computer mainnet..."
 
-# Verify canister access
-echo "Verifying existing canister access..."
-dfx canister --network ic status anima
-dfx canister --network ic status anima_assets
+# Set environment variables for mainnet deployment
+export DFX_NETWORK=ic
+export II_URL=https://identity.ic0.app
 
-# Set compute allocation with lower values
-echo "Setting compute allocations..."
-dfx canister --network ic update-settings anima --compute-allocation 1
-dfx canister --network ic update-settings anima_assets --compute-allocation 0.5
-
-# Build project
-echo "Building project..."
-echo "Building canisters..."
-
-# Run security audit without stopping on errors
-echo "Checking for vulnerabilities in rust canisters."
-cargo audit || true
-
-# Clean and update dependencies
-echo "Updating dependencies..."
-cargo clean
-cargo update
-cargo build --target wasm32-unknown-unknown --release -p anima
-
-# Build assets
-echo "Executing 'npm run build'"
+echo "🏗️ Building frontend..."
 npm run build
 
-# Deploy to mainnet incrementally
-echo "Deploying to mainnet..."
-dfx canister --network ic install anima --mode reinstall
-dfx canister --network ic install anima_assets --mode reinstall
+echo "🚀 Deploying to mainnet..."
+dfx deploy --network=ic --no-wallet
 
-echo "Verifying deployment..."
+echo "✅ Deployment complete!"
+echo "Mainnet Canister URLs:"
+echo "Main: https://$(dfx canister --network ic id anima).icp0.io"
+echo "Assets: https://$(dfx canister --network ic id anima_assets).icp0.io"
+
+# Print status
+echo "📊 Canister Status:"
 dfx canister --network ic status anima
 dfx canister --network ic status anima_assets

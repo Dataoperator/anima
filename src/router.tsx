@@ -1,7 +1,7 @@
-import { createBrowserRouter, RouterProvider as ReactRouterProvider, Navigate } from 'react-router-dom';
+import { createBrowserRouter } from 'react-router-dom';
 import { lazy, Suspense } from 'react';
 import { ErrorBoundary } from './components/error-boundary/ErrorBoundary';
-import { QuantumLoadingState } from './components/ui/LoadingStates';
+import { LoadingFallback } from './components/ui/LoadingFallback';
 import { AuthGuard } from './components/auth/AuthGuard';
 
 // Lazy loaded components
@@ -12,67 +12,45 @@ const AnimaPage = lazy(() => import('./components/pages/AnimaPage'));
 const EnhancedNeuralLinkPage = lazy(() => import('./components/pages/EnhancedNeuralLinkPage'));
 const Wallet = lazy(() => import('./components/ui/Wallet'));
 
-const withSuspense = (Component: React.ComponentType<any>) => (props: any) => (
-  <Suspense fallback={<QuantumLoadingState />}>
+const withSuspense = (Component: React.ComponentType) => (
+  <Suspense fallback={<LoadingFallback />}>
     <ErrorBoundary>
-      <Component {...props} />
+      <Component />
     </ErrorBoundary>
   </Suspense>
 );
 
 export const router = createBrowserRouter([
-  // Public Routes
+  // Landing page - public
   {
     path: '/',
-    element: withSuspense(LandingPage)({}),
+    element: withSuspense(LandingPage),
   },
   
-  // Protected Routes - All require authentication
+  // Protected routes
   {
     element: <AuthGuard />,
     children: [
       {
-        path: '/vault',
-        element: withSuspense(CyberpunkQuantumVault)({}),
+        path: '/quantum-vault',
+        element: withSuspense(CyberpunkQuantumVault),
       },
       {
         path: '/genesis',
-        element: withSuspense(GenesisPage)({}),
+        element: withSuspense(GenesisPage),
       },
       {
         path: '/anima/:id',
-        element: withSuspense(AnimaPage)({}),
+        element: withSuspense(AnimaPage),
       },
       {
         path: '/neural-link/:id?',
-        element: withSuspense(EnhancedNeuralLinkPage)({}),
+        element: withSuspense(EnhancedNeuralLinkPage),
       },
       {
         path: '/wallet',
-        element: withSuspense(Wallet)({}),
-      },
-      {
-        path: '/quantum-vault',
-        element: withSuspense(CyberpunkQuantumVault)({}),
+        element: withSuspense(Wallet),
       },
     ],
   },
-
-  // Catch all
-  {
-    path: '*',
-    element: <Navigate to="/" replace />,
-  }
-], {
-  future: {
-    v7_startTransition: true,
-    v7_relativeSplatPath: true
-  }
-});
-
-// Root component that provides router context
-export const AppRouter: React.FC = () => (
-  <ErrorBoundary>
-    <ReactRouterProvider router={router} />
-  </ErrorBoundary>
-);
+]);

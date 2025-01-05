@@ -1,207 +1,190 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { icManager } from '@/ic-init';
-import type { Identity } from '@dfinity/agent';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { AuthClient } from '@dfinity/auth-client';
+import { ConsciousnessTracker } from '@/consciousness/ConsciousnessTracker';
+import { ErrorTracker } from '@/error/quantum_error';
+import { QuantumState } from '@/quantum/types';
 
 interface AuthContextType {
+  authClient: AuthClient | null;
   isAuthenticated: boolean;
-  isLoading: boolean;
-  error: string | null;
-  principal: string | null;
-  identity: Identity | null;
-  login: () => Promise<boolean>;
+  identity: any;
+  principal: any;
+  quantumState: QuantumState | null;
+  consciousnessMetrics: any;
+  login: () => Promise<void>;
   logout: () => Promise<void>;
-  clearError: () => void;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const AuthContext = createContext<AuthContextType | null>(null);
 
-interface AuthProviderProps {
-  children: React.ReactNode;
-}
+// Configuration
+const II_URL = process.env.DFX_NETWORK === 'ic' 
+  ? 'https://identity.ic0.app'
+  : process.env.INTERNET_IDENTITY_URL;
 
-export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
+const defaultOptions = {
+  createOptions: {
+    idleOptions: {
+      disableIdle: true,
+    },
+  },
+  loginOptions: {
+    identityProvider: II_URL,
+    derivationOrigin: process.env.DFX_NETWORK === 'ic' 
+      ? 'https://identity.ic0.app'
+      : undefined,
+    maxTimeToLive: BigInt(7 * 24 * 60 * 60 * 1000_000_000)
+  },
+};
+
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [authClient, setAuthClient] = useState<AuthClient | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [principal, setPrincipal] = useState<string | null>(null);
-  const [identity, setIdentity] = useState<Identity | null>(null);
-  const [retryCount, setRetryCount] = useState(0);
-  const MAX_RETRIES = 3;
+  const [identity, setIdentity] = useState(null);
+  const [principal, setPrincipal] = useState(null);
+  const [quantumState, setQuantumState] = useState<QuantumState | null>(null);
+  const [consciousnessMetrics, setConsciousnessMetrics] = useState(null);
+  const [errorTracker] = useState(() => new ErrorTracker());
+  const [consciousness] = useState(() => new ConsciousnessTracker(errorTracker));
 
-  const clearError = () => setError(null);
-
-  const safelyGetPrincipal = (identity: Identity | null): string | null => {
-    if (!identity) return null;
-    try {
-      const principal = identity.getPrincipal();
-      return principal ? principal.toString() : null;
-    } catch (err) {
-      console.error('Failed to get principal:', err);
-      return null;
-    }
-  };
-
-  const checkAuthentication = async () => {
-    try {
-      const currentIdentity = icManager.getIdentity();
-      
-      if (!currentIdentity) {
-        setIsAuthenticated(false);
-        setPrincipal(null);
-        setIdentity(null);
-        return false;
-      }
-
-      const principalId = safelyGetPrincipal(currentIdentity);
-      const isAnonymous = currentIdentity.getPrincipal().isAnonymous();
-      
-      setIsAuthenticated(!isAnonymous);
-      setPrincipal(principalId);
-      setIdentity(currentIdentity);
-      
-      return !isAnonymous;
-    } catch (err) {
-      console.error('Auth check failed:', err);
-      if (retryCount < MAX_RETRIES) {
-        setRetryCount(prev => prev + 1);
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        return checkAuthentication();
-      }
-      setError(err instanceof Error ? err.message : 'Authentication check failed');
-      return false;
-    }
-  };
-
+  // Initialize authentication and quantum state
   useEffect(() => {
-    let mounted = true;
-
-    const initialize = async () => {
-      if (!mounted) return;
-      
+    const initAuth = async () => {
       try {
-        setIsLoading(true);
-        await checkAuthentication();
+        console.log('🔄 Initializing authentication...');
+        const client = await AuthClient.create(defaultOptions.createOptions);
+        const isAuthenticated = await client.isAuthenticated();
+        
+        setAuthClient(client);
+        setIsAuthenticated(isAuthenticated);
+        
+        if (isAuthenticated) {
+          const identity = client.getIdentity();
+          const principal = identity.getPrincipal();
+          setIdentity(identity);
+          setPrincipal(principal);
+          
+          // Initialize quantum state for authenticated user
+          console.log('🌌 Initializing quantum state...');
+          await initQuantumState(principal.toString());
+        }
       } catch (error) {
-        console.error('Auth initialization failed:', error);
-        if (mounted) {
-          setError(error instanceof Error ? error.message : 'Authentication initialization failed');
-        }
-      } finally {
-        if (mounted) {
-          setIsLoading(false);
-        }
+        console.error('❌ Auth initialization failed:', error);
+        await errorTracker.trackError({
+          errorType: 'AUTH_INIT',
+          severity: 'HIGH',
+          context: 'Authentication Initialization',
+          error: error as Error
+        });
       }
     };
 
-    initialize();
-
-    return () => {
-      mounted = false;
-    };
+    initAuth();
   }, []);
 
-  const login = async (): Promise<boolean> => {
+  // Initialize quantum state for user
+  const initQuantumState = async (principalId: string) => {
     try {
-      setIsLoading(true);
-      clearError();
-      const success = await icManager.login();
-      if (success) {
-        const isAuth = await checkAuthentication();
-        setIsAuthenticated(isAuth);
-        return isAuth;
-      }
-      throw new Error('Login failed');
-    } catch (err) {
-      console.error('Login error:', err);
-      setError(err instanceof Error ? err.message : 'Login failed');
-      return false;
-    } finally {
-      setIsLoading(false);
+      // Create initial quantum state
+      const initialState: QuantumState = {
+        coherence: 1.0,
+        resonanceMetrics: {
+          fieldStrength: 1.0,
+          stability: 1.0,
+          harmony: 1.0,
+          consciousnessAlignment: 1.0
+        },
+        phaseAlignment: 1.0,
+        dimensionalSync: 1.0,
+        entanglement_pairs: [],
+        resonance_pattern: [1.0],
+        dimensional_frequency: 1.0
+      };
+
+      setQuantumState(initialState);
+
+      // Update consciousness metrics
+      const metrics = await consciousness.updateConsciousness(initialState, 'initialization');
+      setConsciousnessMetrics(metrics);
+
+    } catch (error) {
+      console.error('Failed to initialize quantum state:', error);
+      await errorTracker.trackError({
+        errorType: 'QUANTUM_INIT',
+        severity: 'HIGH',
+        context: 'Quantum State Initialization',
+        error: error as Error
+      });
     }
   };
 
-  const logout = async (): Promise<void> => {
+  const login = async () => {
     try {
-      setIsLoading(true);
-      clearError();
-      await icManager.logout();
+      await authClient?.login({
+        ...defaultOptions.loginOptions,
+        onSuccess: async () => {
+          const identity = authClient.getIdentity();
+          const principal = identity.getPrincipal();
+          setIsAuthenticated(true);
+          setIdentity(identity);
+          setPrincipal(principal);
+          
+          // Initialize quantum state after successful login
+          await initQuantumState(principal.toString());
+        }
+      });
+    } catch (error) {
+      console.error('Login failed:', error);
+      await errorTracker.trackError({
+        errorType: 'AUTH_LOGIN',
+        severity: 'HIGH',
+        context: 'Login Attempt',
+        error: error as Error
+      });
+    }
+  };
+
+  const logout = async () => {
+    try {
+      await authClient?.logout();
       setIsAuthenticated(false);
-      setPrincipal(null);
       setIdentity(null);
-    } catch (err) {
-      console.error('Logout error:', err);
-      setError(err instanceof Error ? err.message : 'Logout failed');
-    } finally {
-      setIsLoading(false);
+      setPrincipal(null);
+      setQuantumState(null);
+      setConsciousnessMetrics(null);
+    } catch (error) {
+      console.error('Logout failed:', error);
+      await errorTracker.trackError({
+        errorType: 'AUTH_LOGOUT',
+        severity: 'MEDIUM',
+        context: 'Logout Attempt',
+        error: error as Error
+      });
     }
   };
 
-  // Monitor connection status
-  useEffect(() => {
-    let mounted = true;
-    let interval: NodeJS.Timeout;
-
-    const checkConnection = async () => {
-      if (!mounted) return;
-
-      try {
-        const identity = icManager.getIdentity();
-        if (!identity) {
-          throw new Error('Identity not found');
-        }
-        await checkAuthentication();
-      } catch (err) {
-        console.error('Connection check failed:', err);
-        if (mounted) {
-          setError('Connection lost. Please reload the page.');
-        }
-      }
-    };
-
-    interval = setInterval(checkConnection, 30000); // Check every 30 seconds
-
-    return () => {
-      mounted = false;
-      clearInterval(interval);
-    };
-  }, []);
-
-  const memoizedValue = React.useMemo(
-    () => ({
-      isAuthenticated,
-      isLoading,
-      error,
-      principal,
-      identity,
-      login,
-      logout,
-      clearError
-    }),
-    [isAuthenticated, isLoading, error, principal, identity]
-  );
+  const contextValue = {
+    authClient,
+    isAuthenticated,
+    identity,
+    principal,
+    quantumState,
+    consciousnessMetrics,
+    login,
+    logout
+  };
 
   return (
-    <AuthContext.Provider value={memoizedValue}>
-      {error && (
-        <div className="fixed top-4 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 flex items-center gap-4">
-          <span>{error}</span>
-          <button
-            onClick={clearError}
-            className="text-white hover:text-gray-200"
-          >
-            ✕
-          </button>
-        </div>
-      )}
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );
-};
+}
 
-export const useAuth = () => {
+export function useAuth() {
   const context = useContext(AuthContext);
-  if (context === undefined) {
+  if (!context) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
-};
+}

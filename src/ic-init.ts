@@ -1,27 +1,17 @@
 import { Actor, Identity, HttpAgent } from "@dfinity/agent";
 import { AuthClient } from "@dfinity/auth-client";
 import { createActor } from "./declarations/anima";
-import type { _SERVICE } from "./declarations/anima/anima.did";
 
-// Network configurations
-const DFX_NETWORK = process.env.DFX_NETWORK || "ic";
-const IS_LOCAL = DFX_NETWORK === "local";
-
-// Canister IDs - these should match your dfx.json
-export const CANISTER_IDS = {
-  anima: process.env.ANIMA_CANISTER_ID || "l2ilz-iqaaa-aaaaj-qngjq-cai",
-  assets: process.env.ASSETS_CANISTER_ID || "lpp2u-jyaaa-aaaaj-qngka-cai"
+// Initialize environment with safe fallbacks
+const CANISTER_ID = {
+  anima: process.env.CANISTER_ID_ANIMA?.toString() || 'l2ilz-iqaaa-aaaaj-qngjq-cai',
+  assets: process.env.CANISTER_ID_ANIMA_ASSETS?.toString() || 'lpp2u-jyaaa-aaaaj-qngka-cai'
 };
 
-// Host configuration
-const HOST = IS_LOCAL ? "http://localhost:4943" : "https://icp0.io";
+// Always use mainnet for production
+const HOST = 'https://icp0.io';
 
-declare global {
-  interface Window {
-    ic?: any;
-    canister?: any;
-  }
-}
+type StageChangeCallback = (stage: string) => void;
 
 class ICManager {
   private static instance: ICManager;
@@ -30,11 +20,20 @@ class ICManager {
   private authClient: AuthClient | null = null;
   private identity: Identity | null = null;
   private initialized = false;
-  private initializationPromise: Promise<void> | null = null;
-  private retryCount = 0;
-  private maxRetries = 3;
+  private initializing = false;
+  private stageChangeCallbacks: StageChangeCallback[] = [];
 
-  private constructor() {}
+  private constructor() {
+    if (typeof window !== 'undefined') {
+      // Initialize window.ic safely
+      window.ic = {
+        ...(window.ic || {}),
+        agent: null,
+        Actor,
+        HttpAgent
+      };
+    }
+  }
 
   static getInstance(): ICManager {
     if (!ICManager.instance) {
@@ -43,102 +42,101 @@ class ICManager {
     return ICManager.instance;
   }
 
-  async initialize(): Promise<void> {
-    if (this.initialized) return;
-    if (this.initializationPromise) return this.initializationPromise;
-
-    this.initializationPromise = this.initializeInternal();
-    return this.initializationPromise;
+  onStageChange(callback: StageChangeCallback) {
+    this.stageChangeCallbacks.push(callback);
   }
 
-  private async initializeInternal(): Promise<void> {
-    try {
-      console.log("🔄 Initializing IC connection...");
+  private updateStage(stage: string) {
+    console.log('IC Stage:', stage);
+    this.stageChangeCallbacks.forEach(callback => callback(stage));
+  }
 
-      // Create auth client first
-      console.log("🔄 Creating auth client...");
+  async initialize(): Promise<void> {
+    if (this.initialized) {
+      console.log('IC already initialized');
+      return;
+    }
+
+    if (this.initializing) {
+      console.log('IC initialization already in progress');
+      return;
+    }
+
+    try {
+      this.initializing = true;
+      console.log('Starting IC initialization...');
+
+      this.updateStage('Creating AuthClient...');
       this.authClient = await AuthClient.create({
-        idleOptions: {
-          disableIdle: true,
-          disableDefaultIdleCallback: true
-        }
+        idleOptions: { disableIdle: true }
       });
       
+      this.updateStage('Getting identity...');
       this.identity = this.authClient.getIdentity();
-      console.log("✅ Auth client created");
+      const principal = this.identity.getPrincipal();
+      console.log('Identity principal:', principal.toText());
 
-      // Initialize agent
-      console.log("🔄 Initializing agent...");
+      this.updateStage('Creating HttpAgent...');
       this.agent = new HttpAgent({
         identity: this.identity,
-        host: HOST,
-        verifyQuerySignatures: false // Add this for development
+        host: HOST
       });
 
-      if (IS_LOCAL) {
+      if (process.env.NODE_ENV !== 'production') {
+        this.updateStage('Fetching root key...');
         await this.agent.fetchRootKey().catch(console.error);
       }
-      console.log("✅ Agent initialized");
 
-      // Create actor
-      console.log("🔄 Creating actor...");
-      this.actor = createActor(CANISTER_IDS.anima, {
-        agent: this.agent
-      }) as unknown as Actor;
-
-      // Initialize window.ic if needed
-      if (!window.ic) {
-        window.ic = {
-          agent: this.agent,
-          Actor,
-          HttpAgent
-        };
+      // Verify canister ID format
+      const canisterId = CANISTER_ID.anima?.replace(/['"]/g, '');
+      if (!canisterId) {
+        throw new Error('Invalid canister ID');
       }
 
-      // Set canister
-      window.canister = this.actor;
+      this.updateStage('Creating Actor...');
+      this.actor = await createActor(canisterId, {
+        agent: this.agent
+      });
 
+      this.updateStage('Setting up window.ic...');
+      window.ic = {
+        ...(window.ic || {}),
+        agent: this.agent,
+        Actor,
+        HttpAgent
+      };
+
+      if (this.actor) {
+        window.canister = this.actor;
+      }
+      
       this.initialized = true;
-      console.log("✅ IC initialization complete");
-
-      // Verify features after short delay to ensure everything is ready
-      setTimeout(() => {
-        const features = this.verifyFeatures();
-        console.log("🔍 IC Features verified:", features);
-      }, 100);
+      this.initializing = false;
+      this.updateStage('Initialization complete!');
+      
+      console.log('🔍 Feature check:', {
+        canister: !!window.canister,
+        ic: !!window.ic,
+        agent: !!this.agent,
+        identity: !!this.identity
+      });
 
     } catch (error) {
-      console.error("❌ IC initialization failed:", error);
-      
-      if (this.retryCount < this.maxRetries) {
-        console.log(`🔄 Retrying initialization (${this.retryCount + 1}/${this.maxRetries})...`);
-        this.retryCount++;
-        this.initializationPromise = null;
-        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retry
-        return this.initialize();
-      }
-
-      this.initialized = false;
-      this.initializationPromise = null;
+      this.initializing = false;
+      console.error('IC initialization failed:', {
+        error,
+        canisterId: CANISTER_ID.anima,
+        stage: this.initialized ? 'post-init' : 'pre-init'
+      });
       throw error;
     }
   }
 
-  verifyFeatures() {
-    const features = {
-      canister: !!window.canister,
-      ic: !!window.ic,
-      agent: !!this.agent,
-      identity: !!this.identity
-    };
-    return features;
-  }
-
-  getActor<T = _SERVICE>(): T {
+  getActor(): Actor {
     if (!this.initialized || !this.actor) {
       throw new Error("IC not initialized. Call initialize() first.");
     }
-    return this.actor as unknown as T;
+    return this.actor;
   }
 
   getIdentity(): Identity | null {
@@ -152,53 +150,18 @@ class ICManager {
   isInitialized(): boolean {
     return this.initialized;
   }
+}
 
-  async login(): Promise<boolean> {
-    if (!this.authClient) throw new Error("Auth client not initialized");
-    
-    return new Promise((resolve) => {
-      this.authClient!.login({
-        identityProvider: process.env.II_URL || "https://identity.ic0.app",
-        maxTimeToLive: BigInt(7 * 24 * 60 * 60 * 1000 * 1000 * 1000), // 7 days
-        onSuccess: async () => {
-          this.identity = this.authClient!.getIdentity();
-          if (this.agent) {
-            this.agent.replaceIdentity(this.identity);
-            // Reinitialize actor with new identity
-            this.actor = createActor(CANISTER_IDS.anima, {
-              agent: this.agent
-            }) as unknown as Actor;
-          }
-          resolve(true);
-        },
-        onError: (error) => {
-          console.error("Login failed:", error);
-          resolve(false);
-        }
-      });
-    });
-  }
-
-  async logout(): Promise<void> {
-    if (!this.authClient) throw new Error("Auth client not initialized");
-    await this.authClient.logout();
-    this.identity = await AuthClient.create().then(client => client.getIdentity());
-    if (this.agent) {
-      this.agent.replaceIdentity(this.identity);
-      // Reinitialize actor with anonymous identity
-      this.actor = createActor(CANISTER_IDS.anima, {
-        agent: this.agent
-      }) as unknown as Actor;
-    }
+// For debugging
+declare global {
+  interface Window {
+    ic: {
+      agent: HttpAgent | null;
+      Actor: any;
+      HttpAgent: any;
+    };
+    canister: any;
   }
 }
 
 export const icManager = ICManager.getInstance();
-
-// Export a helper function to verify IC features
-export const verifyICFeatures = () => ({
-  canister: !!window.canister,
-  ic: !!window.ic,
-  agent: !!icManager.getAgent(),
-  identity: !!icManager.getIdentity()
-});

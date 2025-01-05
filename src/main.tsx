@@ -24,6 +24,11 @@ const RootErrorFallback = ({ error }: { error: Error }) => (
 
 async function initializeApp() {
   try {
+    const statusElement = document.querySelector('.quantum-status');
+    if (statusElement) {
+      statusElement.textContent = 'Initializing Internet Computer connection...';
+    }
+
     console.log('Initializing Internet Computer connection...');
     await import('./ic-init');
     console.log('IC initialization complete');
@@ -47,6 +52,10 @@ async function initializeApp() {
     );
   } catch (error) {
     console.error('Failed to initialize app:', error);
+    const statusElement = document.querySelector('.quantum-status');
+    if (statusElement) {
+      statusElement.textContent = `Initialization failed: ${error.message}`;
+    }
   }
 }
 
