@@ -7,8 +7,18 @@ interface ErrorInfo {
 }
 
 export class ErrorTracker {
+  private static instance: ErrorTracker;
   private errors: ErrorInfo[] = [];
   private readonly maxErrors = 100;
+
+  private constructor() {}
+
+  public static getInstance(): ErrorTracker {
+    if (!ErrorTracker.instance) {
+      ErrorTracker.instance = new ErrorTracker();
+    }
+    return ErrorTracker.instance;
+  }
 
   async trackError(info: ErrorInfo): Promise<void> {
     const errorInfo = {
@@ -18,12 +28,10 @@ export class ErrorTracker {
 
     this.errors.push(errorInfo);
 
-    // Maintain max size
     if (this.errors.length > this.maxErrors) {
       this.errors.shift();
     }
 
-    // Log errors in development
     if (process.env.NODE_ENV !== 'production') {
       console.group('Quantum Error Tracked:');
       console.log('Type:', errorInfo.errorType);

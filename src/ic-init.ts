@@ -2,6 +2,7 @@ import { Identity, HttpAgent } from "@dfinity/agent";
 import { AuthClient } from "@dfinity/auth-client";
 import { createActor } from "./declarations/anima";
 import type { _SERVICE } from './declarations/anima/anima.did';
+import { ErrorTracker } from './error/quantum_error';
 
 const CANISTER_ID = {
   anima: process.env.CANISTER_ID_ANIMA?.toString() || 'l2ilz-iqaaa-aaaaj-qngjq-cai',
@@ -21,8 +22,10 @@ class ICManager {
   private initialized = false;
   private initializing = false;
   private stageChangeCallbacks: StageChangeCallback[] = [];
+  private errorTracker: ErrorTracker;
 
   private constructor() {
+    this.errorTracker = ErrorTracker.getInstance();
     if (typeof window !== 'undefined') {
       window.ic = {
         ...(window.ic || {}),
@@ -72,6 +75,10 @@ class ICManager {
       
       this.updateStage('Getting identity...');
       this.identity = this.authClient.getIdentity();
+      if (!this.identity) {
+        throw new Error('Failed to get identity');
+      }
+
       const principal = this.identity.getPrincipal();
       console.log('Identity principal:', principal.toText());
 
@@ -92,15 +99,11 @@ class ICManager {
       }
 
       this.updateStage('Creating Actor...');
-      // Use the imported createActor function
       this.actor = await createActor(canisterId, {
-        agent: this.agent,
-        agentOptions: {
-          host: HOST
-        }
+        agent: this.agent
       }) as _SERVICE;
 
-      // Verify the actor has the required methods
+      // Verify the actor
       if (!this.actor || typeof this.actor.initialize_genesis !== 'function') {
         throw new Error('Actor creation failed or missing required methods');
       }
@@ -119,30 +122,20 @@ class ICManager {
       this.initialized = true;
       this.initializing = false;
       this.updateStage('Initialization complete!');
-      
-      console.log('🔍 Feature check:', {
-        canister: !!window.canister,
-        ic: !!window.ic,
-        agent: !!this.agent,
-        identity: !!this.identity,
-        initialize_genesis: typeof this.actor?.initialize_genesis === 'function'
-      });
 
     } catch (error) {
       this.initializing = false;
-      console.error('IC initialization failed:', {
-        error,
-        canisterId: CANISTER_ID.anima,
-        stage: this.initialized ? 'post-init' : 'pre-init'
+      await this.errorTracker.trackError({
+        errorType: 'IC_INIT_ERROR',
+        severity: 'HIGH',
+        context: 'IC Initialization',
+        error: error instanceof Error ? error : new Error('Unknown error')
       });
       throw error;
     }
   }
 
   getActor(): _SERVICE | null {
-    if (!this.initialized || !this.actor) {
-      throw new Error("IC not initialized. Call initialize() first.");
-    }
     return this.actor;
   }
 
@@ -152,6 +145,10 @@ class ICManager {
 
   getAgent(): HttpAgent | null {
     return this.agent;
+  }
+
+  getAuthClient(): AuthClient | null {
+    return this.authClient;
   }
 
   isInitialized(): boolean {
@@ -170,3 +167,6 @@ declare global {
 }
 
 export const icManager = ICManager.getInstance();
+
+// Initialize immediately
+icManager.initialize().catch(console.error);

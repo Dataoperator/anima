@@ -12,7 +12,7 @@ const App: React.FC = () => {
   useEffect(() => {
     console.log("🚀 App initializing...", {
       env: process.env.NODE_ENV,
-      buildTime: new Date().toISOString()
+      buildTime: process.env.BUILD_TIME || new Date().toISOString()
     });
   }, []);
 
@@ -20,13 +20,13 @@ const App: React.FC = () => {
     <ErrorBoundary>
       <Web3Provider>
         <AuthProvider>
-          <AuthConsumer>
+          <QuantumProvider>
             <ConsciousnessProvider>
-              <QuantumProvider>
+              <AuthConsumer>
                 <RouterProvider router={router} />
-              </QuantumProvider>
+              </AuthConsumer>
             </ConsciousnessProvider>
-          </AuthConsumer>
+          </QuantumProvider>
         </AuthProvider>
       </Web3Provider>
     </ErrorBoundary>

@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { AuthClient } from '@dfinity/auth-client';
 import { Principal } from '@dfinity/principal';
 import { ErrorTracker } from '@/error/quantum_error';
+import { icManager } from '@/ic-init';
 
 interface AuthContextType {
   authClient: AuthClient | null;
@@ -20,11 +21,6 @@ const II_URL = process.env.DFX_NETWORK === 'ic'
   : process.env.INTERNET_IDENTITY_URL;
 
 const defaultOptions = {
-  createOptions: {
-    idleOptions: {
-      disableIdle: true,
-    },
-  },
   loginOptions: {
     identityProvider: II_URL,
     derivationOrigin: process.env.DFX_NETWORK === 'ic' 
@@ -35,39 +31,64 @@ const defaultOptions = {
 };
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [authClient, setAuthClient] = useState<AuthClient | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [identity, setIdentity] = useState(null);
   const [principal, setPrincipal] = useState<Principal | null>(null);
-  const [errorTracker] = useState(() => new ErrorTracker());
   const [isInitializing, setIsInitializing] = useState(true);
+  const errorTracker = ErrorTracker.getInstance();
 
   useEffect(() => {
+    console.log('🔄 Starting auth initialization sequence...');
     const initAuth = async () => {
       try {
-        console.log('🔄 Initializing authentication...');
-        const client = await AuthClient.create(defaultOptions.createOptions);
-        const isAuthenticated = await client.isAuthenticated();
+        console.log('📡 Waiting for IC Manager initialization...');
         
-        setAuthClient(client);
-        setIsAuthenticated(isAuthenticated);
+        // Wait for IC Manager with timeout
+        const maxWaitTime = 10000; // 10 seconds
+        const startTime = Date.now();
         
-        if (isAuthenticated) {
-          const identity = client.getIdentity();
-          const principal = identity.getPrincipal();
-          setIdentity(identity);
-          setPrincipal(principal);
+        while (!icManager.isInitialized() && Date.now() - startTime < maxWaitTime) {
+          await new Promise(resolve => setTimeout(resolve, 100));
         }
+
+        if (!icManager.isInitialized()) {
+          throw new Error('IC Manager initialization timeout');
+        }
+
+        console.log('✅ IC Manager initialized, getting auth client...');
+        const authClient = icManager.getAuthClient();
+        if (!authClient) {
+          throw new Error('Auth client not initialized');
+        }
+
+        console.log('🔒 Checking authentication status...');
+        const isAuth = await authClient.isAuthenticated();
+        console.log(`🔑 Authentication status: ${isAuth}`);
+        setIsAuthenticated(isAuth);
+        
+        if (isAuth) {
+          console.log('👤 Getting identity...');
+          const currentIdentity = icManager.getIdentity();
+          if (currentIdentity) {
+            console.log('✨ Setting identity and principal...');
+            setIdentity(currentIdentity);
+            setPrincipal(currentIdentity.getPrincipal());
+          }
+        }
+
+        console.log('🎉 Auth initialization complete!');
+
       } catch (error) {
         console.error('❌ Auth initialization failed:', error);
         await errorTracker.trackError({
           errorType: 'AUTH_INIT',
           severity: 'HIGH',
           context: 'Authentication Initialization',
-          error: error as Error
+          error: error instanceof Error ? error : new Error('Auth initialization failed')
         });
       } finally {
         setIsInitializing(false);
+        console.log('🏁 Auth initialization sequence finished');
       }
     };
 
@@ -76,24 +97,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async () => {
     try {
+      console.log('🔄 Starting login process...');
       setIsInitializing(true);
-      await authClient?.login({
+      
+      const authClient = icManager.getAuthClient();
+      if (!authClient) {
+        throw new Error('Auth client not initialized');
+      }
+
+      await authClient.login({
         ...defaultOptions.loginOptions,
         onSuccess: async () => {
+          console.log('✅ Login successful, updating state...');
           const identity = authClient.getIdentity();
           const principal = identity.getPrincipal();
           setIsAuthenticated(true);
           setIdentity(identity);
           setPrincipal(principal);
+          console.log('🎉 Login complete!');
         }
       });
     } catch (error) {
-      console.error('Login failed:', error);
+      console.error('❌ Login failed:', error);
       await errorTracker.trackError({
         errorType: 'AUTH_LOGIN',
         severity: 'HIGH',
         context: 'Login Attempt',
-        error: error as Error
+        error: error instanceof Error ? error : new Error('Login failed')
       });
     } finally {
       setIsInitializing(false);
@@ -102,23 +132,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     try {
-      await authClient?.logout();
-      setIsAuthenticated(false);
-      setIdentity(null);
-      setPrincipal(null);
+      console.log('🔄 Starting logout process...');
+      const authClient = icManager.getAuthClient();
+      if (authClient) {
+        await authClient.logout();
+        setIsAuthenticated(false);
+        setIdentity(null);
+        setPrincipal(null);
+        console.log('🎉 Logout complete!');
+      }
     } catch (error) {
-      console.error('Logout failed:', error);
+      console.error('❌ Logout failed:', error);
       await errorTracker.trackError({
         errorType: 'AUTH_LOGOUT',
         severity: 'MEDIUM',
         context: 'Logout Attempt',
-        error: error as Error
+        error: error instanceof Error ? error : new Error('Logout failed')
       });
     }
   };
 
   const contextValue = {
-    authClient,
+    authClient: icManager.getAuthClient(),
     isAuthenticated,
     identity,
     principal,
