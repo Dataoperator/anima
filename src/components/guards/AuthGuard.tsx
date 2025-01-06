@@ -1,40 +1,52 @@
-import React from 'react';
-import { Navigate, useLocation } from 'react-router-dom';
-import { useIC } from '../../hooks/useIC';
+import React, { useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '@/hooks/useAuth';
+import { animaActorService } from '@/services/anima-actor.service';
 
-interface AuthGuardProps {
+interface Props {
   children: React.ReactNode;
-  requireAuth?: boolean;
 }
 
-export const AuthGuard: React.FC<AuthGuardProps> = ({ 
-  children, 
-  requireAuth = true 
-}) => {
-  const { isAuthenticated, isInitialized } = useIC();
+export const AuthGuard: React.FC<Props> = ({ children }) => {
+  const { isAuthenticated, identity, login } = useAuth();
+  const navigate = useNavigate();
   const location = useLocation();
+  const [isVerifying, setIsVerifying] = useState(true);
 
-  if (!isInitialized) {
+  useEffect(() => {
+    const verifyAuth = async () => {
+      console.log('🔍 AuthGuard initializing...');
+      
+      try {
+        if (!isAuthenticated) {
+          // Redirect to login if not authenticated
+          navigate('/login', { state: { from: location.pathname } });
+          return;
+        }
+
+        if (identity) {
+          // Create actor with identity
+          animaActorService.createActor(identity);
+          console.log('✅ Identity initialized:', identity.getPrincipal().toText());
+        }
+      } catch (error) {
+        console.error('Authentication error:', error);
+        navigate('/login');
+      } finally {
+        setIsVerifying(false);
+      }
+    };
+
+    verifyAuth();
+  }, [isAuthenticated, identity, location.pathname]);
+
+  if (isVerifying) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-900">
-        <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-blue-500">
-          <div className="h-full w-full rounded-full border-t-2 border-blue-500/30"></div>
-        </div>
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="text-cyan-500 text-lg">Verifying authentication...</div>
       </div>
     );
   }
 
-  if (requireAuth && !isAuthenticated) {
-    // Redirect to login page with return URL
-    return <Navigate to="/login" state={{ from: location }} replace />;
-  }
-
-  if (!requireAuth && isAuthenticated) {
-    // Redirect to dashboard if already authenticated
-    return <Navigate to="/dashboard" replace />;
-  }
-
   return <>{children}</>;
 };
-
-export default AuthGuard;

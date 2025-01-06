@@ -11,8 +11,9 @@ pub enum Error {
     ConsciousnessError(String),
     SystemError(String),
     NetworkError(String),
+    InvalidName(String),
     Custom(String),
-    QuantumVerificationFailed(String),  // Added this variant
+    QuantumVerificationFailed(String),
 }
 
 #[derive(Debug, CandidType, Deserialize, Serialize, Clone)]
@@ -45,7 +46,7 @@ impl Error {
             Error::WalletError(WalletError::TransactionFailed(_)) => true,
             Error::WalletError(WalletError::StabilityError(_)) => true,
             Error::NetworkError(_) => true,
-            Error::QuantumVerificationFailed(_) => true,  // Added this case
+            Error::QuantumVerificationFailed(_) => true,
             _ => false
         }
     }
@@ -59,8 +60,9 @@ impl Error {
             Error::ConsciousnessError(_) => 500,
             Error::SystemError(_) => 500,
             Error::NetworkError(_) => 503,
+            Error::InvalidName(_) => 400,
             Error::Custom(_) => 400,
-            Error::QuantumVerificationFailed(_) => 422,  // Added this case
+            Error::QuantumVerificationFailed(_) => 422,
         }
     }
 
@@ -80,8 +82,9 @@ impl Error {
             Error::NetworkError(msg) => format!("NETWORK_ERROR: {}", msg),
             Error::NotAuthorized(msg) => format!("AUTH_ERROR: {}", msg),
             Error::TokenNotFound(msg) => format!("NFT_ERROR: {}", msg),
+            Error::InvalidName(msg) => format!("VALIDATION_ERROR: Invalid name - {}", msg),
             Error::Custom(msg) => format!("ERROR: {}", msg),
-            Error::QuantumVerificationFailed(msg) => format!("QUANTUM_VERIFICATION_ERROR: {}", msg),  // Added this case
+            Error::QuantumVerificationFailed(msg) => format!("QUANTUM_VERIFICATION_ERROR: {}", msg),
         }
     }
 }

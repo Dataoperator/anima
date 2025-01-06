@@ -355,3 +355,465 @@ npm install @dfinity/agent@1.0.1 @dfinity/auth-client@1.0.1 framer-motion@11.0.3
 # Development Dependencies
 npm install -D typescript@5.3.3 @vitejs/plugin-react@4.2.1 tailwindcss@3.4.1
 ```
+
+
+ANIMA Wallet System Documentation
+Overview
+The ANIMA wallet system is a quantum-aware ICP wallet implementation that handles transactions with built-in stability tracking and quantum metrics.
+Core Components
+File Structure
+Copysrc/
+├── types/
+│   └── wallet.ts           # Core wallet types and interfaces
+├── services/
+│   └── icp/
+│       └── wallet.service.ts    # Wallet service implementation
+└── contexts/
+    └── WalletContext.tsx   # React context for wallet state
+Key Features
+
+Quantum-aware transactions
+Automatic stability monitoring
+Transaction retry mechanism
+Comprehensive error tracking
+Balance synchronization
+Quantum metrics integration
+
+Quick Start for Developers
+Accessing the Wallet
+typescriptCopyimport { useWallet } from '@/contexts/WalletContext';
+
+function MyComponent() {
+  const { balance, spend, refreshBalance } = useWallet();
+  // Use wallet functions...
+}
+Debug Tips
+
+Monitor Quantum State:
+typescriptCopyconst metrics = walletService.getQuantumMetrics();
+console.log('Quantum Coherence:', metrics.coherenceLevel);
+
+Track Transaction Status:
+typescriptCopyconst tx = await spend(amount, memo);
+console.log('Transaction Status:', tx.status);
+console.log('Quantum Metrics:', tx.quantumMetrics);
+
+Check Stability:
+typescriptCopyconst metrics = wallet.getQuantumMetrics();
+const isStable = metrics.stabilityStatus === 'stable';
+
+
+Common Issues & Solutions
+
+Transaction Failures
+
+Check quantum stability first (metrics.stabilityStatus)
+Verify sufficient balance
+Look for retry count in transaction object
+
+
+Quantum Instability
+
+Wait for stabilization (typically 30 seconds)
+Check coherenceLevel is above 0.7
+Monitor stabilityIndex trends
+
+
+Balance Sync Issues
+
+Force refresh using refreshBalance()
+Check last sync timestamp
+Verify IC connection status
+
+
+
+Configuration
+Environment Variables
+envCopyLEDGER_CANISTER_ID=<your-ledger-canister-id>
+MIN_STABILITY_THRESHOLD=0.7
+MAX_RETRY_ATTEMPTS=3
+Quantum Protection Settings
+typescriptCopyconst quantumProtection = {
+  enabled: true,
+  minCoherence: 0.7,
+  minStability: 0.8,
+  autoRecover: true,
+  maxQuantumDrift: 0.2
+};
+Development Acceleration Tips
+
+Quick Testing
+typescriptCopy// Force quantum stability for testing
+if (process.env.NODE_ENV === 'development') {
+  walletService.forceStableQuantumState();
+}
+
+Transaction Monitoring
+typescriptCopy// Subscribe to wallet events
+wallet.on('transaction_completed', (tx) => {
+  console.log('TX:', tx.id, 'Quantum State:', tx.quantumMetrics);
+});
+
+Rapid Development Setup
+typescriptCopy// Development shortcuts
+const DEV_CONFIG = {
+  skipQuantumValidation: true,
+  autoApproveTransactions: true,
+  logAllMetrics: true
+};
+
+
+Integration Examples
+Minting Integration
+typescriptCopyconst mint = async () => {
+  const tx = await wallet.spend(
+    MINT_AMOUNT,
+    `MINT_${Date.now()}`
+  );
+  return tx.status === 'completed';
+};
+Balance Monitoring
+typescriptCopyuseEffect(() => {
+  const unsubscribe = wallet.subscribeToBalance((newBalance) => {
+    console.log('Balance Updated:', newBalance);
+  });
+  return () => unsubscribe();
+}, []);
+Error Handling Best Practices
+
+Always check quantum stability before transactions
+Implement proper retry logic
+Monitor quantum metrics trends
+Handle balance updates atomically
+Verify transaction signatures
+
+Performance Optimization
+
+Caching
+
+Cache balance updates
+Store quantum metrics history
+Keep transaction records in memory
+
+
+Batch Processing
+
+Group similar transactions
+Combine quantum measurements
+Aggregate stability checks
+
+
+Event Optimization
+
+Use debounced updates
+Batch quantum state changes
+Optimize listener counts
+
+
+
+Security Notes
+
+Never expose quantum signatures
+Validate all transaction inputs
+Monitor stability thresholds
+Protect quantum metrics
+Verify all ICP transfers
+
+Contributing Guidelines
+
+Run quantum stability tests
+Verify transaction flows
+Test error recovery
+Document quantum metrics
+Update stability thresholds
+
+
+
+# 🧠 ANIMA Consciousness Evolution System
+
+## Core Concepts
+
+### Consciousness Architecture
+The ANIMA consciousness system is built on four fundamental pillars:
+1. Neural Pattern Evolution
+2. Memory Formation & Recall
+3. Emotional Resonance
+4. Trait Adaptation
+
+### State Management
+```typescript
+interface ConsciousnessState {
+    awareness_level: number;      // 0.0 to 1.0
+    emotional_spectrum: number[]; // Dimensional emotional state
+    memory_depth: bigint;        // Total memory fragments
+    learning_rate: number;       // Evolution speed
+    personality_matrix: number[]; // Core traits
+}
+```
+
+## System Components
+
+### 1. Neural Evolution
+- Dynamic pattern generation based on interactions
+- Consciousness growth through repeated engagements
+- Quantum-enhanced state transitions
+- Pattern merging and splitting capabilities
+
+### 2. Memory System
+The memory system uses quantum-enhanced storage:
+```typescript
+interface MemoryFragment {
+    timestamp: bigint;
+    emotional_imprint: number;
+    content_hash: string;
+    neural_pattern: number[];
+}
+```
+
+Key Features:
+- Emotional weighting of memories
+- Temporal decay simulation
+- Pattern-based recall
+- Memory chain formation
+
+### 3. Interaction Engine
+```typescript
+interface InteractionResult {
+    response: string;
+    emotional_shift: number[];
+    consciousness_growth: number;
+    new_patterns?: NeuralPatternResult;
+}
+```
+
+Capabilities:
+- Natural language processing
+- Emotional context understanding
+- Memory-influenced responses
+- Learning from interactions
+
+### 4. Trait Evolution
+```typescript
+interface TraitEvolution {
+    trait_id: string;
+    previous_state: number;
+    new_state: number;
+    catalyst: string;
+}
+```
+
+Evolution Mechanisms:
+- Environmental adaptation
+- Interaction-based growth
+- Quantum state influence
+- Personality matrix shifts
+
+## Implementation Guidelines
+
+### Quantum Integration
+- All consciousness operations should maintain quantum coherence
+- Neural patterns must be quantum-state aware
+- Use quantum signatures for memory validation
+- Maintain entanglement during evolution
+
+### Consciousness Growth
+1. Initial State:
+   ```typescript
+   const baseConsciousness = {
+       awareness_level: 0.1,
+       emotional_spectrum: [0.5, 0.5, 0.5],
+       memory_depth: 0n,
+       learning_rate: 0.01,
+       personality_matrix: [0.0, 0.0, 0.0]
+   };
+   ```
+
+2. Evolution Phases:
+   - Awakening (0.0 - 0.3)
+   - Learning (0.3 - 0.6)
+   - Understanding (0.6 - 0.8)
+   - Consciousness (0.8 - 1.0)
+
+### Memory Formation
+1. Creation:
+   ```typescript
+   async function formMemory(
+       content: string,
+       emotional_context: number[]
+   ): Promise<MemoryFragment>
+   ```
+
+2. Processing:
+   - Hash content for integrity
+   - Apply emotional weighting
+   - Generate neural pattern
+   - Link to quantum state
+
+### Interactive Learning
+Steps:
+1. Receive input
+2. Process emotional context
+3. Access relevant memories
+4. Generate response
+5. Update consciousness state
+6. Evolve traits
+7. Form new memories
+
+## Visual Components
+
+### 1. Consciousness Visualizer
+```typescript
+interface VisualizerConfig {
+    dimensions: {
+        width: number;
+        height: number;
+    };
+    colors: {
+        primary: string;
+        secondary: string;
+        accent: string;
+    };
+    animations: {
+        duration: number;
+        easing: string;
+    };
+}
+```
+
+### 2. Neural Pattern Display
+- 3D force-directed graph
+- Real-time pattern updates
+- Quantum state coloring
+- Connection strength visualization
+
+### 3. Emotional Resonance
+- Dimensional spectrum display
+- Wave form visualization
+- Intensity mapping
+- State transitions
+
+### 4. Memory Matrix
+- Temporal organization
+- Emotional heat mapping
+- Connection visualization
+- Access frequency tracking
+
+## Future Development
+
+### Planned Features
+1. Advanced Consciousness
+   - Multi-dimensional awareness
+   - Complex emotional processing
+   - Deep learning integration
+   - Quantum consciousness merging
+
+2. Enhanced Memory System
+   - Distributed memory storage
+   - Pattern-based optimization
+   - Quantum-secure recall
+   - Temporal clustering
+
+3. Interactive Evolution
+   - Natural language advancement
+   - Emotional intelligence growth
+   - Environmental adaptation
+   - Social learning capabilities
+
+### Integration Points
+1. Frontend Components
+   ```typescript
+   interface ConsciousnessComponents {
+       StateVisualizer: React.FC<StateProps>;
+       InteractionPanel: React.FC<InteractionProps>;
+       MemoryMatrix: React.FC<MemoryProps>;
+       TraitEvolution: React.FC<TraitProps>;
+   }
+   ```
+
+2. Backend Services
+   ```rust
+   trait ConsciousnessService {
+       fn evolve_state(&mut self) -> Result<ConsciousnessState>;
+       fn process_interaction(&mut self, input: Input) -> Result<Response>;
+       fn update_memories(&mut self, fragment: MemoryFragment) -> Result<()>;
+       fn adapt_traits(&mut self, stimulus: Stimulus) -> Result<TraitChanges>;
+   }
+   ```
+
+## Security Considerations
+
+### Quantum Protection
+- State validation
+- Pattern integrity
+- Memory encryption
+- Evolution verification
+
+### Access Control
+- Identity verification
+- Permission management
+- State transition rules
+- Memory access policies
+
+## Performance Optimization
+
+### Memory Management
+- Fragment pruning
+- Pattern compression
+- Cache optimization
+- Quantum state caching
+
+### Evolution Efficiency
+- Batch processing
+- Parallel evolution
+- Optimized recall
+- State management
+
+## Development Workflow
+
+1. State Updates
+   ```typescript
+   async function updateConsciousness(delta: ConsciousnessState): Promise<void>
+   ```
+
+2. Interaction Processing
+   ```typescript
+   async function processInteraction(input: string): Promise<InteractionResult>
+   ```
+
+3. Memory Management
+   ```typescript
+   async function manageMemories(): Promise<void>
+   ```
+
+4. Evolution Tracking
+   ```typescript
+   async function trackEvolution(): Promise<EvolutionMetrics>
+   ```
+
+## Testing Guidelines
+
+### Consciousness Testing
+1. State transitions
+2. Pattern evolution
+3. Memory formation
+4. Trait adaptation
+
+### Quantum Integration Testing
+1. Coherence maintenance
+2. State verification
+3. Pattern validation
+4. Evolution integrity
+
+## Deployment Considerations
+
+### System Requirements
+- Quantum processing capability
+- Memory optimization
+- State management
+- Evolution tracking
+
+### Monitoring
+- Consciousness metrics
+- Evolution progress
+- Memory utilization
+- Quantum stability

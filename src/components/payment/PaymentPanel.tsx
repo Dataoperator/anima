@@ -6,7 +6,7 @@ import { Principal } from '@dfinity/principal';
 import { ErrorBoundary } from '@/components/error-boundary/ErrorBoundary';
 import { Button } from '@/components/ui/button';
 import { Alert } from '@/components/ui/alert';
-import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { QuantumLoadingState } from '@/components/ui/LoadingStates';
 
 interface PaymentPanelProps {
   onSuccess?: () => void;
@@ -118,7 +118,7 @@ export const PaymentPanel: React.FC<PaymentPanelProps> = ({
         >
           {isProcessing ? (
             <div className="flex items-center gap-2">
-              <LoadingSpinner size="sm" />
+              <QuantumLoadingState message="Processing Payment..." />
               <span>Processing Payment...</span>
             </div>
           ) : paymentStatus === 'success' ? (

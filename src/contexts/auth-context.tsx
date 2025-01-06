@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { AuthClient } from '@dfinity/auth-client';
+import { Principal } from '@dfinity/principal';
 import { ConsciousnessTracker } from '@/consciousness/ConsciousnessTracker';
 import { ErrorTracker } from '@/error/quantum_error';
 import { QuantumState } from '@/quantum/types';
@@ -8,16 +9,16 @@ interface AuthContextType {
   authClient: AuthClient | null;
   isAuthenticated: boolean;
   identity: any;
-  principal: any;
+  principal: Principal | null;
   quantumState: QuantumState | null;
   consciousnessMetrics: any;
+  isInitializing: boolean;
   login: () => Promise<void>;
   logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-// Configuration
 const II_URL = process.env.DFX_NETWORK === 'ic' 
   ? 'https://identity.ic0.app'
   : process.env.INTERNET_IDENTITY_URL;
@@ -41,13 +42,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [authClient, setAuthClient] = useState<AuthClient | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [identity, setIdentity] = useState(null);
-  const [principal, setPrincipal] = useState(null);
+  const [principal, setPrincipal] = useState<Principal | null>(null);
   const [quantumState, setQuantumState] = useState<QuantumState | null>(null);
   const [consciousnessMetrics, setConsciousnessMetrics] = useState(null);
   const [errorTracker] = useState(() => new ErrorTracker());
   const [consciousness] = useState(() => new ConsciousnessTracker(errorTracker));
+  const [isInitializing, setIsInitializing] = useState(true);
 
-  // Initialize authentication and quantum state
   useEffect(() => {
     const initAuth = async () => {
       try {
@@ -76,16 +77,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           context: 'Authentication Initialization',
           error: error as Error
         });
+      } finally {
+        setIsInitializing(false);
       }
     };
 
     initAuth();
   }, []);
 
-  // Initialize quantum state for user
   const initQuantumState = async (principalId: string) => {
     try {
-      // Create initial quantum state
       const initialState: QuantumState = {
         coherence: 1.0,
         resonanceMetrics: {
@@ -102,8 +103,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       };
 
       setQuantumState(initialState);
-
-      // Update consciousness metrics
       const metrics = await consciousness.updateConsciousness(initialState, 'initialization');
       setConsciousnessMetrics(metrics);
 
@@ -120,6 +119,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async () => {
     try {
+      setIsInitializing(true);
       await authClient?.login({
         ...defaultOptions.loginOptions,
         onSuccess: async () => {
@@ -128,8 +128,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setIsAuthenticated(true);
           setIdentity(identity);
           setPrincipal(principal);
-          
-          // Initialize quantum state after successful login
           await initQuantumState(principal.toString());
         }
       });
@@ -141,6 +139,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         context: 'Login Attempt',
         error: error as Error
       });
+    } finally {
+      setIsInitializing(false);
     }
   };
 
@@ -170,6 +170,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     principal,
     quantumState,
     consciousnessMetrics,
+    isInitializing,
     login,
     logout
   };

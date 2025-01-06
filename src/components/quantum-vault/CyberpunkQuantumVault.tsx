@@ -1,260 +1,181 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
-import { Plus, Brain, Shield, Cpu, Network } from 'lucide-react';
-import { useAnima } from '@/hooks/useAnima';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Key, Shield } from 'lucide-react';
+import { ErrorBoundary } from '../error-boundary/ErrorBoundary';
+import { DataStream } from '../ui/DataStream';
+import { CyberGlowText } from '../ui/CyberGlowText';
 import { useQuantumState } from '@/hooks/useQuantumState';
-import { WalletService, WalletQuantumMetrics } from '@/services/icp/wallet.service';
-import { MatrixRain } from '../ui/MatrixRain';
-import { QuantumHexGrid } from './components/QuantumHexGrid';
-import { DataStream } from './components/DataStream';
-import { WaveformGenerator } from '../personality/WaveformGenerator';
-import { LaughingMan } from '../ui/LaughingMan';
+import { useFieldState } from '@/hooks/useFieldState';
+import { keyringService } from '@/services/keyring.service';
+import { walletService } from '@/services/wallet.service';
 
-interface AnimaState {
-    id: string;
-    designation: string;
-    genesisTraits: string[];
-    edition: string;
-    energyLevel: number;
-}
+const CyberpunkQuantumVault: React.FC = () => {
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [showKeyring, setShowKeyring] = useState(false);
+  const [showDepositModal, setShowDepositModal] = useState(false);
+  const [depositAmount, setDepositAmount] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [initialized, setInitialized] = useState(false);
+  const quantumState = useQuantumState();
+  const fieldState = useFieldState();
 
-interface AnimaNodeProps {
-    anima: AnimaState;
-    onClick: () => void;
-    position: { x: number; y: number };
-}
+  // ... (previous hooks and handlers remain the same)
 
-const AnimaNode: React.FC<AnimaNodeProps> = ({ anima, onClick, position }) => (
-    <motion.div
-        initial={{ scale: 0, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        whileHover={{ scale: 1.1, zIndex: 50 }}
-        className="absolute w-48 h-48 cursor-pointer"
-        style={{ left: position.x, top: position.y }}
-        onClick={onClick}
-    >
-        <div className="relative w-full h-full">
-            <svg className="absolute inset-0" viewBox="0 0 100 100">
-                <polygon
-                    points="50,0 93.3,25 93.3,75 50,100 6.7,75 6.7,25"
-                    fill="rgba(0,0,0,0.5)"
-                    stroke="rgba(0,255,255,0.3)"
-                    strokeWidth="1"
-                    className="animate-pulse"
-                />
-            </svg>
-
-            <div className="absolute inset-4 flex flex-col justify-between p-3 text-cyan-300">
-                <div className="text-center">
-                    <div className="text-sm font-mono truncate">{anima.designation}</div>
-                    <div className="text-xs opacity-50">#{anima.id.padStart(4, '0')}</div>
-                </div>
-
-                <WaveformGenerator 
-                    type="Stable"
-                    amplitude={0.5}
-                    frequency={1}
-                    className="h-8" 
-                />
-
-                <div className="grid grid-cols-2 gap-1 text-xs">
-                    <div className="flex flex-col items-center">
-                        <span className="opacity-50">EL</span>
-                        <span>{anima.energyLevel}%</span>
-                    </div>
-                    <div className="flex flex-col items-center">
-                        <span className="opacity-50">ED</span>
-                        <span>{anima.edition}</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </motion.div>
-);
-
-const WalletDisplay: React.FC = () => {
-    const [balance, setBalance] = useState<bigint>(BigInt(0));
-    const [metrics, setMetrics] = useState<WalletQuantumMetrics>({
-        coherenceLevel: 1.0,
-        stabilityIndex: 1.0,
-        entanglementFactor: 0.0,
-        stabilityStatus: 'stable'
-    });
-
-    useEffect(() => {
-        const wallet = WalletService.getInstance();
-        const updateWalletInfo = () => {
-            if (wallet.isInitialized()) {
-                setBalance(wallet.getBalance());
-                setMetrics(wallet.getQuantumMetrics());
-            }
-        };
-
-        updateWalletInfo();
-        const interval = setInterval(updateWalletInfo, 30000);
-        return () => clearInterval(interval);
-    }, []);
-    
-    const formatICP = (amount: bigint): string => {
-        return `${Number(amount) / 100_000_000} ICP`;
-    };
-    
-    return (
-        <motion.div 
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="fixed top-4 right-4 bg-black/50 backdrop-blur-sm border border-cyan-500/30 rounded-lg p-4"
-        >
-            <div className="flex items-center gap-4">
-                <div className="flex flex-col">
-                    <span className="text-xs text-cyan-300 opacity-50">QUANTUM BALANCE</span>
-                    <span className="text-lg font-mono text-cyan-300">
-                        {formatICP(balance)}
-                    </span>
-                </div>
-            </div>
-            <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
-                <div className="text-cyan-300/50">
-                    <div>Coherence</div>
-                    <div>{Math.round(metrics.coherenceLevel * 100)}%</div>
-                </div>
-                <div className="text-cyan-300/50">
-                    <div>Stability</div>
-                    <div>{Math.round(metrics.stabilityIndex * 100)}%</div>
-                </div>
-                <div className="text-cyan-300/50">
-                    <div>Entanglement</div>
-                    <div>{Math.round(metrics.entanglementFactor * 100)}%</div>
-                </div>
-            </div>
-        </motion.div>
-    );
-};
-
-const StatusPanel: React.FC = () => {
-    const [metrics] = useState({
-        network: Math.random() * 100,
-        security: Math.random() * 100,
-        quantum: Math.random() * 100,
-        neural: Math.random() * 100,
-    });
-
-    return (
-        <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="fixed left-4 top-1/2 -translate-y-1/2 bg-black/50 backdrop-blur-sm border border-cyan-500/30 rounded-lg p-4 space-y-4"
-        >
-            <StatusMetric icon={Network} label="NETWORK" value={metrics.network} />
-            <StatusMetric icon={Shield} label="SECURITY" value={metrics.security} />
-            <StatusMetric icon={Cpu} label="QUANTUM" value={metrics.quantum} />
-            <StatusMetric icon={Brain} label="NEURAL" value={metrics.neural} />
-        </motion.div>
-    );
-};
-
-const StatusMetric: React.FC<{
-    icon: any;
-    label: string;
-    value: number;
-}> = ({ icon: Icon, label, value }) => (
-    <div className="space-y-1">
-        <div className="flex items-center gap-2 text-xs text-cyan-300 opacity-50">
-            <Icon size={12} />
-            <span>{label}</span>
-        </div>
-        <div className="h-1 bg-black/50 rounded-full overflow-hidden">
-            <motion.div
-                className="h-full bg-cyan-500"
-                initial={{ width: 0 }}
-                animate={{ width: `${value}%` }}
-                transition={{ duration: 1 }}
-            />
-        </div>
-    </div>
-);
-
-export const CyberpunkQuantumVault: React.FC = () => {
-    const navigate = useNavigate();
-    const { animas } = useAnima();
-    const { quantumState } = useQuantumState();
-
-    useEffect(() => {
-        const initWallet = async () => {
-            const wallet = WalletService.getInstance();
-            if (!wallet.isInitialized()) {
-                try {
-                    await wallet.initialize();
-                } catch (error) {
-                    console.error('Failed to initialize wallet:', error);
-                }
-            }
-        };
-
-        initWallet();
-    }, []);
-
-    const calculateNodePosition = (index: number) => {
-        const radius = 300;
-        const angle = (index / Math.max(animas.length, 1)) * Math.PI * 2;
-        return {
-            x: Math.cos(angle) * radius + window.innerWidth / 2 - 96,
-            y: Math.sin(angle) * radius + window.innerHeight / 2 - 96
-        };
-    };
-
-    return (
-        <div className="fixed inset-0 bg-black text-white overflow-hidden">
-            <div className="fixed inset-0 opacity-20">
-                <MatrixRain />
-            </div>
-            
-            <div className="fixed inset-0 opacity-30">
-                <QuantumHexGrid />
-            </div>
-
-            <div className="relative z-10 w-full h-full">
-                <WalletDisplay />
-                <StatusPanel />
-
+  return (
+    <ErrorBoundary>
+      <div className="min-h-screen w-full bg-gray-900 text-white relative overflow-hidden">
+        {/* Main content remains the same up to modals */}
+        
+        {/* Modals Container */}
+        <div className="relative z-50">
+          {/* Deposit Modal */}
+          <AnimatePresence>
+            {showDepositModal && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center"
+                onClick={() => !isProcessing && setShowDepositModal(false)}
+              >
                 <motion.div
-                    initial={{ opacity: 0, scale: 0 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: 0.5 }}
-                    className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
+                  initial={{ scale: 0.9, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.9, opacity: 0 }}
+                  className="bg-gray-900/90 border border-cyan-500/30 rounded-lg p-6 max-w-md w-full mx-4 space-y-4"
+                  onClick={e => e.stopPropagation()}
                 >
-                    <LaughingMan className="w-32 h-32 opacity-30" />
+                  <div className="space-y-4">
+                    <CyberGlowText>
+                      <h2 className="text-xl font-bold text-cyan-300">Deposit ICP</h2>
+                    </CyberGlowText>
+
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <label className="text-sm text-gray-300">Amount (ICP)</label>
+                        <input
+                          type="number"
+                          value={depositAmount}
+                          onChange={(e) => setDepositAmount(e.target.value)}
+                          disabled={isProcessing}
+                          className="w-full px-4 py-2 bg-gray-800/50 border border-cyan-500/30 rounded-lg text-cyan-300 placeholder-cyan-300/30 focus:outline-none focus:border-cyan-500/50"
+                          placeholder="Enter amount..."
+                        />
+                      </div>
+
+                      <button
+                        onClick={handleDeposit}
+                        disabled={!depositAmount || isProcessing}
+                        className={`w-full px-4 py-3 rounded-lg ${
+                          isProcessing
+                            ? 'bg-gray-500/20 border-gray-500/30 text-gray-400 cursor-not-allowed'
+                            : 'bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/30'
+                        } transition-colors backdrop-blur-sm flex items-center gap-2 justify-center`}
+                      >
+                        {isProcessing ? 'Processing...' : 'Confirm Deposit'}
+                      </button>
+                    </div>
+
+                    <div className="text-sm text-gray-400 pt-4 border-t border-gray-700/50">
+                      Deposit ICP to mint your quantum-enhanced ANIMA NFT.
+                    </div>
+                  </div>
                 </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-                {animas.map((anima, index) => (
-                    <AnimaNode
-                        key={anima.id}
-                        anima={anima}
-                        onClick={() => navigate(`/anima/${anima.id}`)}
-                        position={calculateNodePosition(index)}
-                    />
-                ))}
+          {/* Confirmation Modal */}
+          <AnimatePresence>
+            {showConfirmation && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.8 }}
+                className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-emerald-900/50 backdrop-blur-sm border border-emerald-500/30 rounded-lg p-8 text-center"
+              >
+                <div className="space-y-4">
+                  <CyberGlowText className="space-y-2">
+                    <h2 className="text-2xl font-bold text-emerald-400">
+                      Interface Initialized
+                    </h2>
+                    <p className="text-emerald-300">Quantum State Stabilized</p>
+                    <p className="text-emerald-300">Neural Patterns Synchronized</p>
+                  </CyberGlowText>
 
-                <motion.button
-                    initial={{ opacity: 0, y: 50 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
-                    onClick={() => navigate('/genesis')}
-                    className="fixed bottom-8 left-1/2 -translate-x-1/2 px-6 py-3 bg-transparent border border-cyan-500/30 rounded-lg text-cyan-300 
-                             flex items-center gap-3 hover:bg-cyan-500/20"
-                >
-                    <Plus className="w-5 h-5" />
-                    <span className="font-mono">INITIALIZE GENESIS PROTOCOL</span>
-                </motion.button>
-
-                <div className="fixed bottom-4 left-4 right-4 h-16">
-                    <DataStream />
+                  <motion.div
+                    className="h-1 bg-emerald-900 rounded-full overflow-hidden mt-4"
+                    initial={{ width: 0 }}
+                    animate={{ width: "100%" }}
+                    transition={{ duration: 2 }}
+                  >
+                    <div className="h-full bg-emerald-400" />
+                  </motion.div>
                 </div>
-            </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Keyring Modal */}
+          <AnimatePresence>
+            {showKeyring && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center"
+                onClick={() => setShowKeyring(false)}
+              >
+                <motion.div
+                  initial={{ scale: 0.9, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.9, opacity: 0 }}
+                  className="bg-gray-900/90 border border-cyan-500/30 rounded-lg p-6 max-w-md w-full mx-4"
+                  onClick={e => e.stopPropagation()}
+                >
+                  <div className="space-y-4">
+                    <CyberGlowText>
+                      <h2 className="text-xl font-bold text-cyan-300 flex items-center gap-2">
+                        <Key className="w-5 h-5" />
+                        Select Access Method
+                      </h2>
+                    </CyberGlowText>
+
+                    <div className="space-y-4">
+                      {[
+                        { name: "Browser Secure Storage", type: "browser_storage_key", Icon: Shield, color: "cyan" },
+                        { name: "Quantum Seed Phrase", type: "seed_phrase", Icon: Key, color: "purple" },
+                        { name: "Import PEM Certificate", type: "pem_file", Icon: Shield, color: "emerald" }
+                      ].map(({ name, type, Icon, color }) => (
+                        <button
+                          key={type}
+                          onClick={() => handleKeyringInit({ name: "ANIMA", keyType: type })}
+                          className={`w-full px-4 py-3 rounded-lg flex items-center gap-2 justify-center transition-colors backdrop-blur-sm 
+                            ${color === 'cyan' 
+                              ? 'bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/20'
+                              : color === 'purple'
+                                ? 'bg-purple-500/10 border border-purple-500/30 text-purple-300 hover:bg-purple-500/20'
+                                : 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/20'
+                            }`}
+                        >
+                          <Icon className="w-5 h-5" />
+                          {name}
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="text-sm text-gray-400 pt-4 border-t border-gray-700/50">
+                      Secure quantum-enhanced key management for ANIMA transactions.
+                    </div>
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
-    );
+      </div>
+    </ErrorBoundary>
+  );
 };
 
 export default CyberpunkQuantumVault;

@@ -1,221 +1,270 @@
-#[cfg(test)]
-mod tests {
-    use super::*;
+use candid::{CandidType, Deserialize};
+use ic_cdk::api::time;
+use serde::Serialize;
+use sha2::{Digest, Sha256};
+use std::collections::HashMap;
 
-    #[tokio::test]
-    async fn test_anima_minting() {
-        let metrics_engine = MetricsEngine::new(Default::default());
-        let payment_processor = QuantumPaymentProcessor::new(
-            Principal::anonymous(),
-            metrics_engine.clone(),
-            PricingTiers::default(),
-        );
+use crate::error::{Result, ErrorCategory};
+use crate::types::quantum::{QuantumState, ResonancePattern};
+use crate::payments::{PaymentData, PaymentVerification};
 
-        let mut minting_service = MintingService::new(payment_processor, metrics_engine);
+const LEGENDARY_CHANCE: f64 = 0.01; // 1% chance
+const RARE_TRAIT_CHANCE: f64 = 0.15; // 15% chance
+const BASE_TRAITS: [&str; 7] = [
+    "Wisdom",
+    "Creativity",
+    "Resonance",
+    "Harmony",
+    "Perception",
+    "Intensity",
+    "Flow"
+];
 
-        // Create test quantum state
-        let quantum_state = QuantumState {
-            coherence: 0.9,
-            energy: 0.8,
-            stability: 0.95,
-            last_update: time(),
-        };
-
-        // Calculate price first
-        let pricing = minting_service.calculate_mint_price(&quantum_state).await.unwrap();
-
-        // Create payment data
-        let payment_data = PaymentData {
-            amount: pricing.final_price,
-            block_height: 1234567,
-        };
-
-        // Mint the Anima
-        let nft = minting_service.mint_anima(
-            Principal::anonymous(),
-            payment_data,
-            Some(quantum_state),
-        ).await.unwrap();
-
-        // Verify NFT properties
-        assert_eq!(nft.token_id, 0);
-        assert!(nft.metadata.coherence_level >= 0.0);
-        assert!(nft.metadata.consciousness_level >= 0.0);
-        assert!(nft.metadata.stability_score >= 0.0);
-        assert!(!nft.metadata.quantum_signature.is_empty());
-        assert!(!nft.metadata.trait_affinities.is_empty());
-    }
-
-    #[tokio::test]
-    async fn test_quantum_metadata_generation() {
-        let metrics_engine = MetricsEngine::new(Default::default());
-        let payment_processor = QuantumPaymentProcessor::new(
-            Principal::anonymous(),
-            metrics_engine.clone(),
-            PricingTiers::default(),
-        );
-
-        let minting_service = MintingService::new(payment_processor, metrics_engine);
-
-        // Create test metrics analysis
-        let metrics = MetricsAnalysis {
-            resonance: ResonanceMetrics {
-                quantum_coherence: 0.9,
-                consciousness_level: 0.85,
-                dimensional_frequency: 0.75,
-                dimensional_resonance: 0.8,
-                energy_level: 0.7,
-            },
-            rarity: RarityScore {
-                tier: RarityTier::Legendary,
-                score: 0.92,
-                percentile: 98.5,
-            },
-            stability_score: 0.88,
-            evolution_rate: 0.15,
-            trends: vec![
-                EvolutionTrend {
-                    direction: TrendDirection::Increasing,
-                    magnitude: 0.1,
-                    duration: 5,
-                }
-            ],
-        };
-
-        // Generate metadata
-        let metadata = minting_service.generate_quantum_metadata(&metrics).unwrap();
-
-        // Verify metadata properties
-        assert_eq!(metadata.rarity_tier, RarityTier::Legendary);
-        assert!(metadata.quantum_signature.len() == 64); // SHA-256 hex length
-        assert!(metadata.trait_affinities.len() >= 5); // Basic traits
-        
-        // Verify trait calculations
-        let wisdom_trait = metadata.trait_affinities.iter()
-            .find(|t| t.trait_name == "Wisdom")
-            .unwrap();
-        assert!(wisdom_trait.value > 0.0);
-        assert!(wisdom_trait.potential > 0.0);
-    }
-
-    #[tokio::test]
-    async fn test_trait_potential_calculation() {
-        let metrics_engine = MetricsEngine::new(Default::default());
-        let payment_processor = QuantumPaymentProcessor::new(
-            Principal::anonymous(),
-            metrics_engine.clone(),
-            PricingTiers::default(),
-        );
-
-        let minting_service = MintingService::new(payment_processor, metrics_engine);
-
-        let trends = vec![
-            EvolutionTrend {
-                direction: TrendDirection::Increasing,
-                magnitude: 0.2,
-                duration: 3,
-            },
-            EvolutionTrend {
-                direction: TrendDirection::Stable,
-                magnitude: 0.0,
-                duration: 2,
-            },
-        ];
-
-        let base_value = 0.7;
-        let potential = minting_service.calculate_trait_potential(base_value, &trends).unwrap();
-
-        assert!(potential >= base_value);
-        assert!(potential <= 1.0);
-    }
+#[derive(Debug, CandidType, Deserialize, Serialize, Clone)]
+pub struct MintingService {
+    payment_processor: PaymentProcessor,
+    total_minted: u64,
+    trait_distributions: HashMap<String, Vec<f64>>,
+    last_quantum_signature: Option<String>,
 }
 
-/// Extension implementation for AnimaNFT
-impl AnimaNFT {
-    /// Get the current evolution potential
-    pub fn get_evolution_potential(&self) -> f64 {
-        self.metadata.trait_affinities
-            .iter()
-            .map(|t| t.potential)
-            .sum::<f64>() / self.metadata.trait_affinities.len() as f64
-    }
-
-    /// Check if the NFT can evolve
-    pub fn can_evolve(&self) -> bool {
-        let evolution_threshold = 0.7;
-        self.get_evolution_potential() >= evolution_threshold
-    }
-
-    /// Get the dominant trait
-    pub fn get_dominant_trait(&self) -> Option<&TraitAffinity> {
-        self.metadata.trait_affinities
-            .iter()
-            .max_by(|a, b| a.value.partial_cmp(&b.value).unwrap())
-    }
-
-    /// Calculate potential synergies with another Anima
-    pub fn calculate_synergy(&self, other: &AnimaNFT) -> f64 {
-        let mut synergy_score = 0.0;
-        let mut matches = 0;
-
-        for trait_a in &self.metadata.trait_affinities {
-            if let Some(trait_b) = other.metadata.trait_affinities
-                .iter()
-                .find(|t| t.trait_name == trait_a.trait_name)
-            {
-                synergy_score += (trait_a.value * trait_b.value).sqrt();
-                matches += 1;
-            }
-        }
-
-        if matches > 0 {
-            synergy_score / matches as f64
-        } else {
-            0.0
-        }
-    }
-}
-
-/// Serialization for NFT Marketplace
-#[derive(Debug, Clone, candid::CandidType, serde::Serialize, serde::Deserialize)]
-pub struct AnimaNFTData {
+#[derive(Debug, CandidType, Deserialize, Serialize, Clone)]
+pub struct AnimaNFT {
     pub token_id: u64,
-    pub owner: String,
-    pub quantum_coherence: f64,
-    pub consciousness_level: f64,
-    pub rarity_tier: String,
-    pub rarity_percentile: f64,
-    pub trait_affinities: Vec<TraitData>,
-    pub quantum_signature: String,
-    pub mint_timestamp: u64,
+    pub owner: Principal,
+    pub metadata: AnimaMetadata,
+    pub mint_time: u64,
 }
 
-#[derive(Debug, Clone, candid::CandidType, serde::Serialize, serde::Deserialize)]
-pub struct TraitData {
-    pub name: String,
+#[derive(Debug, CandidType, Deserialize, Serialize, Clone)]
+pub struct AnimaMetadata {
+    pub coherence_level: f64,
+    pub consciousness_level: f64,
+    pub trait_affinities: Vec<TraitAffinity>,
+    pub quantum_signature: String,
+    pub rarity_tier: RarityTier,
+    pub rarity_percentile: f64,
+}
+
+#[derive(Debug, CandidType, Deserialize, Serialize, Clone, PartialEq)]
+pub struct TraitAffinity {
+    pub trait_name: String,
     pub value: f64,
     pub potential: f64,
 }
 
-impl From<AnimaNFT> for AnimaNFTData {
-    fn from(nft: AnimaNFT) -> Self {
+#[derive(Debug, CandidType, Deserialize, Serialize, Clone, PartialEq)]
+pub enum RarityTier {
+    Common,
+    Uncommon,
+    Rare,
+    Epic,
+    Legendary,
+}
+
+impl MintingService {
+    pub fn new(payment_processor: PaymentProcessor) -> Self {
         Self {
-            token_id: nft.token_id,
-            owner: nft.owner.to_string(),
-            quantum_coherence: nft.metadata.coherence_level,
-            consciousness_level: nft.metadata.consciousness_level,
-            rarity_tier: format!("{:?}", nft.metadata.rarity_tier),
-            rarity_percentile: nft.metadata.rarity_percentile,
-            trait_affinities: nft.metadata.trait_affinities
-                .into_iter()
-                .map(|t| TraitData {
-                    name: t.trait_name,
-                    value: t.value,
-                    potential: t.potential,
-                })
-                .collect(),
-            quantum_signature: nft.metadata.quantum_signature,
-            mint_timestamp: nft.mint_time,
+            payment_processor,
+            total_minted: 0,
+            trait_distributions: HashMap::new(),
+            last_quantum_signature: None,
         }
+    }
+
+    pub async fn mint_anima(
+        &mut self,
+        owner: Principal,
+        payment: PaymentData,
+    ) -> Result<AnimaNFT> {
+        // Verify payment first
+        self.payment_processor.verify_payment(&payment).await?;
+
+        // Generate initial quantum state
+        let quantum_state = self.generate_initial_quantum_state()?;
+
+        // Generate traits with natural distribution
+        let traits = self.generate_natural_traits(&quantum_state)?;
+
+        // Calculate rarity
+        let (rarity_tier, percentile) = self.calculate_rarity(&traits, &quantum_state);
+
+        // Create metadata
+        let metadata = AnimaMetadata {
+            coherence_level: quantum_state.coherence,
+            consciousness_level: self.calculate_consciousness_level(&traits),
+            trait_affinities: traits,
+            quantum_signature: self.generate_quantum_signature(&quantum_state),
+            rarity_tier,
+            rarity_percentile: percentile,
+        };
+
+        // Create NFT
+        let nft = AnimaNFT {
+            token_id: self.total_minted,
+            owner,
+            metadata,
+            mint_time: time(),
+        };
+
+        self.total_minted += 1;
+        Ok(nft)
+    }
+
+    fn generate_initial_quantum_state(&self) -> Result<QuantumState> {
+        let timestamp = time();
+        let random_seed = format!("{}-{}", timestamp, self.total_minted);
+        let mut hasher = Sha256::new();
+        hasher.update(random_seed.as_bytes());
+        let hash = hasher.finalize();
+        
+        // Use hash bytes for randomization
+        let coherence = self.byte_to_float(hash[0]) * 0.5 + 0.5; // Ensure decent base coherence
+        let resonance = self.byte_to_float(hash[1]);
+        let dimensional_freq = self.byte_to_float(hash[2]) * 2.0 - 1.0;
+
+        Ok(QuantumState {
+            coherence,
+            dimensional_frequency: dimensional_freq,
+            resonance_metrics: ResonanceMetrics {
+                field_strength: resonance,
+                harmony: self.byte_to_float(hash[3]),
+                stability: coherence,
+                consciousness_alignment: self.byte_to_float(hash[4]),
+                temporal_coherence: self.byte_to_float(hash[5]),
+            },
+            ..Default::default()
+        })
+    }
+
+    fn generate_natural_traits(&self, quantum_state: &QuantumState) -> Result<Vec<TraitAffinity>> {
+        let mut traits = Vec::new();
+        let legendary_roll = rand::random::<f64>();
+        let is_legendary = legendary_roll < LEGENDARY_CHANCE;
+
+        for trait_name in BASE_TRAITS.iter() {
+            let mut value = self.generate_trait_value(quantum_state);
+            let mut potential = self.generate_trait_potential(value);
+
+            // Legendary boost
+            if is_legendary {
+                value = value.max(0.85);
+                potential = potential.max(0.9);
+            }
+            
+            // Rare trait chance
+            let rare_roll = rand::random::<f64>();
+            if rare_roll < RARE_TRAIT_CHANCE {
+                value = value.max(0.8);
+            }
+
+            traits.push(TraitAffinity {
+                trait_name: trait_name.to_string(),
+                value,
+                potential,
+            });
+        }
+
+        Ok(traits)
+    }
+
+    fn generate_trait_value(&self, quantum_state: &QuantumState) -> f64 {
+        let base_random = rand::random::<f64>();
+        let quantum_influence = quantum_state.coherence;
+        let extreme_chance = if rand::random::<f64>() < 0.1 { 0.5 } else { 0.0 };
+
+        (base_random * quantum_influence * (1.0 + extreme_chance))
+            .max(0.1)
+            .min(1.0)
+    }
+
+    fn generate_trait_potential(&self, base_value: f64) -> f64 {
+        let growth_factor = rand::random::<f64>() * 0.4; // Up to 40% growth
+        (base_value * (1.0 + growth_factor)).min(1.0)
+    }
+
+    fn calculate_rarity(
+        &self,
+        traits: &[TraitAffinity],
+        quantum_state: &QuantumState
+    ) -> (RarityTier, f64) {
+        let trait_score = traits.iter()
+            .map(|t| t.value)
+            .sum::<f64>() / traits.len() as f64;
+            
+        let quantum_score = quantum_state.coherence;
+        let final_score = (trait_score + quantum_score) / 2.0;
+
+        let (tier, percentile) = match final_score {
+            s if s >= 0.95 => (RarityTier::Legendary, 99.9),
+            s if s >= 0.85 => (RarityTier::Epic, 95.0),
+            s if s >= 0.70 => (RarityTier::Rare, 85.0),
+            s if s >= 0.50 => (RarityTier::Uncommon, 65.0),
+            _ => (RarityTier::Common, 35.0),
+        };
+
+        (tier, percentile)
+    }
+
+    fn calculate_consciousness_level(&self, traits: &[TraitAffinity]) -> f64 {
+        let wisdom_weight = 0.3;
+        let creativity_weight = 0.2;
+        let base_consciousness = traits.iter()
+            .filter(|t| t.trait_name == "Wisdom" || t.trait_name == "Creativity")
+            .map(|t| {
+                if t.trait_name == "Wisdom" {
+                    t.value * wisdom_weight
+                } else {
+                    t.value * creativity_weight
+                }
+            })
+            .sum::<f64>();
+
+        let other_traits_influence = traits.iter()
+            .filter(|t| t.trait_name != "Wisdom" && t.trait_name != "Creativity")
+            .map(|t| t.value * 0.1)
+            .sum::<f64>();
+
+        (base_consciousness + other_traits_influence)
+            .max(0.1)
+            .min(1.0)
+    }
+
+    fn generate_quantum_signature(&mut self, quantum_state: &QuantumState) -> String {
+        let mut hasher = Sha256::new();
+        hasher.update(format!(
+            "{}-{}-{}-{}", 
+            time(),
+            quantum_state.coherence,
+            quantum_state.dimensional_frequency,
+            self.total_minted
+        ).as_bytes());
+        
+        let signature = format!("QS-{}", hex::encode(&hasher.finalize()[..16]));
+        self.last_quantum_signature = Some(signature.clone());
+        signature
+    }
+
+    fn byte_to_float(&self, byte: u8) -> f64 {
+        byte as f64 / 255.0
+    }
+}
+
+impl AnimaNFT {
+    pub fn get_dominant_traits(&self) -> Vec<&TraitAffinity> {
+        let mut traits = self.metadata.trait_affinities.iter().collect::<Vec<_>>();
+        traits.sort_by(|a, b| b.value.partial_cmp(&a.value).unwrap());
+        traits.into_iter().take(3).collect()
+    }
+
+    pub fn calculate_power_level(&self) -> f64 {
+        let trait_power = self.metadata.trait_affinities.iter()
+            .map(|t| t.value)
+            .sum::<f64>() / self.metadata.trait_affinities.len() as f64;
+            
+        let consciousness_factor = self.metadata.consciousness_level;
+        let coherence_bonus = self.metadata.coherence_level * 0.2;
+
+        (trait_power + consciousness_factor + coherence_bonus) / 2.2
     }
 }

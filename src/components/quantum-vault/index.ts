@@ -1,4 +1,5 @@
-export { default as QuantumVault } from './QuantumVault';
+// Export all components individually
+export { default as CyberpunkQuantumVault } from './CyberpunkQuantumVault';
 export { default as QuantumStateVisualizer } from './QuantumStateVisualizer';
-export { default as DataStream } from './DataStream';
-export { default as QVGrid } from './QVGrid';
+export { default as DataStream } from './components/DataStream';
+export { default as QuantumHexGrid } from './components/QuantumHexGrid';

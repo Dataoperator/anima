@@ -1,4 +1,3 @@
 mod metrics;
 
-// Re-export only what we use
-pub use metrics::*;
+pub use metrics::{record_metrics, SystemMetrics, MetricsHistory};

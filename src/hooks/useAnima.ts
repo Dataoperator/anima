@@ -1,8 +1,15 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '@/hooks/useAuth';
-import { Principal } from '@dfinity/principal';
+import { useEffect, useState } from 'react';
+import { useAuth } from './useAuth';
+import { animaActorService } from '@/services/anima-actor.service';
+import type { _SERVICE } from '@/declarations/anima/anima.did';
 
-export interface AnimaState {
+export interface AnimaCreationResult {
+  id: string;
+  quantum_signature: string;
+  timestamp: bigint;
+}
+
+export interface AnimaInfo {
   id: string;
   designation: string;
   genesisTraits: string[];
@@ -10,131 +17,81 @@ export interface AnimaState {
   energyLevel: number;
 }
 
-interface AnimaError {
-  code: number;
-  message: string;
-}
+export function useAnima() {
+  const { identity, isAuthenticated } = useAuth();
+  const [animas, setAnimas] = useState<AnimaInfo[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-export const useAnima = () => {
-  const { authClient, isAuthenticated } = useAuth();
-  const [animas, setAnimas] = useState<AnimaState[]>([]);
-  const [activeAnima, setActiveAnima] = useState<AnimaState | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<AnimaError | null>(null);
-
-  const clearError = useCallback(() => setError(null), []);
-
-  const fetchUserAnimas = useCallback(async () => {
-    if (!authClient || !isAuthenticated) {
-      setAnimas([]);
-      return [];
+  const getActor = (): _SERVICE => {
+    if (!identity) {
+      throw new Error('Not authenticated');
     }
     
-    try {
-      setLoading(true);
-      console.log('📡 Fetching animas');
-      
-      // Mock data - will be replaced with actual IC calls
-      const mockAnimas: AnimaState[] = [];
-      
-      setAnimas(mockAnimas);
-      if (mockAnimas.length > 0 && !activeAnima) {
-        setActiveAnima(mockAnimas[0]);
-      }
-      return mockAnimas;
-    } catch (err) {
-      const error = err instanceof Error ? err : new Error('Unknown error');
-      console.error('❌ Error fetching animas:', error);
-      setError({
-        code: 500,
-        message: error.message
-      });
-      return [];
-    } finally {
-      setLoading(false);
+    let actor = animaActorService.getActor();
+    if (!actor) {
+      actor = animaActorService.createActor(identity);
     }
-  }, [authClient, isAuthenticated, activeAnima]);
+    return actor;
+  };
 
-  const getAnima = useCallback(async (id: string): Promise<AnimaState | null> => {
-    if (!authClient || !isAuthenticated) return null;
-    
-    try {
-      console.log('🔍 Fetching anima details for ID:', id);
-      // Mock data - replace with actual IC call
-      const mockAnima: AnimaState = {
-        id,
-        designation: 'Alpha-' + id,
-        genesisTraits: ['Quantum Resonance', 'Neural Enhancement'],
-        edition: 'Genesis',
-        energyLevel: 85
-      };
-      setActiveAnima(mockAnima);
-      return mockAnima;
-    } catch (err) {
-      const error = err instanceof Error ? err : new Error('Unknown error');
-      console.error('❌ Error fetching anima:', error);
-      setError({
-        code: 500,
-        message: error.message
-      });
-      return null;
-    }
-  }, [authClient, isAuthenticated]);
-
-  const createAnima = useCallback(async (name: string): Promise<string | null> => {
-    if (!authClient || !isAuthenticated) return null;
-    
-    try {
-      setLoading(true);
-      console.log('🎨 Creating new anima with name:', name);
-      
-      // Mock creation - replace with actual IC call
-      const newId = Date.now().toString();
-      const newAnima: AnimaState = {
-        id: newId,
-        designation: name,
-        genesisTraits: ['Quantum Resonance', 'Neural Enhancement'],
-        edition: 'Genesis',
-        energyLevel: 100
-      };
-      
-      setAnimas(prev => [...prev, newAnima]);
-      setActiveAnima(newAnima);
-      return newId;
-      
-    } catch (err) {
-      const error = err instanceof Error ? err : new Error('Unknown error');
-      console.error('❌ Error creating anima:', error);
-      setError({
-        code: 500,
-        message: error.message
-      });
-      return null;
-    } finally {
-      setLoading(false);
-    }
-  }, [authClient, isAuthenticated]);
-
-  // Auto-fetch animas when authentication changes
   useEffect(() => {
-    if (isAuthenticated) {
-      console.log('🚀 Auth confirmed, fetching animas...');
-      fetchUserAnimas();
-    } else {
-      console.log('🔒 Not authenticated, clearing animas...');
-      setAnimas([]);
-      setActiveAnima(null);
+    if (isAuthenticated && identity) {
+      fetchAnimas();
     }
-  }, [isAuthenticated, fetchUserAnimas]);
+  }, [isAuthenticated, identity]);
+
+  const fetchAnimas = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      // TODO: Implement when backend ready
+      setAnimas([]);
+    } catch (err) {
+      console.error('Failed to fetch animas:', err);
+      setError(err instanceof Error ? err.message : 'Failed to fetch animas');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const initializeGenesis = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      console.log('Starting genesis initialization...');
+      
+      const actor = getActor();
+      console.log('Actor ready, calling initialize_genesis...');
+      
+      const result = await actor.initialize_genesis();
+      console.log('Genesis initialization result:', result);
+      
+      if ('Err' in result) {
+        throw new Error(result.Err);
+      }
+
+      if (!('Ok' in result) || !result.Ok) {
+        throw new Error('Invalid response format from canister');
+      }
+
+      return result.Ok;
+    } catch (err) {
+      console.error('Genesis initialization failed:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Genesis initialization failed';
+      setError(errorMessage);
+      throw new Error(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return {
-    animas: animas || [], // Ensure we never return undefined
-    activeAnima,
-    loading,
+    animas,
+    isLoading,
     error,
-    clearError,
-    fetchUserAnimas,
-    getAnima,
-    createAnima
+    fetchAnimas,
+    initializeGenesis
   };
-};
+}

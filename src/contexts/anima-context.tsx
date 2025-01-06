@@ -25,11 +25,13 @@ interface AnimaContextType {
   isInitialized: boolean;
   isMinting: boolean;
   mintError: string | null;
+  isConnected: boolean;
   processInteraction: (strength: number) => Promise<void>;
   syncQuantumState: () => Promise<void>;
   createMemory: (description: string, importance: number, keywords?: string[]) => void;
   mintAnima: (name: string) => Promise<AnimaMintResult>;
   createActor: () => any;
+  reconnect: () => Promise<void>;
 }
 
 const AnimaContext = createContext<AnimaContextType | null>(null);
@@ -47,6 +49,9 @@ export function AnimaProvider({ children }: { children: React.ReactNode }) {
   const [isInitialized, setIsInitialized] = useState(false);
   const [isMinting, setIsMinting] = useState(false);
   const [mintError, setMintError] = useState<string | null>(null);
+  const [isConnected, setIsConnected] = useState(false);
+  const [connectionAttempts, setConnectionAttempts] = useState(0);
+  const MAX_RECONNECT_ATTEMPTS = 3;
 
   useEffect(() => {
     if (quantumState && principal) {
@@ -73,6 +78,54 @@ export function AnimaProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const reconnect = async () => {
+    if (connectionAttempts >= MAX_RECONNECT_ATTEMPTS) {
+      throw new Error('Maximum reconnection attempts reached');
+    }
+
+    try {
+      setConnectionAttempts(prev => prev + 1);
+      const ic = window.ic;
+      
+      if (!ic || !ic.agent) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        const result = await window.ic?.agent?.getPrincipal();
+        if (result) {
+          setIsConnected(true);
+          setConnectionAttempts(0);
+          return;
+        }
+        throw new Error('Internet Computer connection not available');
+      }
+      
+      setIsConnected(true);
+      setConnectionAttempts(0);
+    } catch (error) {
+      console.error('Reconnection attempt failed:', error);
+      throw error;
+    }
+  };
+
+  const createActor = useCallback(() => {
+    if (!actor) {
+      console.error('Actor not initialized. Attempting reconnection...');
+      try {
+        const ic = window.ic;
+        if (!ic || !ic.agent) {
+          setIsConnected(false);
+          throw new Error('Internet Computer connection not available');
+        }
+        setIsConnected(true);
+        return null;
+      } catch (error) {
+        setIsConnected(false);
+        throw error;
+      }
+    }
+    setIsConnected(true);
+    return actor;
+  }, [actor]);
+
   const mintAnima = async (name: string): Promise<AnimaMintResult> => {
     if (!actor || !isInitialized) {
       throw new Error('System not ready for minting');
@@ -82,6 +135,10 @@ export function AnimaProvider({ children }: { children: React.ReactNode }) {
     setMintError(null);
 
     try {
+      if (!isConnected) {
+        await reconnect();
+      }
+
       // Initialize quantum field
       const quantumField = await actor.initialize_quantum_field();
       if (!quantumField.Ok) throw new Error('Quantum field initialization failed');
@@ -228,13 +285,6 @@ export function AnimaProvider({ children }: { children: React.ReactNode }) {
     return (resonance + coherence + stability + memoryResonance) / 4;
   };
 
-  const createActor = useCallback(() => {
-    if (!actor) {
-      throw new Error('Actor not initialized');
-    }
-    return actor;
-  }, [actor]);
-
   const contextValue = {
     dimensionalState,
     memorySystem,
@@ -246,11 +296,13 @@ export function AnimaProvider({ children }: { children: React.ReactNode }) {
     isInitialized,
     isMinting,
     mintError,
+    isConnected,
     processInteraction,
     syncQuantumState,
     createMemory,
     mintAnima,
-    createActor
+    createActor,
+    reconnect
   };
 
   return (

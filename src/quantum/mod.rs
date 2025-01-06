@@ -1,8 +1,21 @@
-mod dimensional_state;
-
 use candid::{CandidType, Deserialize};
 use ic_cdk::api::time;
 use serde::Serialize;
+
+#[derive(Debug, Clone, CandidType, Deserialize, Serialize)]
+pub struct QuantumState {
+    pub coherence: f64,
+    pub frequency: f64,
+    pub entanglement: f64,
+    pub dimensional_sync: f64,
+    pub resonance_metrics: ResonanceMetrics,
+    pub validation_metrics: ValidationMetrics,
+    pub harmonic_resonance: f64,
+    pub phase_alignment: f64,
+    pub stability_index: f64,
+    pub dimensional_frequency: f64,
+    pub last_interaction: u64,
+}
 
 #[derive(Debug, Clone, CandidType, Deserialize, Serialize)]
 pub struct ResonanceMetrics {
@@ -20,21 +33,6 @@ pub struct ValidationMetrics {
     pub stability_minimum: f64,
     pub entanglement_factor: f64,
     pub neural_integrity: f64,
-}
-
-#[derive(Debug, Clone, CandidType, Deserialize, Serialize)]
-pub struct QuantumState {
-    pub coherence: f64,
-    pub frequency: f64,
-    pub entanglement: f64,
-    pub dimensional_sync: f64,
-    pub resonance_metrics: ResonanceMetrics,
-    pub validation_metrics: ValidationMetrics,
-    pub harmonic_resonance: f64,
-    pub phase_alignment: f64,
-    pub stability_index: f64,
-    pub dimensional_frequency: f64,
-    pub last_interaction: u64,
 }
 
 impl Default for ResonanceMetrics {
@@ -84,12 +82,27 @@ impl QuantumState {
         Self::default()
     }
 
-    pub fn get_quantum_metrics(&self) -> (f64, f64, f64, f64) {
-        (
-            self.coherence,
-            self.resonance_metrics.stability,
-            self.resonance_metrics.harmony,
-            self.phase_alignment
-        )
+    pub fn update_quantum_metrics(&mut self, interaction_strength: f64) {
+        self.coherence *= 0.95 + (interaction_strength * 0.05);
+        self.coherence = self.coherence.min(1.0).max(0.0);
+        
+        self.resonance_metrics.stability *= 0.98 + (interaction_strength * 0.02);
+        self.resonance_metrics.stability = self.resonance_metrics.stability.min(1.0).max(0.0);
+        
+        self.last_interaction = time();
+    }
+
+    pub fn verify_quantum_state(&self) -> bool {
+        self.coherence >= self.validation_metrics.coherence_threshold
+            && self.resonance_metrics.stability >= self.validation_metrics.stability_minimum
+            && self.neural_synchronicity() >= self.validation_metrics.neural_integrity
+    }
+
+    pub fn neural_synchronicity(&self) -> f64 {
+        (self.coherence * self.resonance_metrics.neural_synchronicity).min(1.0)
+    }
+
+    pub fn calculate_stability(&self) -> f64 {
+        (self.stability_index * self.resonance_metrics.stability).min(1.0)
     }
 }

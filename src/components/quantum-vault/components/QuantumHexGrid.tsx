@@ -1,145 +1,127 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useEffect, useRef } from 'react';
+import { motion, useAnimation } from 'framer-motion';
 
-interface HexCell {
-  x: number;
-  y: number;
-  value: number;
-  active: boolean;
-  quantum: boolean;
-}
-
-interface QuantumHexGridProps {
-  className?: string;
+interface Props {
   cellSize?: number;
   gridSize?: number;
   pulseColor?: string;
-  quantumState?: number;
+  baseColor?: string;
 }
 
-export const QuantumHexGrid: React.FC<QuantumHexGridProps> = ({
-  className = '',
-  cellSize = 30,
-  gridSize = 10,
-  pulseColor = 'cyan',
-  quantumState = 0.5
+export const QuantumHexGrid: React.FC<Props> = ({
+  cellSize = 40,
+  gridSize = 15,
+  pulseColor = '#00ffff',
+  baseColor = '#1a1a1a'
 }) => {
-  const [cells, setCells] = useState<HexCell[]>([]);
-  const [quantumCells, setQuantumCells] = useState<number[]>([]);
-  const requestRef = useRef<number>();
-  const timeRef = useRef<number>(0);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const controls = useAnimation();
 
-  useEffect(() => {
-    // Initialize hex grid
-    const initialCells: HexCell[] = [];
-    for (let q = -gridSize; q <= gridSize; q++) {
-      for (let r = -gridSize; r <= gridSize; r++) {
-        // Hex grid coordinate system
-        const s = -q - r;
-        if (Math.abs(s) <= gridSize) {
-          initialCells.push({
-            x: q * cellSize * 1.5,
-            y: (r + q/2) * cellSize * Math.sqrt(3),
-            value: Math.random(),
-            active: Math.random() > 0.5,
-            quantum: false
-          });
-        }
-      }
-    }
-    setCells(initialCells);
-
-    // Quantum cell animation
-    const animate = (time: number) => {
-      timeRef.current = time * 0.001;
-      
-      setCells(prevCells => 
-        prevCells.map(cell => ({
-          ...cell,
-          value: Math.sin(timeRef.current + cell.x * 0.01 + cell.y * 0.01) * 0.5 + 0.5,
-          quantum: quantumCells.includes(prevCells.indexOf(cell))
-        }))
-      );
-
-      requestRef.current = requestAnimationFrame(animate);
-    };
-
-    requestRef.current = requestAnimationFrame(animate);
-    return () => {
-      if (requestRef.current) {
-        cancelAnimationFrame(requestRef.current);
-      }
-    };
-  }, [cellSize, gridSize]);
-
-  // Quantum state effects
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const newQuantumCells = Array.from({ length: Math.floor(cells.length * quantumState) }, 
-        () => Math.floor(Math.random() * cells.length)
-      );
-      setQuantumCells(newQuantumCells);
-    }, 2000);
-
-    return () => clearInterval(interval);
-  }, [cells.length, quantumState]);
-
-  const hexagonPoints = (size: number): string => {
-    const points = [];
+  const drawHexagon = (
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    r: number,
+    color: string
+  ) => {
+    ctx.beginPath();
     for (let i = 0; i < 6; i++) {
       const angle = (Math.PI / 3) * i;
-      points.push(`${size * Math.cos(angle)},${size * Math.sin(angle)}`);
+      const xPos = x + r * Math.cos(angle);
+      const yPos = y + r * Math.sin(angle);
+      if (i === 0) {
+        ctx.moveTo(xPos, yPos);
+      } else {
+        ctx.lineTo(xPos, yPos);
+      }
     }
-    return points.join(' ');
+    ctx.closePath();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1;
+    ctx.stroke();
   };
 
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Set canvas size to match window
+    const resize = () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    };
+    resize();
+    window.addEventListener('resize', resize);
+
+    let hexagons: Array<{
+      x: number;
+      y: number;
+      pulseOffset: number;
+      pulseIntensity: number;
+    }> = [];
+
+    // Initialize hexagon grid
+    const spacing = cellSize * 1.732; // sqrt(3)
+    const rows = Math.ceil(canvas.height / spacing) + 2;
+    const cols = Math.ceil(canvas.width / spacing) + 2;
+
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const x = col * spacing + (row % 2) * spacing / 2;
+        const y = row * (cellSize * 1.5);
+        hexagons.push({
+          x,
+          y,
+          pulseOffset: Math.random() * Math.PI * 2,
+          pulseIntensity: 0.3 + Math.random() * 0.7
+        });
+      }
+    }
+
+    let frame = 0;
+    const animate = () => {
+      frame = requestAnimationFrame(animate);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const time = Date.now() / 1000;
+      hexagons.forEach(hex => {
+        const pulse = Math.sin(time + hex.pulseOffset) * 0.5 + 0.5;
+        const alpha = 0.1 + pulse * 0.2 * hex.pulseIntensity;
+        const color = baseColor + Math.floor(alpha * 255).toString(16).padStart(2, '0');
+        drawHexagon(ctx, hex.x, hex.y, cellSize / 2, color);
+
+        // Draw quantum pulse effect
+        if (pulse > 0.8) {
+          ctx.globalAlpha = (1 - pulse) * 0.5;
+          drawHexagon(ctx, hex.x, hex.y, cellSize / 2 + (pulse * 10), pulseColor);
+          ctx.globalAlpha = 1;
+        }
+      });
+    };
+
+    animate();
+
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener('resize', resize);
+    };
+  }, [cellSize, gridSize, pulseColor, baseColor]);
+
   return (
-    <div className={`relative overflow-hidden ${className}`}>
-      <svg 
-        className="w-full h-full"
-        viewBox={`${-gridSize * cellSize * 2} ${-gridSize * cellSize * 2} ${gridSize * cellSize * 4} ${gridSize * cellSize * 4}`}
-      >
-        <g transform={`translate(${gridSize * cellSize}, ${gridSize * cellSize})`}>
-          {cells.map((cell, i) => (
-            <motion.g
-              key={i}
-              initial={{ opacity: 0, scale: 0 }}
-              animate={{ 
-                opacity: cell.active ? 1 : 0.3,
-                scale: cell.quantum ? [1, 1.1, 1] : 1
-              }}
-              transition={{ 
-                duration: cell.quantum ? 2 : 0.5,
-                repeat: cell.quantum ? Infinity : undefined
-              }}
-              transform={`translate(${cell.x}, ${cell.y})`}
-            >
-              <polygon
-                points={hexagonPoints(cellSize * 0.95)}
-                fill={`rgba(${pulseColor === 'cyan' ? '6, 182, 212' : '124, 58, 237'}, ${cell.value * 0.2})`}
-                stroke={`rgba(${pulseColor === 'cyan' ? '6, 182, 212' : '124, 58, 237'}, ${cell.quantum ? 0.8 : 0.3})`}
-                strokeWidth={cell.quantum ? 2 : 1}
-              />
-              
-              {cell.quantum && (
-                <motion.circle
-                  r={cellSize * 0.2}
-                  fill={`rgba(${pulseColor === 'cyan' ? '6, 182, 212' : '124, 58, 237'}, 0.5)`}
-                  animate={{
-                    r: [cellSize * 0.2, cellSize * 0.4, cellSize * 0.2],
-                    opacity: [0.8, 0.2, 0.8]
-                  }}
-                  transition={{
-                    duration: 2,
-                    repeat: Infinity,
-                    ease: "easeInOut"
-                  }}
-                />
-              )}
-            </motion.g>
-          ))}
-        </g>
-      </svg>
-    </div>
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 1 }}
+      className="relative w-full h-full"
+    >
+      <canvas
+        ref={canvasRef}
+        className="absolute inset-0"
+      />
+      <div className="absolute inset-0 bg-gradient-radial from-transparent to-black opacity-50" />
+    </motion.div>
   );
 };

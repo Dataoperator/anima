@@ -1,21 +1,20 @@
-import { Actor, Identity, HttpAgent } from "@dfinity/agent";
+import { Identity, HttpAgent } from "@dfinity/agent";
 import { AuthClient } from "@dfinity/auth-client";
 import { createActor } from "./declarations/anima";
+import type { _SERVICE } from './declarations/anima/anima.did';
 
-// Initialize environment with safe fallbacks
 const CANISTER_ID = {
   anima: process.env.CANISTER_ID_ANIMA?.toString() || 'l2ilz-iqaaa-aaaaj-qngjq-cai',
   assets: process.env.CANISTER_ID_ANIMA_ASSETS?.toString() || 'lpp2u-jyaaa-aaaaj-qngka-cai'
 };
 
-// Always use mainnet for production
 const HOST = 'https://icp0.io';
 
 type StageChangeCallback = (stage: string) => void;
 
 class ICManager {
   private static instance: ICManager;
-  private actor: Actor | null = null;
+  private actor: _SERVICE | null = null;
   private agent: HttpAgent | null = null;
   private authClient: AuthClient | null = null;
   private identity: Identity | null = null;
@@ -25,11 +24,9 @@ class ICManager {
 
   private constructor() {
     if (typeof window !== 'undefined') {
-      // Initialize window.ic safely
       window.ic = {
         ...(window.ic || {}),
         agent: null,
-        Actor,
         HttpAgent
       };
     }
@@ -67,9 +64,11 @@ class ICManager {
       console.log('Starting IC initialization...');
 
       this.updateStage('Creating AuthClient...');
-      this.authClient = await AuthClient.create({
-        idleOptions: { disableIdle: true }
-      });
+      if (!this.authClient) {
+        this.authClient = await AuthClient.create({
+          idleOptions: { disableIdle: true }
+        });
+      }
       
       this.updateStage('Getting identity...');
       this.identity = this.authClient.getIdentity();
@@ -87,22 +86,29 @@ class ICManager {
         await this.agent.fetchRootKey().catch(console.error);
       }
 
-      // Verify canister ID format
       const canisterId = CANISTER_ID.anima?.replace(/['"]/g, '');
       if (!canisterId) {
         throw new Error('Invalid canister ID');
       }
 
       this.updateStage('Creating Actor...');
+      // Use the imported createActor function
       this.actor = await createActor(canisterId, {
-        agent: this.agent
-      });
+        agent: this.agent,
+        agentOptions: {
+          host: HOST
+        }
+      }) as _SERVICE;
+
+      // Verify the actor has the required methods
+      if (!this.actor || typeof this.actor.initialize_genesis !== 'function') {
+        throw new Error('Actor creation failed or missing required methods');
+      }
 
       this.updateStage('Setting up window.ic...');
       window.ic = {
         ...(window.ic || {}),
         agent: this.agent,
-        Actor,
         HttpAgent
       };
 
@@ -118,7 +124,8 @@ class ICManager {
         canister: !!window.canister,
         ic: !!window.ic,
         agent: !!this.agent,
-        identity: !!this.identity
+        identity: !!this.identity,
+        initialize_genesis: typeof this.actor?.initialize_genesis === 'function'
       });
 
     } catch (error) {
@@ -132,7 +139,7 @@ class ICManager {
     }
   }
 
-  getActor(): Actor {
+  getActor(): _SERVICE | null {
     if (!this.initialized || !this.actor) {
       throw new Error("IC not initialized. Call initialize() first.");
     }
@@ -152,15 +159,13 @@ class ICManager {
   }
 }
 
-// For debugging
 declare global {
   interface Window {
     ic: {
       agent: HttpAgent | null;
-      Actor: any;
       HttpAgent: any;
     };
-    canister: any;
+    canister: _SERVICE | null;
   }
 }
 

@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Alert } from '@/components/ui/alert';
 import { QuantumErrorBoundary } from '../error-boundary/QuantumErrorBoundary';
+import { Loader2 } from 'lucide-react';
 
 const GENESIS_FEE = BigInt(100000000); // 1 ICP
 const GENESIS_PHASES = [
@@ -22,11 +23,14 @@ const GENESIS_PHASES = [
   'Identity Crystallization'
 ];
 
+const MAX_RETRIES = 3;
+const RETRY_DELAY = 2000;
+
 const GenesisPage: React.FC = () => {
   const navigate = useNavigate();
   const { isAuthenticated, principal } = useAuth();
   const { updateQuantumState, validateState } = useQuantumState();
-  const { createActor } = useAnima();
+  const { createActor, isConnected, reconnect } = useAnima();
   const [currentPhase, setCurrentPhase] = useState(0);
   const [showLaughingMan, setShowLaughingMan] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
@@ -35,6 +39,8 @@ const GenesisPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [paymentComplete, setPaymentComplete] = useState(false);
   const [quantumStabilized, setQuantumStabilized] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
+  const [isStabilizing, setIsStabilizing] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -45,22 +51,41 @@ const GenesisPage: React.FC = () => {
   useEffect(() => {
     const stabilizeQuantumField = async () => {
       if (paymentComplete && !quantumStabilized) {
+        setIsStabilizing(true);
         try {
+          if (!isConnected) {
+            await reconnect();
+          }
+          
           const actor = createActor();
+          if (!actor) {
+            throw new Error('Failed to initialize quantum connection');
+          }
+
           const stabilityCheck = await actor.check_quantum_stability();
           if (stabilityCheck.Ok) {
             setQuantumStabilized(true);
+            setError(null);
+            setRetryCount(0);
           } else {
             throw new Error('Quantum field unstable');
           }
         } catch (err) {
-          setError('Quantum field stabilization failed. Please try again.');
-          setPaymentComplete(false);
+          setError('Quantum field stabilization failed. Attempting to restabilize...');
+          if (retryCount < MAX_RETRIES) {
+            setRetryCount(prev => prev + 1);
+            setTimeout(stabilizeQuantumField, RETRY_DELAY);
+          } else {
+            setError('Maximum stabilization attempts reached. Please try again.');
+            setPaymentComplete(false);
+          }
+        } finally {
+          setIsStabilizing(false);
         }
       }
     };
     stabilizeQuantumField();
-  }, [paymentComplete, createActor]);
+  }, [paymentComplete, createActor, isConnected, reconnect, retryCount]);
 
   const processPhase = async (phase: number) => {
     setCurrentPhase(phase);
@@ -74,12 +99,24 @@ const GenesisPage: React.FC = () => {
       return;
     }
 
+    if (!isConnected) {
+      try {
+        await reconnect();
+      } catch (err) {
+        setError('Failed to establish quantum connection. Please refresh and try again.');
+        return;
+      }
+    }
+
     setIsCreating(true);
     setShowLaughingMan(false);
     setError(null);
 
     try {
       const actor = createActor();
+      if (!actor) {
+        throw new Error('IC connection not initialized. Please try again.');
+      }
       
       // Initialize quantum field
       await processPhase(0);
@@ -242,10 +279,17 @@ const GenesisPage: React.FC = () => {
                       }}
                     />
 
+                    {isStabilizing && (
+                      <div className="flex items-center justify-center gap-2 text-amber-300">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Stabilizing quantum field...</span>
+                      </div>
+                    )}
+
                     <Button
                       onClick={handleMintingProcess}
-                      disabled={isCreating || !name.trim() || !paymentComplete || !quantumStabilized}
-                      className="w-full bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700"
+                      disabled={isCreating || !name.trim() || !paymentComplete || !quantumStabilized || isStabilizing}
+                      className="w-full bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <span className="flex items-center gap-2">
                         <span>Begin Genesis</span>

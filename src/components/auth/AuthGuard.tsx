@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, Suspense } from 'react';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { icManager } from '@/ic-init';
@@ -76,7 +76,7 @@ const AuthError = ({ error, onRetry }: { error: any, onRetry: () => void }) => (
 );
 
 export const AuthGuard = () => {
-  const [isInitializing, setIsInitializing] = useState(true);
+  const [initStatus, setInitStatus] = useState<'idle' | 'initializing' | 'complete' | 'error'>('idle');
   const [error, setError] = useState<Error | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
@@ -90,26 +90,29 @@ export const AuthGuard = () => {
     });
 
     const initialize = async () => {
+      if (initStatus !== 'idle') return;
+      
+      setInitStatus('initializing');
       try {
-        // Check if we're already initialized
+        // Check if already initialized
         if (icManager.isInitialized()) {
           console.log('✅ IC already initialized');
           const identity = icManager.getIdentity();
           handleIdentity(identity);
+          setInitStatus('complete');
           return;
         }
 
         await icManager.initialize();
-        
-        // Get identity after initialization
         const identity = icManager.getIdentity();
         console.log('✅ Identity initialized:', identity?.getPrincipal().toText());
         handleIdentity(identity);
+        setInitStatus('complete');
 
       } catch (err) {
         console.error('❌ Auth initialization failed:', err);
         setError(err instanceof Error ? err : new Error('Authentication failed'));
-        setIsInitializing(false);
+        setInitStatus('error');
       }
     };
 
@@ -128,16 +131,14 @@ export const AuthGuard = () => {
         const returnTo = location.state?.returnTo || '/quantum-vault';
         navigate(returnTo, { replace: true });
       }
-
-      setIsInitializing(false);
     };
 
     initialize();
-  }, [navigate, location]);
+  }, [navigate, location, initStatus]);
 
   const handleRetry = async () => {
     console.log('🔄 Retrying initialization...');
-    setIsInitializing(true);
+    setInitStatus('initializing');
     setError(null);
     
     try {
@@ -149,33 +150,39 @@ export const AuthGuard = () => {
       } else {
         navigate('/', { replace: true });
       }
+      setInitStatus('complete');
     } catch (err) {
       console.error('❌ Retry failed:', err);
       setError(err instanceof Error ? err : new Error('Authentication failed'));
-    } finally {
-      setIsInitializing(false);
+      setInitStatus('error');
     }
   };
 
-  if (isInitializing) {
-    return <LoadingFallback />;
+  if (initStatus === 'initializing' || initStatus === 'idle') {
+    return (
+      <Suspense fallback={null}>
+        <LoadingFallback />
+      </Suspense>
+    );
   }
 
-  if (error) {
+  if (initStatus === 'error' || error) {
     return <AuthError error={error} onRetry={handleRetry} />;
   }
 
   return (
-    <AnimatePresence mode="wait">
-      <motion.div
-        key="content"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="min-h-screen bg-black"
-      >
-        <Outlet />
-      </motion.div>
-    </AnimatePresence>
+    <Suspense fallback={<LoadingFallback />}>
+      <AnimatePresence mode="wait">
+        <motion.div
+          key="content"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="min-h-screen bg-black"
+        >
+          <Outlet />
+        </motion.div>
+      </AnimatePresence>
+    </Suspense>
   );
 };

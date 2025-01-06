@@ -2,11 +2,11 @@ import { createBrowserRouter } from 'react-router-dom';
 import { lazy, Suspense } from 'react';
 import { ErrorBoundary } from './components/error-boundary/ErrorBoundary';
 import { LoadingFallback } from './components/ui/LoadingFallback';
-import { AuthGuard } from './components/auth/AuthGuard';
+import { AuthGuard } from './components/auth';
 
-// Lazy loaded components
+// Lazy loaded components with direct imports
 const LandingPage = lazy(() => import('./components/pages/LandingPage'));
-const CyberpunkQuantumVault = lazy(() => import('./components/quantum-vault/CyberpunkQuantumVault'));
+const QuantumVault = lazy(() => import('./components/quantum-vault/CyberpunkQuantumVault'));
 const GenesisPage = lazy(() => import('./components/pages/GenesisPage'));
 const AnimaPage = lazy(() => import('./components/pages/AnimaPage'));
 const EnhancedNeuralLinkPage = lazy(() => import('./components/pages/EnhancedNeuralLinkPage'));
@@ -21,19 +21,16 @@ const withSuspense = (Component: React.ComponentType) => (
 );
 
 export const router = createBrowserRouter([
-  // Landing page - public
   {
     path: '/',
     element: withSuspense(LandingPage),
   },
-  
-  // Protected routes
   {
     element: <AuthGuard />,
     children: [
       {
         path: '/quantum-vault',
-        element: withSuspense(CyberpunkQuantumVault),
+        element: withSuspense(QuantumVault),
       },
       {
         path: '/genesis',
