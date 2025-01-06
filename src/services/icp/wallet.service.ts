@@ -1,6 +1,9 @@
+import { Principal } from '@dfinity/principal';
+import { AccountIdentifier } from '@dfinity/nns';
 import { Actor } from '@dfinity/agent';
 import { idlFactory } from './ledger.did';
-import { ErrorTracker, ErrorCategory, ErrorSeverity } from '../error-tracker';
+import { ErrorTracker, ErrorCategory, ErrorSeverity } from '@/services/error-tracker';
+import { LEDGER_CONFIG } from './ledger';
 
 export type WalletQuantumMetrics = {
     coherenceLevel: number;
@@ -20,7 +23,6 @@ export type WalletTransaction = {
     retryCount: number;
 };
 
-// Make sure to export the class
 export class WalletService {
     private static instance: WalletService | null = null;
     private initialized = false;
@@ -30,6 +32,8 @@ export class WalletService {
     private readonly MAX_RETRIES = 3;
     private readonly RETRY_INTERVAL = 30000; // 30 seconds
     private readonly STABILITY_THRESHOLD = 0.7;
+    private readonly CREATION_COST = BigInt(1_00_000_000); // 1 ICP in e8s
+    private ledgerActor: any;
 
     private state: {
         address: string;
@@ -58,97 +62,147 @@ export class WalletService {
         }, this.RETRY_INTERVAL);
     }
 
-    private async retryFailedTransactions(): Promise<void> {
-        if (!this.state) return;
+    public getUserAccountIdentifier(userPrincipal: Principal): string {
+        return AccountIdentifier.fromPrincipal({
+            principal: userPrincipal,
+            subAccount: undefined
+        }).toHex();
+    }
 
-        for (const [id, tx] of this.state.pendingTransactions.entries()) {
-            if (tx.status === 'failed' && tx.retryCount < this.MAX_RETRIES) {
-                try {
-                    await this.processTransaction(tx);
-                    tx.retryCount++;
-                } catch (error) {
-                    this.logTransactionError(tx, error);
-                }
-            } else if (tx.retryCount >= this.MAX_RETRIES) {
-                this.state.pendingTransactions.delete(id);
-                this.errorTracker.trackError({
-                    type: 'MaxRetriesExceeded',
-                    category: ErrorCategory.Network,
-                    severity: ErrorSeverity.High,
-                    message: `Transaction ${id} exceeded max retries`,
-                    timestamp: new Date(),
-                    context: { transaction: tx }
-                });
-            }
+    private verifyAccountIdentifier(principal: string, accountId: string): boolean {
+        try {
+            const computedAccountId = AccountIdentifier.fromPrincipal({
+                principal: Principal.fromText(principal),
+                subAccount: undefined
+            }).toHex();
+
+            const isValid = computedAccountId === accountId;
+            
+            console.log('Account Identifier Verification:', {
+                principal,
+                providedAccountId: accountId,
+                computedAccountId,
+                isValid,
+                timestamp: new Date().toISOString()
+            });
+
+            return isValid;
+        } catch (error) {
+            this.errorTracker.trackError(
+                ErrorCategory.PAYMENT,
+                error instanceof Error ? error : new Error('Account identifier verification failed'),
+                ErrorSeverity.HIGH,
+                { principal, accountId }
+            );
+            return false;
         }
     }
 
-    private async processTransaction(tx: WalletTransaction): Promise<void> {
+    public async processAnimaCreationPayment(userPrincipal: Principal): Promise<boolean> {
         if (!this.state) throw new Error('Wallet not initialized');
+        
+        const userAccountId = this.getUserAccountIdentifier(userPrincipal);
+        
+        // Verify treasury account
+        const isValidTreasury = this.verifyAccountIdentifier(
+            LEDGER_CONFIG.TREASURY_PRINCIPAL,
+            LEDGER_CONFIG.TREASURY_ACCOUNT_ID
+        );
 
-        const ledgerActor = await Actor.createActor(idlFactory, {
-            agent: window.ic?.agent,
-            canisterId: process.env.LEDGER_CANISTER_ID
+        if (!isValidTreasury) {
+            throw new Error('Treasury configuration error');
+        }
+
+        // Check user's balance
+        const balance = await this.ledgerActor.account_balance({
+            account: userAccountId
         });
 
+        if (balance.e8s < this.CREATION_COST) {
+            throw new Error(`Insufficient balance. Required: ${Number(this.CREATION_COST) / 100_000_000} ICP`);
+        }
+
+        console.log('Processing ANIMA Creation Payment:', {
+            userAccountId,
+            treasuryAccount: LEDGER_CONFIG.TREASURY_ACCOUNT_ID,
+            amount: this.CREATION_COST.toString(),
+            timestamp: new Date().toISOString()
+        });
+
+        const transaction: WalletTransaction = {
+            id: crypto.randomUUID(),
+            type: 'mint',
+            amount: this.CREATION_COST,
+            timestamp: Date.now(),
+            status: 'pending',
+            memo: `ANIMA_CREATION_${Date.now()}`,
+            quantumMetrics: this.state.quantumMetrics,
+            retryCount: 0
+        };
+
         try {
-            await ledgerActor.transfer({
-                to: Array.from(Buffer.from(tx.id, 'hex')),
-                amount: { e8s: tx.amount },
-                fee: { e8s: BigInt(10000) },
-                memo: BigInt(0),
+            // Log pre-transfer state
+            console.log('Pre-transfer state:', {
+                transactionId: transaction.id,
+                userBalance: balance.e8s.toString(),
+                quantumMetrics: this.state.quantumMetrics
+            });
+
+            // Execute transfer from user's account to treasury
+            await this.ledgerActor.transfer({
+                to: LEDGER_CONFIG.TREASURY_ACCOUNT_ID,
+                amount: { e8s: this.CREATION_COST },
+                fee: { e8s: LEDGER_CONFIG.DEFAULT_FEE },
+                memo: BigInt(Date.now()),
                 from_subaccount: [],
                 created_at_time: []
             });
 
-            tx.status = 'completed';
-            await this.updateTransactionState(tx);
+            // Log successful transfer
+            console.log('Transfer successful:', {
+                transactionId: transaction.id,
+                status: 'completed',
+                timestamp: new Date().toISOString()
+            });
+
+            transaction.status = 'completed';
+            this.state.transactions.push(transaction);
+            
+            // Update local balance
+            await this.refreshBalance();
+            
+            return true;
         } catch (error) {
+            // Log transfer failure
+            console.error('Transfer failed:', {
+                transactionId: transaction.id,
+                error: error instanceof Error ? error.message : 'Unknown error',
+                timestamp: new Date().toISOString()
+            });
+
+            transaction.status = 'failed';
+            this.state.transactions.push(transaction);
+
+            this.errorTracker.trackError(
+                ErrorCategory.PAYMENT,
+                error instanceof Error ? error : new Error('Transfer failed'),
+                ErrorSeverity.HIGH,
+                { transaction }
+            );
+
             throw error;
         }
-    }
-
-    private async updateTransactionState(tx: WalletTransaction): Promise<void> {
-        if (!this.state) return;
-
-        const txIndex = this.state.transactions.findIndex(t => t.id === tx.id);
-        if (txIndex !== -1) {
-            this.state.transactions[txIndex] = tx;
-        }
-
-        if (tx.status === 'completed') {
-            this.state.pendingTransactions.delete(tx.id);
-        } else {
-            this.state.pendingTransactions.set(tx.id, tx);
-        }
-
-        await this.updateQuantumMetrics();
-    }
-
-    private async updateQuantumMetrics(): Promise<void> {
-        if (!this.state) return;
-
-        const recentTransactions = this.state.transactions.slice(-10);
-        const successRate = recentTransactions.filter(tx => tx.status === 'completed').length / recentTransactions.length;
-
-        this.state.quantumMetrics = {
-            coherenceLevel: Math.max(0.1, Math.min(1.0, this.state.quantumMetrics.coherenceLevel * (1 + (successRate - 0.5)))),
-            stabilityIndex: successRate,
-            entanglementFactor: Math.min(1.0, this.state.quantumMetrics.entanglementFactor + 0.1),
-            stabilityStatus: this.getStabilityStatus(successRate)
-        };
-    }
-
-    private getStabilityStatus(stabilityIndex: number): 'stable' | 'unstable' | 'critical' {
-        if (stabilityIndex >= this.STABILITY_THRESHOLD) return 'stable';
-        if (stabilityIndex >= this.STABILITY_THRESHOLD / 2) return 'unstable';
-        return 'critical';
     }
 
     public async initialize(): Promise<void> {
         if (this.initialized) return;
 
         try {
+            this.ledgerActor = await Actor.createActor(idlFactory, {
+                agent: window.ic?.agent,
+                canisterId: LEDGER_CONFIG.MAINNET_CANISTER_ID
+            });
+
             this.state = {
                 address: await this.generateAddress(),
                 balance: BigInt(0),
@@ -179,7 +233,45 @@ export class WalletService {
     }
 
     private async generateAddress(): Promise<string> {
-        return "sample_address"; // Placeholder
+        // For now, we're using a placeholder. In production, this would generate a proper address
+        return "sample_address";
+    }
+
+    private async retryFailedTransactions(): Promise<void> {
+        if (!this.state) return;
+
+        for (const [id, tx] of this.state.pendingTransactions.entries()) {
+            if (tx.status === 'failed' && tx.retryCount < this.MAX_RETRIES) {
+                try {
+                    const userAccountId = this.getUserAccountIdentifier(Principal.fromText(tx.memo?.split('_')[2] || ''));
+                    
+                    await this.ledgerActor.transfer({
+                        to: LEDGER_CONFIG.TREASURY_ACCOUNT_ID,
+                        amount: { e8s: tx.amount },
+                        fee: { e8s: LEDGER_CONFIG.DEFAULT_FEE },
+                        memo: BigInt(tx.timestamp),
+                        from_subaccount: [],
+                        created_at_time: []
+                    });
+
+                    tx.status = 'completed';
+                    tx.retryCount++;
+                } catch (error) {
+                    tx.retryCount++;
+                    this.errorTracker.trackError(
+                        ErrorCategory.PAYMENT,
+                        error instanceof Error ? error : new Error('Retry failed'),
+                        ErrorSeverity.HIGH,
+                        { transaction: tx }
+                    );
+                }
+            }
+
+            if (tx.retryCount >= this.MAX_RETRIES) {
+                this.state.pendingTransactions.delete(id);
+                tx.status = 'failed';
+            }
+        }
     }
 
     private startSync(): void {
@@ -195,46 +287,37 @@ export class WalletService {
         }, 30000);
     }
 
-    public async spend(amount: bigint, memo: string = ''): Promise<WalletTransaction> {
-        if (!this.state) throw new Error('Wallet not initialized');
-        if (this.state.isLocked) throw new Error('Wallet is locked');
-        if (amount > this.state.balance) throw new Error('Insufficient balance');
-        if (this.state.quantumMetrics.stabilityStatus === 'critical') {
-            throw new Error('Wallet stability critical');
-        }
-
-        const transaction: WalletTransaction = {
-            id: crypto.randomUUID(),
-            type: 'spend',
-            amount,
-            timestamp: Date.now(),
-            status: 'pending',
-            memo,
-            quantumMetrics: this.state.quantumMetrics,
-            retryCount: 0
-        };
-
+    private async refreshBalance(): Promise<void> {
+        if (!this.state || !this.ledgerActor) return;
+        
         try {
-            this.state.transactions.unshift(transaction);
-            this.state.pendingTransactions.set(transaction.id, transaction);
-            await this.processTransaction(transaction);
-            return transaction;
+            const response = await this.ledgerActor.account_balance({
+                account: this.state.address
+            });
+            this.state.balance = response.e8s;
         } catch (error) {
-            this.logTransactionError(transaction, error);
-            throw error;
+            console.error('Balance refresh failed:', error);
         }
     }
 
-    private logTransactionError(transaction: WalletTransaction, error: unknown): void {
-        transaction.status = 'failed';
-        this.errorTracker.trackError({
-            type: 'TransactionFailed',
-            category: ErrorCategory.Network,
-            severity: ErrorSeverity.High,
-            message: error instanceof Error ? error.message : 'Transaction failed',
-            timestamp: new Date(),
-            context: { transaction }
-        });
+    private async updateQuantumMetrics(): Promise<void> {
+        if (!this.state) return;
+
+        const recentTransactions = this.state.transactions.slice(-10);
+        const successRate = recentTransactions.filter(tx => tx.status === 'completed').length / recentTransactions.length;
+
+        this.state.quantumMetrics = {
+            coherenceLevel: Math.max(0.1, Math.min(1.0, this.state.quantumMetrics.coherenceLevel * (1 + (successRate - 0.5)))),
+            stabilityIndex: successRate,
+            entanglementFactor: Math.min(1.0, this.state.quantumMetrics.entanglementFactor + 0.1),
+            stabilityStatus: this.getStabilityStatus(successRate)
+        };
+    }
+
+    private getStabilityStatus(stabilityIndex: number): 'stable' | 'unstable' | 'critical' {
+        if (stabilityIndex >= this.STABILITY_THRESHOLD) return 'stable';
+        if (stabilityIndex >= this.STABILITY_THRESHOLD / 2) return 'unstable';
+        return 'critical';
     }
 
     public getBalance(): bigint {
@@ -261,9 +344,9 @@ export class WalletService {
         WalletService.instance = null;
     }
 
-    private async refreshBalance(): Promise<void> {
-        if (!this.state) throw new Error('Wallet not initialized');
-        // Implementation for balance refresh
-        // this.state.balance = updated balance from ledger
+    public formatICP(e8s: bigint): string {
+        return `${Number(e8s) / 100_000_000} ICP`;
     }
 }
+
+export const walletService = WalletService.getInstance();

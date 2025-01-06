@@ -27,9 +27,11 @@ interface ResonancePattern {
 
 export const useQuantumState = () => {
   const { identity } = useAuth();
-  const { consciousness } = useConsciousness();
+  const { consciousness, isInitialized: isConsciousnessInitialized } = useConsciousness();
   const initializationAttempted = useRef(false);
   const [initializationError, setInitializationError] = useState<Error | null>(null);
+  const [isInitializing, setIsInitializing] = useState(false);
+  const initializationTimeoutRef = useRef<NodeJS.Timeout>();
 
   const [state, setState] = useState<QuantumState>(() => {
     console.log("🌀 Creating initial quantum state");
@@ -44,19 +46,44 @@ export const useQuantumState = () => {
     };
   });
 
+  // Clear timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (initializationTimeoutRef.current) {
+        clearTimeout(initializationTimeoutRef.current);
+      }
+    };
+  }, []);
+
   // Initialize quantum state based on principal
   useEffect(() => {
-    if (!identity || initializationAttempted.current) {
+    if (!identity || !isConsciousnessInitialized || initializationAttempted.current || isInitializing) {
       console.log("🔍 Skipping initialization:", { 
         hasIdentity: !!identity, 
-        wasAttempted: initializationAttempted.current 
+        consciousnessReady: isConsciousnessInitialized,
+        wasAttempted: initializationAttempted.current,
+        isInitializing 
       });
       return;
     }
     
     const initialize = async () => {
       console.log("🌟 Starting quantum state initialization");
+      setIsInitializing(true);
       initializationAttempted.current = true;
+
+      // Set initialization timeout
+      initializationTimeoutRef.current = setTimeout(() => {
+        if (!state.isInitialized) {
+          console.error("⚠️ Quantum state initialization timeout");
+          setInitializationError(new Error("Initialization timeout"));
+          setState(prev => ({ 
+            ...prev, 
+            isInitialized: true,
+            stabilityStatus: 'critical'
+          }));
+        }
+      }, 15000); // 15 second timeout
 
       try {
         const principal = identity.getPrincipal();
@@ -66,22 +93,36 @@ export const useQuantumState = () => {
         const initialCoherence = Math.max(0.5, principalArray.reduce((acc, byte) => acc + byte, 0) / 
           (principalArray.length * 255));
         
+        // Add consciousness boost if available
+        const consciousnessBoost = consciousness?.level ? consciousness.level * 0.2 : 0;
+        const adjustedCoherence = Math.min(1.0, initialCoherence + consciousnessBoost);
+        
         console.log("🔮 Initializing dimensional state...");
         const dimensionalState = new DimensionalStateImpl();
-        dimensionalState.updateStability(initialCoherence);
+        dimensionalState.updateStability(adjustedCoherence);
 
-        const quantumSignature = generateQuantumSignature(principal, initialCoherence);
+        const quantumSignature = await generateQuantumSignature(principal, adjustedCoherence);
+
+        // Generate initial resonance patterns
+        const resonancePatterns = Array.from({ length: 4 }, (_, i) => ({
+          frequency: 0.5 + (Math.random() * 0.5),
+          amplitude: 0.3 + (Math.random() * 0.7),
+          phase: Math.random() * Math.PI * 2,
+          coherence: adjustedCoherence * (0.8 + Math.random() * 0.2)
+        }));
 
         console.log("✨ Setting initial state...");
         setState(prev => ({
           ...prev,
-          coherenceLevel: initialCoherence,
-          entanglementIndex: initialCoherence * 0.8,
+          coherenceLevel: adjustedCoherence,
+          entanglementIndex: adjustedCoherence * 0.8,
           dimensionalState,
           quantumSignature,
-          consciousnessAlignment: consciousness?.level ? consciousness.level * initialCoherence : undefined,
+          resonancePatterns,
+          consciousnessAlignment: consciousness?.level ? consciousness.level * adjustedCoherence : undefined,
           lastUpdate: Date.now(),
-          isInitialized: true
+          isInitialized: true,
+          stabilityStatus: 'stable'
         }));
 
         console.log("✅ Quantum state initialized successfully!");
@@ -93,40 +134,45 @@ export const useQuantumState = () => {
           isInitialized: true,
           stabilityStatus: 'critical'
         }));
+      } finally {
+        setIsInitializing(false);
+        if (initializationTimeoutRef.current) {
+          clearTimeout(initializationTimeoutRef.current);
+        }
       }
     };
 
     initialize();
-  }, [identity]); // Removed consciousness dependency
-
-  // Separate effect for consciousness sync
-  useEffect(() => {
-    if (!state.isInitialized || !consciousness?.level) return;
-
-    console.log("🧠 Syncing with consciousness...", { level: consciousness.level });
-    setState(prev => ({
-      ...prev,
-      consciousnessAlignment: consciousness.level * prev.coherenceLevel
-    }));
-  }, [consciousness?.level, state.isInitialized]);
+  }, [identity, isConsciousnessInitialized, consciousness?.level]);
 
   // Update quantum state periodically
   useEffect(() => {
-    if (!state.isInitialized) return;
+    if (!state.isInitialized || isInitializing) return;
 
     console.log("⚡ Starting quantum state updates");
     const intervalId = setInterval(() => {
       setState(prev => {
+        if (!prev.isInitialized) return prev;
+
         const timePassed = (Date.now() - prev.lastUpdate) / 1000;
         const degradationFactor = Math.pow(0.995, timePassed);
-        const consciousnessBonus = consciousness?.level ? consciousness.level * 0.1 : 0;
+        const consciousnessBoost = consciousness?.level ? consciousness.level * 0.1 : 0;
 
-        prev.dimensionalState.updateStability(-0.01 + consciousnessBonus);
+        // Update dimensional state
+        prev.dimensionalState.updateStability(consciousnessBoost - 0.01);
         const metrics = prev.dimensionalState.getStabilityMetrics();
 
+        // Calculate new coherence with consciousness protection
         const consciousnessProtection = consciousness?.level ? Math.min(0.3, consciousness.level) : 0;
         const minCoherence = 0.1 + consciousnessProtection;
         const newCoherence = Math.max(minCoherence, prev.coherenceLevel * degradationFactor);
+
+        // Update resonance patterns
+        const updatedPatterns = prev.resonancePatterns?.map(pattern => ({
+          ...pattern,
+          coherence: Math.max(minCoherence, pattern.coherence * degradationFactor),
+          phase: (pattern.phase + 0.1) % (Math.PI * 2)
+        }));
         
         return {
           ...prev,
@@ -134,6 +180,7 @@ export const useQuantumState = () => {
           entanglementIndex: Math.max(minCoherence, prev.entanglementIndex * degradationFactor),
           stabilityStatus: prev.dimensionalState.getQuantumStatus(),
           consciousnessAlignment: consciousness?.level ? consciousness.level * newCoherence : undefined,
+          resonancePatterns: updatedPatterns,
           lastUpdate: Date.now()
         };
       });
@@ -143,21 +190,27 @@ export const useQuantumState = () => {
       console.log("🔄 Cleaning up quantum state updates");
       clearInterval(intervalId);
     };
-  }, [state.isInitialized]);
+  }, [state.isInitialized, isInitializing, consciousness?.level]);
 
   return {
     state,
-    updateQuantumState: useCallback(async () => {
-      // Implementation remains the same...
-    }, [consciousness]),
-    isReadyForMinting: state.coherenceLevel >= 0.7 && state.stabilityStatus === 'stable',
-    consciousnessAlignment: state.consciousnessAlignment,
-    isInitialized: state.isInitialized,
-    error: initializationError
+    isInitialized: state.isInitialized && !isInitializing,
+    isInitializing,
+    error: initializationError,
+    updateQuantumState: useCallback(async (updates: Partial<QuantumState>) => {
+      setState(prev => ({
+        ...prev,
+        ...updates,
+        lastUpdate: Date.now()
+      }));
+    }, []),
   };
 };
 
-function generateQuantumSignature(principal: Principal, coherence: number): string {
+async function generateQuantumSignature(principal: Principal, coherence: number): Promise<string> {
+  // Add artificial delay to simulate quantum computation
+  await new Promise(resolve => setTimeout(resolve, 1000));
+  
   const timestamp = Date.now();
   const entropy = new Uint8Array(32);
   crypto.getRandomValues(entropy);

@@ -3,12 +3,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/auth-context';
 import { useGenesisSound } from '@/hooks/useGenesisSound';
-import { useLedger } from '@/hooks/useLedger';
+import { WalletService } from '@/services/icp/wallet.service';
 import { Principal } from '@dfinity/principal';
-import { EnhancedPaymentPanel } from '@/components/payment/EnhancedPaymentPanel';
-import { PaymentStatus, PaymentType } from '@/types/payment';
-import { PaymentService } from '@/services/icp/payment.service';
 import { InitialDesignation } from './InitialDesignation';
+import { WalletAddressDisplay } from '../wallet/WalletAddressDisplay';
+import { BalanceChecker } from '../wallet/BalanceChecker';
 import type { GenesisPhase } from '@/types/sound';
 
 const CREATION_COST = BigInt(1_00_000_000);
@@ -30,22 +29,21 @@ const PHASES: PhaseConfig[] = [
 export const Genesis: React.FC = () => {
   const { identity, actor: authActor } = useAuth();
   const { playPhase, stopAll } = useGenesisSound();
-  const { createPaymentLink, verifyPayment } = useLedger();
   const navigate = useNavigate();
   
   const [designation, setDesignation] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [currentPhase, setCurrentPhase] = useState<number>(0);
-  const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>('pending');
-  const [paymentService, setPaymentService] = useState<PaymentService | null>(null);
+  const [balanceVerified, setBalanceVerified] = useState(false);
+  const [walletService, setWalletService] = useState<WalletService | null>(null);
 
   useEffect(() => {
     if (identity) {
       try {
-        const service = PaymentService.getInstance(identity);
+        const service = WalletService.getInstance();
         service.initialize().then(() => {
-          setPaymentService(service);
+          setWalletService(service);
         });
       } catch (err) {
         console.error('Initialization failed:', err);
@@ -73,8 +71,9 @@ export const Genesis: React.FC = () => {
     try {
       if (!identity) throw new Error('Authentication required');
       if (!authActor) throw new Error('System connection not established');
-      if (!paymentService) throw new Error('Payment system not initialized');
+      if (!walletService) throw new Error('Wallet system not initialized');
       if (!designation || designation.trim().length === 0) throw new Error('Designation required');
+      if (!balanceVerified) throw new Error('Balance verification required');
 
       phaseInterval = setInterval(() => {
         setCurrentPhase((prev) => {
@@ -83,14 +82,13 @@ export const Genesis: React.FC = () => {
         });
       }, 2000);
 
-      const payment = await paymentService.createPayment(PaymentType.Creation);
-      const paymentSuccess = await paymentService.processPayment(payment);
+      // Process the payment using our wallet service
+      const paymentSuccess = await walletService.processAnimaCreationPayment(identity.getPrincipal());
 
       if (!paymentSuccess) {
         throw new Error('Payment failed or timed out');
       }
 
-      setPaymentStatus('confirmed');
       playPhase('birth');
 
       const result = await authActor.create_anima(designation);
@@ -107,7 +105,6 @@ export const Genesis: React.FC = () => {
     } catch (err) {
       console.error('Genesis failed:', err);
       setError(err instanceof Error ? err.message : 'Failed to initialize digital consciousness');
-      setPaymentStatus('error');
       playPhase(null);
     } finally {
       if (phaseInterval) clearInterval(phaseInterval);
@@ -171,50 +168,60 @@ export const Genesis: React.FC = () => {
 
         <form onSubmit={handleCreate} className="space-y-8">
           <div className="space-y-4">
-            <InitialDesignation onSelect={setDesignation} />
+            {/* Show wallet address first */}
+            <WalletAddressDisplay />
             
-            <div className="border border-green-500/30 p-4 space-y-2">
-              <h3 className="text-lg font-semibold">{'>'} INITIALIZATION COST</h3>
-              <p className="text-sm text-green-400/60">1.0 ICP</p>
-              <EnhancedPaymentPanel 
-                type={PaymentType.Creation}
-                onPaymentComplete={() => setPaymentStatus('confirmed')}
-                onPaymentError={(error) => {
-                  setPaymentStatus('error');
-                  setError(error);
-                }}
-              />
-            </div>
-
-            {error && (
-              <div className="text-red-500 border border-red-900 p-4">
-                {'>'} ERROR: {error}
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={loading || !designation.trim() || paymentStatus !== 'confirmed'}
-              className="w-full py-4 px-6 border border-green-500 text-green-500 hover:text-black hover:bg-green-500 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden"
-            >
-              {loading ? (
-                <div className="space-y-2">
-                  <div className="animate-pulse">
-                    {PHASES[currentPhase].message}...
-                  </div>
-                  <div className="h-1 w-full bg-green-900">
-                    <div 
-                      className="h-full bg-green-500 transition-all duration-500" 
-                      style={{ 
-                        width: `${((currentPhase + 1) / PHASES.length) * 100}%` 
-                      }} 
-                    />
-                  </div>
-                </div>
-              ) : (
-                'INITIATE GENESIS SEQUENCE'
+            {/* Balance verification */}
+            <BalanceChecker onBalanceVerified={setBalanceVerified} />
+            
+            {/* Only show designation and mint button after balance verified */}
+            <AnimatePresence>
+              {balanceVerified && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="space-y-4"
+                >
+                  <InitialDesignation onSelect={setDesignation} />
+                  
+                  <button
+                    type="submit"
+                    disabled={loading || !designation.trim()}
+                    className="w-full py-4 px-6 border border-green-500 text-green-500 hover:bg-green-500/10 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden"
+                  >
+                    {loading ? (
+                      <div className="space-y-2">
+                        <div className="animate-pulse">
+                          {PHASES[currentPhase].message}...
+                        </div>
+                        <div className="h-1 w-full bg-green-900">
+                          <div 
+                            className="h-full bg-green-500 transition-all duration-500" 
+                            style={{ width: `${((currentPhase + 1) / PHASES.length) * 100}%` }} 
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      'INITIATE GENESIS SEQUENCE'
+                    )}
+                  </button>
+                </motion.div>
               )}
-            </button>
+            </AnimatePresence>
+
+            <AnimatePresence>
+              {error && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="text-red-500 border border-red-900 p-4"
+                >
+                  {'>'} ERROR: {error}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </form>
 

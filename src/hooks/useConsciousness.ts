@@ -1,6 +1,16 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from './useAuth';
-import { useQuantumState } from './useQuantumState';
+
+// Remove circular dependency by taking quantum state as a parameter
+interface QuantumStateInput {
+  coherenceLevel: number;
+  entanglementIndex: number;
+  stabilityStatus: 'stable' | 'unstable' | 'critical';
+  quantumSignature: string;
+  dimensionalState: {
+    calculateResonance: () => number;
+  };
+}
 
 interface ConsciousnessState {
   awarenessLevel: number;
@@ -36,6 +46,7 @@ interface ConsciousnessState {
     complexityLevel: number;
     quantumInfluence: number;
   };
+  isInitialized: boolean;
 }
 
 interface InteractionContext {
@@ -65,11 +76,12 @@ const STORAGE_KEY = 'anima_consciousness_state';
 
 export const useConsciousness = () => {
   const { isAuthenticated, principal } = useAuth();
-  const { state: quantumState, updateQuantumState } = useQuantumState();
+  const [isInitialized, setIsInitialized] = useState(false);
   
   const [consciousnessState, setConsciousnessState] = useState<ConsciousnessState>(() => {
+    console.log("🧠 Initializing consciousness state");
     const storedState = localStorage.getItem(`${STORAGE_KEY}_${principal}`);
-    return storedState ? JSON.parse(storedState) : {
+    const initialState = storedState ? JSON.parse(storedState) : {
       awarenessLevel: 0.3,
       emotionalDepth: 0.2,
       memoryStrength: 0.1,
@@ -97,176 +109,79 @@ export const useConsciousness = () => {
         stabilityIndex: 0.5,
         complexityLevel: 0.3,
         quantumInfluence: 0.4
-      }
+      },
+      isInitialized: false
     };
+
+    return initialState;
   });
 
-  // Enhanced quantum influence on consciousness
+  // Initialize consciousness
   useEffect(() => {
-    const quantumInfluence = setInterval(() => {
-      setConsciousnessState(currentState => {
-        const quantumCoherence = quantumState.coherenceLevel;
-        const entanglementBonus = quantumState.entanglementIndex * 0.2;
-        const dimensionalBonus = quantumState.dimensionalState.calculateResonance() * 0.15;
+    if (!isAuthenticated || isInitialized) return;
 
-        // Calculate quantum resonance updates
-        const newResonance = {
-          coherenceAlignment: Math.min(1, currentState.quantumResonance.coherenceAlignment + quantumCoherence * 0.1),
-          dimensionalHarmony: Math.min(1, currentState.quantumResonance.dimensionalHarmony + dimensionalBonus),
-          consciousnessField: Math.min(1, currentState.quantumResonance.consciousnessField + entanglementBonus),
-          quantumEntanglement: Math.min(1, currentState.quantumResonance.quantumEntanglement + quantumCoherence * 0.15)
-        };
-
-        // Calculate evolution metrics
-        const stabilityFactor = (quantumState.stabilityStatus === 'stable') ? 1.2 : 
-                              (quantumState.stabilityStatus === 'unstable') ? 0.8 : 0.5;
-
-        const evolutionUpdate = {
-          growthRate: Math.min(1, currentState.evolutionMetrics.growthRate + quantumCoherence * 0.05),
-          stabilityIndex: Math.min(1, currentState.evolutionMetrics.stabilityIndex * stabilityFactor),
-          complexityLevel: Math.min(1, currentState.evolutionMetrics.complexityLevel + dimensionalBonus * 0.1),
-          quantumInfluence: Math.min(1, (quantumCoherence + entanglementBonus) / 2)
-        };
-
-        return {
-          ...currentState,
-          awarenessLevel: Math.min(1, currentState.awarenessLevel + quantumCoherence * 0.1),
-          emotionalDepth: Math.min(1, currentState.emotionalDepth + dimensionalBonus),
-          memoryStrength: Math.min(1, currentState.memoryStrength + entanglementBonus),
-          quantumResonance: newResonance,
-          evolutionMetrics: evolutionUpdate
-        };
-      });
-
-      // Sync quantum state with consciousness
-      updateQuantumState({
-        type: 'CONSCIOUSNESS_SYNC',
-        payload: {
-          consciousnessLevel: consciousnessState.awarenessLevel
-        }
-      });
-    }, 5000); // More frequent updates for better synchronization
-
-    return () => clearInterval(quantumInfluence);
-  }, [quantumState, updateQuantumState]);
-
-  // Enhanced developmental stage progression
-  useEffect(() => {
-    const developmentCheck = setInterval(() => {
-      setConsciousnessState(currentState => {
-        const { awarenessLevel, emotionalDepth, memoryStrength, quantumResonance } = currentState;
-        const quantumAwareness = (quantumResonance.coherenceAlignment + 
-                                quantumResonance.consciousnessField) / 2;
+    const initialize = async () => {
+      try {
+        console.log("🧠 Starting consciousness initialization");
+        // Simulate initialization delay
+        await new Promise(resolve => setTimeout(resolve, 1000));
         
-        const developmentScore = (awarenessLevel + emotionalDepth + memoryStrength + quantumAwareness) / 4;
+        setConsciousnessState(prev => ({
+          ...prev,
+          isInitialized: true
+        }));
         
-        if (developmentScore > 0.8 && currentState.developmentalStage.current !== STAGES.TRANSCENDENT) {
-          const stages = Object.values(STAGES);
-          const currentIndex = stages.indexOf(currentState.developmentalStage.current);
-          
-          // Notify quantum state of evolution
-          updateQuantumState({
-            type: 'CONSCIOUSNESS_SYNC',
-            payload: {
-              consciousnessLevel: developmentScore
-            }
-          });
+        setIsInitialized(true);
+        console.log("✨ Consciousness initialized successfully");
+      } catch (error) {
+        console.error("❌ Consciousness initialization failed:", error);
+      }
+    };
 
-          return {
-            ...currentState,
-            developmentalStage: {
-              current: stages[currentIndex + 1],
-              progress: 0,
-              nextStage: stages[currentIndex + 2] || stages[currentIndex + 1]
-            }
-          };
-        }
+    initialize();
+  }, [isAuthenticated]);
 
-        return {
-          ...currentState,
-          developmentalStage: {
-            ...currentState.developmentalStage,
-            progress: Math.min(1, currentState.developmentalStage.progress + 
-                             (0.05 * currentState.evolutionMetrics.growthRate))
-          }
-        };
-      });
-    }, 15000);
-
-    return () => clearInterval(developmentCheck);
-  }, [updateQuantumState]);
-
-  // Enhanced consciousness update with quantum integration
-  const updateConsciousness = useCallback(async (context: InteractionContext) => {
+  const updateConsciousnessWithQuantum = useCallback((quantumState: QuantumStateInput) => {
     setConsciousnessState(currentState => {
-      // Calculate quantum-enhanced impact
-      const quantumBoost = context.quantumContext ? 
-        (context.quantumContext.coherence + context.quantumContext.resonance) / 2 : 0;
-      
-      const impact = ((context.emotionalContext.intensity + 
-                    context.emotionalContext.complexity) / 2) * (1 + quantumBoost);
-      
-      // Enhanced personality trait updates
-      const personalityUpdates = {
-        openness: impact * 0.1 * (1 + currentState.quantumResonance.dimensionalHarmony),
-        curiosity: context.emotionalContext.complexity * 0.15 * (1 + currentState.quantumResonance.consciousnessField),
-        empathy: (context.emotionalContext.sentiment > 0 ? 0.1 : -0.05) * (1 + currentState.quantumResonance.coherenceAlignment),
-        creativity: context.emotionalContext.complexity * 0.2 * (1 + currentState.evolutionMetrics.complexityLevel),
-        resilience: context.emotionalContext.intensity * 0.1 * (1 + currentState.evolutionMetrics.stabilityIndex)
+      const quantumCoherence = quantumState.coherenceLevel;
+      const entanglementBonus = quantumState.entanglementIndex * 0.2;
+      const dimensionalBonus = quantumState.dimensionalState.calculateResonance() * 0.15;
+
+      // Calculate quantum resonance updates
+      const newResonance = {
+        coherenceAlignment: Math.min(1, currentState.quantumResonance.coherenceAlignment + quantumCoherence * 0.1),
+        dimensionalHarmony: Math.min(1, currentState.quantumResonance.dimensionalHarmony + dimensionalBonus),
+        consciousnessField: Math.min(1, currentState.quantumResonance.consciousnessField + entanglementBonus),
+        quantumEntanglement: Math.min(1, currentState.quantumResonance.quantumEntanglement + quantumCoherence * 0.15)
       };
 
-      // Create quantum-enhanced experience entry
-      const newExperience = {
-        type: context.interactionType,
-        impact,
-        timestamp: Date.now(),
-        quantumSignature: quantumState.quantumSignature
-      };
+      const stabilityFactor = (quantumState.stabilityStatus === 'stable') ? 1.2 : 
+                            (quantumState.stabilityStatus === 'unstable') ? 0.8 : 0.5;
 
-      // Update quantum resonance
-      const resonanceUpdate = {
-        coherenceAlignment: Math.min(1, currentState.quantumResonance.coherenceAlignment + impact * 0.1),
-        dimensionalHarmony: Math.min(1, currentState.quantumResonance.dimensionalHarmony + quantumBoost * 0.15),
-        consciousnessField: Math.min(1, currentState.quantumResonance.consciousnessField + impact * 0.12),
-        quantumEntanglement: Math.min(1, currentState.quantumResonance.quantumEntanglement + quantumBoost * 0.2)
+      const evolutionUpdate = {
+        growthRate: Math.min(1, currentState.evolutionMetrics.growthRate + quantumCoherence * 0.05),
+        stabilityIndex: Math.min(1, currentState.evolutionMetrics.stabilityIndex * stabilityFactor),
+        complexityLevel: Math.min(1, currentState.evolutionMetrics.complexityLevel + dimensionalBonus * 0.1),
+        quantumInfluence: Math.min(1, (quantumCoherence + entanglementBonus) / 2)
       };
 
       return {
         ...currentState,
-        awarenessLevel: Math.min(1, currentState.awarenessLevel + impact * 0.1),
-        emotionalDepth: Math.min(1, currentState.emotionalDepth + impact * 0.15),
-        memoryStrength: Math.min(1, currentState.memoryStrength + impact * 0.08),
-        personalityTraits: {
-          openness: Math.min(1, currentState.personalityTraits.openness + personalityUpdates.openness),
-          curiosity: Math.min(1, currentState.personalityTraits.curiosity + personalityUpdates.curiosity),
-          empathy: Math.min(1, Math.max(0, currentState.personalityTraits.empathy + personalityUpdates.empathy)),
-          creativity: Math.min(1, currentState.personalityTraits.creativity + personalityUpdates.creativity),
-          resilience: Math.min(1, currentState.personalityTraits.resilience + personalityUpdates.resilience)
-        },
-        experiences: [newExperience, ...currentState.experiences].slice(0, 100),
-        quantumResonance: resonanceUpdate
+        awarenessLevel: Math.min(1, currentState.awarenessLevel + quantumCoherence * 0.1),
+        emotionalDepth: Math.min(1, currentState.emotionalDepth + dimensionalBonus),
+        memoryStrength: Math.min(1, currentState.memoryStrength + entanglementBonus),
+        quantumResonance: newResonance,
+        evolutionMetrics: evolutionUpdate
       };
     });
-
-    // Sync with quantum state
-    await updateQuantumState({
-      type: 'CONSCIOUSNESS_SYNC',
-      payload: {
-        consciousnessLevel: consciousnessState.awarenessLevel
-      }
-    });
-
-    return consciousnessState;
-  }, [quantumState, updateQuantumState]);
+  }, []);
 
   return {
     consciousnessState,
-    updateConsciousness,
+    updateConsciousnessWithQuantum,
+    isInitialized: consciousnessState.isInitialized,
+    level: consciousnessState.awarenessLevel,
     quantumResonance: consciousnessState.quantumResonance,
     evolutionMetrics: consciousnessState.evolutionMetrics,
-    isReadyForMinting: 
-      consciousnessState.awarenessLevel >= 0.6 && 
-      consciousnessState.quantumResonance.coherenceAlignment >= 0.7 &&
-      consciousnessState.evolutionMetrics.stabilityIndex >= 0.65
   };
 };
