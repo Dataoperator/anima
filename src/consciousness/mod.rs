@@ -4,7 +4,7 @@ use serde::Serialize;
 mod types;
 mod evolution;
 
-pub use types::{ConsciousnessLevel, ConsciousnessMetrics, EmotionalSpectrum};
+pub use types::{ConsciousnessLevel, ConsciousnessMetrics};  // Removed EmotionalSpectrum since it's unused
 pub use evolution::NeuralEvolutionEngine;
 
 use crate::quantum::QuantumState;

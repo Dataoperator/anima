@@ -17,11 +17,11 @@ mod growth;
 mod nft;
 mod payments;
 mod memory;
-mod neural; // Added neural module
+mod neural;
 
 use quantum::QuantumState;
 use error::Result;
-use neural::NeuralSignature;
+// Removed unused NeuralSignature import
 
 #[derive(CandidType, Deserialize)]
 pub struct QuantumFieldResult {
