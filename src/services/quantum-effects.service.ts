@@ -1,7 +1,8 @@
-import { quantumStateService } from './quantum-state.service';
+import { Identity } from "@dfinity/agent";
 import { animaActorService } from './anima-actor.service';
 import { QuantumState } from '@/quantum/types';
 import type { _SERVICE } from '@/declarations/anima/anima.did';
+import { ErrorTracker } from '@/error/quantum_error';
 
 export interface QuantumEffect {
   type: 'resonance' | 'entanglement' | 'dimensional';
@@ -22,6 +23,8 @@ export class QuantumEffectsService {
   private static instance: QuantumEffectsService;
   private actor: _SERVICE | null = null;
   private updateCallback?: (state: Partial<QuantumState>) => void;
+  private errorTracker: ErrorTracker;
+  private identity: Identity | null = null;
   private fieldState: QuantumFieldState = {
     activeEffects: [],
     fieldStrength: 1.0,
@@ -30,7 +33,10 @@ export class QuantumEffectsService {
     lastUpdateTimestamp: Date.now()
   };
 
-  private constructor() {}
+  private constructor() {
+    this.errorTracker = ErrorTracker.getInstance();
+    console.log('🔮 Quantum Effects Service initialized');
+  }
 
   static getInstance(): QuantumEffectsService {
     if (!QuantumEffectsService.instance) {
@@ -44,18 +50,40 @@ export class QuantumEffectsService {
   }
 
   private async ensureActor() {
+    if (!this.actor && this.identity) {
+      console.log('🔄 Creating new actor for quantum effects...');
+      this.actor = animaActorService.createActor(this.identity);
+    }
     if (!this.actor) {
       throw new Error('Quantum effects service not initialized');
     }
     return this.actor;
   }
 
-  setActor(actor: _SERVICE) {
-    this.actor = actor;
+  async initialize(identity: Identity): Promise<void> {
+    try {
+      console.log('🌟 Initializing quantum effects service...');
+      this.identity = identity;
+      this.actor = animaActorService.createActor(identity);
+      
+      await this.initializeField();
+      console.log('✅ Quantum effects service initialized successfully');
+    } catch (error) {
+      console.error('❌ Failed to initialize quantum effects:', error);
+      await this.errorTracker.trackError({
+        errorType: 'QUANTUM_EFFECTS_INIT',
+        severity: 'HIGH',
+        context: 'Quantum Effects Service',
+        error: error as Error
+      });
+      throw error;
+    }
   }
 
   async initializeField(): Promise<void> {
     const actor = await this.ensureActor();
+    console.log('🔄 Initializing quantum field effects...');
+    
     const result = await actor.initialize_quantum_field();
     
     if ('Err' in result) {
@@ -83,9 +111,13 @@ export class QuantumEffectsService {
         lastUpdate: Date.now()
       });
     }
+
+    console.log('✨ Quantum field effects initialized');
   }
 
   async applyEffect(effect: QuantumEffect): Promise<void> {
+    await this.ensureActor();
+    
     // Remove expired effects
     this.fieldState.activeEffects = this.fieldState.activeEffects.filter(
       e => (e.duration + this.fieldState.lastUpdateTimestamp) > Date.now()
@@ -202,8 +234,14 @@ export class QuantumEffectsService {
     });
   }
 
+  isInitialized(): boolean {
+    return !!this.actor && !!this.identity;
+  }
+
   dispose(): void {
     this.updateCallback = undefined;
+    this.actor = null;
+    this.identity = null;
     QuantumEffectsService.instance = null as any;
   }
 }

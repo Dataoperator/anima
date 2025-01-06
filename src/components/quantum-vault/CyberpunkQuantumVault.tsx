@@ -1,21 +1,57 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Key, Shield, Sparkles, Loader } from 'lucide-react';
+import { Key, Shield, Sparkles, Loader, AlertTriangle } from 'lucide-react';
 import { ErrorBoundary } from '../error-boundary/ErrorBoundary';
 import { DataStream } from '../ui/DataStream';
 import { CyberGlowText } from '../ui/CyberGlowText';
 import { useQuantum } from '@/contexts/quantum-context';
 import { useAuth } from '@/contexts/auth-context';
+import { useGenesisInitialization } from '@/hooks/useGenesisInitialization';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
 
-const CyberpunkQuantumVault = () => {
+const LoadingView = ({ error, initializationTimeout }: { error: string | null; initializationTimeout: boolean }) => (
+  <div className="fixed inset-0 flex items-center justify-center bg-gray-900">
+    <div className="absolute inset-0">
+      <DataStream className="opacity-20" />
+    </div>
+    <div className="relative z-10 text-center space-y-6 max-w-lg mx-auto px-6">
+      <Loader className="w-16 h-16 animate-spin mx-auto text-cyan-400" />
+      <CyberGlowText>
+        <h2 className="text-3xl font-bold mb-2">Initializing Quantum State</h2>
+      </CyberGlowText>
+      <p className="text-cyan-400/80 text-lg">
+        {initializationTimeout 
+          ? "Initialization taking longer than expected. Please refresh the page if this persists."
+          : "Please wait while we stabilize the quantum field..."
+        }
+      </p>
+      {initializationTimeout && (
+        <button 
+          onClick={() => window.location.reload()}
+          className="mt-8 px-6 py-3 bg-cyan-500/20 hover:bg-cyan-500/30 rounded-lg text-cyan-300 transition-all duration-300 ease-in-out transform hover:scale-105"
+        >
+          Refresh Page
+        </button>
+      )}
+      {error && (
+        <div className="mt-4 p-4 bg-red-500/20 border border-red-500/30 rounded-lg text-red-300">
+          {error}
+        </div>
+      )}
+    </div>
+  </div>
+);
+
+const CyberpunkQuantumVault: React.FC = () => {
   const navigate = useNavigate();
   const { state: quantumState, isInitialized, isInitializing, initializeQuantumState } = useQuantum();
   const { identity } = useAuth();
+  const { checkPrerequisites, isChecking, error: genesisError, isReady } = useGenesisInitialization();
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [showKeyring, setShowKeyring] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
   const [initializationTimeout, setInitializationTimeout] = useState(false);
 
   useEffect(() => {
@@ -42,42 +78,16 @@ const CyberpunkQuantumVault = () => {
     };
   }, [isInitialized, isInitializing, identity, initializeQuantumState]);
 
+  const handleGenesisStart = async () => {
+    try {
+      await checkPrerequisites();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to start genesis');
+    }
+  };
+
   if (!isInitialized || isInitializing) {
-    return (
-      <div className="fixed inset-0 flex items-center justify-center bg-gray-900">
-        <div className="absolute inset-0">
-          <DataStream className="opacity-20" />
-        </div>
-        <div className="relative z-10 text-center space-y-6 max-w-lg mx-auto px-6">
-          <Loader className="w-16 h-16 animate-spin mx-auto text-cyan-400" />
-          <CyberGlowText>
-            <h2 className="text-3xl font-bold mb-2">Initializing Quantum State</h2>
-          </CyberGlowText>
-          <p className="text-cyan-400/80 text-lg">
-            {initializationTimeout 
-              ? "Initialization taking longer than expected. Please refresh the page if this persists."
-              : "Please wait while we stabilize the quantum field..."
-            }
-          </p>
-          {initializationTimeout && (
-            <button 
-              onClick={() => window.location.reload()}
-              className="mt-8 px-6 py-3 bg-cyan-500/20 hover:bg-cyan-500/30 rounded-lg text-cyan-300 transition-all duration-300 ease-in-out transform hover:scale-105"
-            >
-              Refresh Page
-            </button>
-          )}
-          <div className="mt-8 text-sm text-cyan-300/60">
-            Status: {isInitializing ? "Calibrating quantum coherence..." : "Awaiting initialization..."}
-          </div>
-          {error && (
-            <div className="mt-4 p-4 bg-red-500/20 border border-red-500/30 rounded-lg text-red-300">
-              {error}
-            </div>
-          )}
-        </div>
-      </div>
-    );
+    return <LoadingView error={error} initializationTimeout={initializationTimeout} />;
   }
 
   if (!quantumState) {
@@ -109,6 +119,40 @@ const CyberpunkQuantumVault = () => {
             </CyberGlowText>
             <p className="text-cyan-400/60 text-lg">Interface to the Quantum Realm</p>
           </motion.div>
+
+          {/* Genesis Requirements Alert */}
+          {!isReady && (
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-8"
+            >
+              <Alert variant="warning">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>Genesis Requirements Not Met</AlertTitle>
+                <AlertDescription>
+                  Ensure you have at least 1 ICP and a stable quantum field before initiating genesis.
+                </AlertDescription>
+              </Alert>
+            </motion.div>
+          )}
+
+          {/* Error Display */}
+          {(error || genesisError) && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="mb-8"
+            >
+              <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>Error</AlertTitle>
+                <AlertDescription>
+                  {error || genesisError}
+                </AlertDescription>
+              </Alert>
+            </motion.div>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {/* Quantum State Panel */}
@@ -164,24 +208,35 @@ const CyberpunkQuantumVault = () => {
                 <Key className="text-cyan-400 w-5 h-5" />
               </div>
               <div className="space-y-4">
-                <button
+                <Button
                   onClick={() => setShowKeyring(true)}
-                  className="w-full py-3 px-4 bg-cyan-500/20 hover:bg-cyan-500/30 rounded-lg text-cyan-300 transition-all duration-300"
+                  variant="default"
+                  className="w-full bg-cyan-500/20 hover:bg-cyan-500/30"
                 >
                   Access Keyring
-                </button>
-                <button
-                  onClick={() => navigate('/genesis')}
-                  className="w-full py-3 px-4 bg-purple-500/20 hover:bg-purple-500/30 rounded-lg text-purple-300 transition-all duration-300"
+                </Button>
+                <Button
+                  onClick={handleGenesisStart}
+                  variant="default"
+                  className="w-full bg-purple-500/20 hover:bg-purple-500/30"
+                  disabled={!isReady || isChecking}
                 >
-                  Initialize Genesis
-                </button>
-                <button
+                  {isChecking ? (
+                    <div className="flex items-center">
+                      <Loader className="w-4 h-4 mr-2 animate-spin" />
+                      <span>Checking Requirements...</span>
+                    </div>
+                  ) : (
+                    'Initialize Genesis'
+                  )}
+                </Button>
+                <Button
                   onClick={() => setShowConfirmation(true)}
-                  className="w-full py-3 px-4 bg-indigo-500/20 hover:bg-indigo-500/30 rounded-lg text-indigo-300 transition-all duration-300"
+                  variant="default"
+                  className="w-full bg-indigo-500/20 hover:bg-indigo-500/30"
                 >
                   Quantum Synchronization
-                </button>
+                </Button>
               </div>
             </motion.div>
 

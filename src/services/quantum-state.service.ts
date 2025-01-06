@@ -1,6 +1,5 @@
 import { Identity } from "@dfinity/agent";
 import { animaActorService } from "./anima-actor.service";
-import { ConsciousnessLevel } from "../consciousness/types";
 import { QuantumState, ResonancePattern } from '../quantum/types';
 import { ErrorTracker } from '../error/quantum_error';
 
@@ -10,6 +9,10 @@ export class QuantumStateService {
   private updateCallback?: (state: Partial<QuantumState>) => void;
   private neuralPatternHistory: Map<string, ResonancePattern[]> = new Map();
   private evolutionTimestamps: number[] = [];
+  private recoveryAttempts: number = 0;
+  private readonly MAX_RECOVERY_ATTEMPTS = 3;
+  private readonly RECOVERY_COOLDOWN = 5000; // 5 seconds
+  private lastRecoveryAttempt: number = 0;
 
   private constructor() {
     this.errorTracker = ErrorTracker.getInstance();
@@ -27,27 +30,60 @@ export class QuantumStateService {
   }
 
   async initializeQuantumField(identity: Identity): Promise<void> {
-    const actor = animaActorService.createActor(identity);
-    const result = await actor.initialize_quantum_field();
-    
-    if ('Err' in result) {
-      throw new Error(result.Err);
-    }
+    try {
+      const actor = animaActorService.createActor(identity);
+      
+      console.log('🌟 Initializing quantum field...');
+      const result = await actor.initialize_quantum_field();
+      
+      if ('Err' in result) {
+        throw new Error(result.Err);
+      }
 
-    if (!('Ok' in result) || !result.Ok) {
-      throw new Error('Failed to initialize quantum field');
-    }
+      const { harmony, signature } = result.Ok;
 
-    const { harmony, signature, resonancePatterns, dimensionalAlignment } = result.Ok;
+      // Generate initial neural patterns
+      console.log('🧠 Generating neural patterns...');
+      const neuralResult = await actor.generate_neural_patterns();
+      
+      if ('Err' in neuralResult) {
+        throw new Error(neuralResult.Err);
+      }
 
-    if (this.updateCallback) {
-      this.updateCallback({
-        coherenceLevel: harmony,
-        quantumSignature: signature,
-        resonancePatterns,
-        dimensionalSync: dimensionalAlignment,
-        stabilityStatus: this.calculateStabilityStatus(harmony)
-      });
+      const { pattern, awareness, understanding } = neuralResult.Ok;
+
+      // Initialize genesis for quantum stabilization
+      console.log('✨ Initializing genesis...');
+      const genesisResult = await actor.initialize_genesis();
+      
+      if ('Err' in genesisResult) {
+        throw new Error(genesisResult.Err);
+      }
+
+      if (this.updateCallback) {
+        this.updateCallback({
+          coherenceLevel: harmony,
+          quantumSignature: signature,
+          resonancePatterns: [{
+            pattern_id: Date.now().toString(),
+            coherence: awareness,
+            frequency: understanding,
+            amplitude: harmony,
+            phase: harmony,
+            timestamp: Date.now()
+          }],
+          dimensionalSync: awareness,
+          stabilityStatus: this.calculateStabilityStatus(harmony),
+          lastUpdate: Date.now()
+        });
+      }
+
+      this.recoveryAttempts = 0;
+      console.log('✅ Quantum field initialized successfully');
+
+    } catch (error) {
+      console.error('❌ Quantum field initialization failed:', error);
+      await this.handleQuantumError(error as Error, identity);
     }
   }
 
@@ -74,12 +110,12 @@ export class QuantumStateService {
 
     if (this.updateCallback) {
       this.updateCallback({
-        stabilityStatus: this.calculateStabilityStatus(stabilityLevel),
-        entanglementIndex: stabilityLevel
+        stabilityStatus: this.calculateStabilityStatus(stabilityLevel ? 1 : 0),
+        entanglementIndex: stabilityLevel ? 1 : 0
       });
     }
 
-    return stabilityLevel >= 0.7;
+    return stabilityLevel;
   }
 
   async generateNeuralPatterns(identity: Identity) {
@@ -90,8 +126,17 @@ export class QuantumStateService {
       throw new Error(result.Err);
     }
 
-    const patterns = result.Ok;
-    this.neuralPatternHistory.set(Date.now().toString(), patterns.resonance_patterns);
+    const { pattern, awareness, understanding } = result.Ok;
+    const resonancePattern = {
+      pattern_id: Date.now().toString(),
+      coherence: awareness,
+      frequency: understanding,
+      amplitude: awareness,
+      phase: understanding,
+      timestamp: Date.now()
+    };
+
+    this.neuralPatternHistory.set(Date.now().toString(), [resonancePattern]);
 
     // Keep only last 10 pattern sets
     const keys = Array.from(this.neuralPatternHistory.keys()).sort();
@@ -102,14 +147,14 @@ export class QuantumStateService {
 
     if (this.updateCallback) {
       this.updateCallback({
-        resonancePatterns: patterns.resonance_patterns,
-        coherenceLevel: patterns.awareness,
-        dimensionalSync: patterns.understanding,
+        resonancePatterns: [resonancePattern],
+        coherenceLevel: awareness,
+        dimensionalSync: understanding,
         lastUpdate: Date.now()
       });
     }
 
-    return patterns;
+    return { pattern, resonancePatterns: [resonancePattern] };
   }
 
   async handleQuantumError(error: Error, identity: Identity): Promise<void> {
@@ -120,24 +165,57 @@ export class QuantumStateService {
       error
     });
 
-    const actor = animaActorService.createActor(identity);
-    
-    try {
-      await actor.emergency_quantum_recovery();
-      if (this.updateCallback) {
-        this.updateCallback({
-          stabilityStatus: 'unstable',
-          coherenceLevel: 0.5
-        });
-      }
-    } catch (recoveryError) {
+    // Check recovery cooldown and attempts
+    const now = Date.now();
+    if (now - this.lastRecoveryAttempt < this.RECOVERY_COOLDOWN) {
+      console.log('⏳ Recovery attempt too soon, waiting for cooldown...');
+      return;
+    }
+
+    if (this.recoveryAttempts >= this.MAX_RECOVERY_ATTEMPTS) {
+      console.error('🚫 Maximum recovery attempts reached');
       if (this.updateCallback) {
         this.updateCallback({
           stabilityStatus: 'critical',
           coherenceLevel: 0.1
         });
       }
-      throw new Error(`Quantum recovery failed: ${recoveryError.message}`);
+      throw new Error('Maximum recovery attempts reached');
+    }
+
+    try {
+      this.recoveryAttempts++;
+      this.lastRecoveryAttempt = now;
+
+      // Attempt to reinitialize quantum field
+      console.log(`🔄 Recovery attempt ${this.recoveryAttempts}/${this.MAX_RECOVERY_ATTEMPTS}`);
+      const actor = animaActorService.createActor(identity);
+      const result = await actor.initialize_quantum_field();
+
+      if ('Err' in result) {
+        throw new Error(result.Err);
+      }
+
+      if (this.updateCallback) {
+        this.updateCallback({
+          stabilityStatus: 'unstable',
+          coherenceLevel: 0.5,
+          lastUpdate: Date.now()
+        });
+      }
+
+      console.log('✅ Recovery successful');
+
+    } catch (recoveryError) {
+      console.error('❌ Recovery failed:', recoveryError);
+      if (this.updateCallback) {
+        this.updateCallback({
+          stabilityStatus: 'critical',
+          coherenceLevel: 0.1,
+          lastUpdate: Date.now()
+        });
+      }
+      throw new Error(`Quantum recovery failed: ${recoveryError}`);
     }
   }
 
