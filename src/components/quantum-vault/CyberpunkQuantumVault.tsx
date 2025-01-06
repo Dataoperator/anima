@@ -80,6 +80,16 @@ const CyberpunkQuantumVault = () => {
     );
   }
 
+  if (!quantumState) {
+    return null;
+  }
+
+  const getStabilityColor = (value: number) => {
+    if (value >= 0.8) return 'text-green-300';
+    if (value >= 0.5) return 'text-yellow-300';
+    return 'text-red-300';
+  };
+
   return (
     <ErrorBoundary>
       <div className="min-h-screen w-full bg-gray-900 text-white relative overflow-hidden">
@@ -115,24 +125,30 @@ const CyberpunkQuantumVault = () => {
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
                   <span className="text-gray-400">Coherence</span>
-                  <span className="text-cyan-300">{(quantumState?.coherence * 100).toFixed(1)}%</span>
+                  <span className={getStabilityColor(quantumState.coherenceLevel)}>
+                    {(quantumState.coherenceLevel * 100).toFixed(1)}%
+                  </span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-400">Field Strength</span>
-                  <span className="text-cyan-300">
-                    {(quantumState?.resonanceMetrics.fieldStrength * 100).toFixed(1)}%
+                  <span className="text-gray-400">Entanglement</span>
+                  <span className={getStabilityColor(quantumState.entanglementIndex)}>
+                    {(quantumState.entanglementIndex * 100).toFixed(1)}%
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-gray-400">Stability</span>
-                  <span className="text-cyan-300">
-                    {(quantumState?.resonanceMetrics.stability * 100).toFixed(1)}%
+                  <span className={getStabilityColor(quantumState.dimensionalState.stability)}>
+                    {quantumState.stabilityStatus}
                   </span>
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-400">Phase Alignment</span>
-                  <span className="text-cyan-300">{(quantumState?.phaseAlignment * 100).toFixed(1)}%</span>
-                </div>
+                {quantumState.resonancePatterns && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-400">Resonance</span>
+                    <span className={getStabilityColor(quantumState.resonancePatterns[0].coherence)}>
+                      {(quantumState.resonancePatterns[0].coherence * 100).toFixed(1)}%
+                    </span>
+                  </div>
+                )}
               </div>
             </motion.div>
 
@@ -183,19 +199,27 @@ const CyberpunkQuantumVault = () => {
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
                   <span className="text-gray-400">Quantum Signature</span>
-                  <span className="text-cyan-300">Verified</span>
+                  <span className="text-cyan-300">
+                    {quantumState.quantumSignature ? 'Verified' : 'Pending'}
+                  </span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-400">Entanglement</span>
-                  <span className="text-cyan-300">Stable</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-400">Neural Link</span>
-                  <span className="text-cyan-300">Active</span>
+                  <span className="text-gray-400">Consciousness Link</span>
+                  <span className="text-cyan-300">
+                    {quantumState.consciousnessAlignment ? 'Active' : 'Inactive'}
+                  </span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-gray-400">Field Integrity</span>
-                  <span className="text-cyan-300">98.2%</span>
+                  <span className={getStabilityColor(quantumState.dimensionalState.resonance)}>
+                    {(quantumState.dimensionalState.resonance * 100).toFixed(1)}%
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-400">Last Update</span>
+                  <span className="text-cyan-300">
+                    {new Date(quantumState.lastUpdate).toLocaleTimeString()}
+                  </span>
                 </div>
               </div>
             </motion.div>
