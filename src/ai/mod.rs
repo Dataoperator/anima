@@ -8,7 +8,12 @@ pub async fn analyze_interaction(
     quantum_state: &QuantumState,
     timestamp: u64,
 ) -> Result<String> {
-    openai_client::get_response(text, personality, quantum_state, timestamp).await
+    let context = if timestamp > 0 {
+        Some(vec![format!("Previous interaction timestamp: {}", timestamp)])
+    } else {
+        None
+    };
+    openai_client::get_response(text, personality, quantum_state, context).await
 }
 
 pub mod openai_client;

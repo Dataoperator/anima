@@ -75,12 +75,53 @@ impl Memory {
 
     pub fn calculate_resonance(&self, current_quantum_state: &QuantumState) -> f64 {
         let coherence_diff = (self.quantum_state.coherence - current_quantum_state.coherence).abs();
-        let resonance_diff = (
-            self.quantum_state.resonance_metrics.field_strength -
-            current_quantum_state.resonance_metrics.field_strength
+        let field_strength_diff = (
+            self.quantum_state.field_strength -
+            current_quantum_state.field_strength
+        ).abs();
+        
+        let consciousness_diff = (
+            self.quantum_state.consciousness_alignment -
+            current_quantum_state.consciousness_alignment
         ).abs();
 
-        1.0 - (coherence_diff + resonance_diff) / 2.0
+        // Calculate resonance using all three metrics
+        1.0 - (coherence_diff + field_strength_diff + consciousness_diff) / 3.0
+    }
+
+    pub fn update_resonance_signature(&mut self, current_quantum_state: &QuantumState) {
+        let resonance = self.calculate_resonance(current_quantum_state);
+        let timestamp = ic_cdk::api::time();
+        
+        // Create a unique resonance signature combining multiple factors
+        let signature = vec![
+            ((resonance * 255.0) as u8),
+            ((self.strength * 255.0) as u8),
+            ((self.emotional_impact * 255.0) as u8),
+            ((self.importance_score * 255.0) as u8),
+            ((timestamp & 0xFF) as u8),
+            (((timestamp >> 8) & 0xFF) as u8),
+            (((timestamp >> 16) & 0xFF) as u8),
+            (((timestamp >> 24) & 0xFF) as u8),
+        ];
+        
+        self.resonance_signature = signature;
+    }
+
+    pub fn get_memory_strength(&self, current_quantum_state: &QuantumState) -> f64 {
+        let base_strength = self.strength;
+        let resonance = self.calculate_resonance(current_quantum_state);
+        let time_factor = self.calculate_time_decay();
+        
+        base_strength * resonance * time_factor
+    }
+
+    fn calculate_time_decay(&self) -> f64 {
+        let current_time = ic_cdk::api::time();
+        let age = current_time - self.timestamp;
+        let decay_rate = 0.1; // Adjustable decay rate
+        
+        (-decay_rate * (age as f64) / (24.0 * 60.0 * 60.0 * 1_000_000_000.0)).exp()
     }
 }
 

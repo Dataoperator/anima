@@ -2,7 +2,7 @@ use candid::{CandidType, Deserialize};
 use serde::Serialize;
 use ic_cdk::api::time;
 
-use crate::error::Result;  // Removed unused Error import
+use crate::error::Result;
 use crate::memory::{Memory, EventType};
 use crate::types::personality::NFTPersonality;
 use crate::quantum::QuantumState;
@@ -52,11 +52,10 @@ impl GrowthSystem {
             event_type: "growth".to_string(),
             timestamp: time(),
             impact,
-            quantum_resonance: quantum_state.resonance_metrics.field_strength,
+            quantum_resonance: quantum_state.field_strength,
         };
         self.recent_growth_events.push(event);
 
-        // Create memory of the growth event
         let memory = Memory::new(
             event_description.clone(),
             personality.clone(),
@@ -78,7 +77,7 @@ impl GrowthSystem {
     fn calculate_growth_impact(&self, quantum_state: &QuantumState) -> f64 {
         let base_impact = 0.1 * self.growth_rate;
         let quantum_multiplier = 1.0 + 
-            quantum_state.resonance_metrics.field_strength * 0.5 +
+            quantum_state.field_strength * 0.5 +
             quantum_state.coherence * 0.3;
 
         base_impact * quantum_multiplier * self.quantum_boost

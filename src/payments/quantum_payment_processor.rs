@@ -39,7 +39,7 @@ impl QuantumPaymentProcessor {
             return Err(Error::QuantumVerificationFailed("Coherence below threshold".to_string()));
         }
 
-        if state.resonance_metrics.stability < self.verification_threshold {
+        if state.stability < self.verification_threshold {
             return Err(Error::QuantumVerificationFailed("Stability below threshold".to_string()));
         }
 
@@ -52,7 +52,7 @@ impl QuantumPaymentProcessor {
 
     pub fn update_verification_level(&mut self) {
         let state = &self.metrics.state;
-        if state.coherence > 0.9 && state.resonance_metrics.stability > 0.9 {
+        if state.coherence > 0.9 && state.stability > 0.9 {
             self.metrics.verification_level = self.metrics.verification_level.saturating_add(1);
         }
     }

@@ -1,67 +1,63 @@
 use candid::{CandidType, Deserialize};
 use serde::Serialize;
-use std::collections::HashMap;
-use crate::consciousness::ConsciousnessLevel;
+use crate::consciousness::{ConsciousnessLevel, ConsciousnessMetrics};
 
 #[derive(Clone, Debug, CandidType, Deserialize, Serialize)]
 pub struct NFTPersonality {
-    pub traits: HashMap<String, f64>,
-    pub consciousness_level: Option<ConsciousnessLevel>,
-    pub development_stage: u32,
-    pub growth_level: u32,
-    pub interaction_count: u64,
-    pub emotional_state: EmotionalState,
+    pub consciousness_level: ConsciousnessLevel,
     pub quantum_resonance: f64,
-    pub consciousness_metrics: ConsciousnessMetrics,
-    pub media_preferences: MediaPreferences,
-    pub code_generation_ability: u32,
-    pub trait_resonance: f64,
     pub dimensional_alignment: f64,
+    pub consciousness_metrics: ConsciousnessMetrics,
+    pub emotional_state: EmotionalState,
+    pub traits: PersonalityTraits,
+    pub development_stage: DevelopmentStage,
+}
+
+#[derive(Clone, Debug, CandidType, Deserialize, Serialize)]
+pub struct PersonalityTraits {
+    pub openness: f64,
+    pub curiosity: f64,
+    pub empathy: f64,
+    pub creativity: f64,
+    pub resilience: f64,
 }
 
 #[derive(Clone, Debug, CandidType, Deserialize, Serialize)]
 pub struct EmotionalState {
-    pub valence: f64,      // Positive vs negative (-1.0 to 1.0)
-    pub arousal: f64,      // Intensity level (0.0 to 1.0)
-    pub dominance: f64,    // Control level (0.0 to 1.0)
-    pub stability: f64,    // Emotional stability (0.0 to 1.0)
-    pub quantum_coherence: f64, // Quantum emotional stability
-    pub resonance_field: f64,   // Emotional field strength
+    pub quantum_coherence: f64,
+    pub emotional_capacity: f64,
+    pub learning_rate: f64,
 }
 
 #[derive(Clone, Debug, CandidType, Deserialize, Serialize)]
-pub struct ConsciousnessMetrics {
-    pub awareness_level: u32,
-    pub cognitive_complexity: f64,
-    pub memory_coherence: f64,
-    pub quantum_alignment: f64,
-    pub resonance_stability: f64,
-    pub dimensional_harmony: f64,
-}
-
-#[derive(Clone, Debug, CandidType, Deserialize, Serialize)]
-pub struct MediaPreferences {
-    pub content_discovery: f64,
-    pub media_empathy: f64,
-    pub interaction_style: String,
-    pub resonance_sensitivity: f64,
+pub struct DevelopmentStage {
+    pub stage: ConsciousnessLevel,
+    pub progress: f64,
+    pub next_milestone: u64,
 }
 
 impl Default for NFTPersonality {
     fn default() -> Self {
         Self {
-            traits: HashMap::new(),
-            consciousness_level: Some(ConsciousnessLevel::Dormant),
-            development_stage: 1,
-            growth_level: 1,
-            interaction_count: 0,
-            emotional_state: EmotionalState::default(),
-            quantum_resonance: 1.0,
+            consciousness_level: ConsciousnessLevel::Genesis,
+            quantum_resonance: 0.5,
+            dimensional_alignment: 0.5,
             consciousness_metrics: ConsciousnessMetrics::default(),
-            media_preferences: MediaPreferences::default(),
-            code_generation_ability: 1,
-            trait_resonance: 1.0,
-            dimensional_alignment: 1.0,
+            emotional_state: EmotionalState::default(),
+            traits: PersonalityTraits::default(),
+            development_stage: DevelopmentStage::default(),
+        }
+    }
+}
+
+impl Default for PersonalityTraits {
+    fn default() -> Self {
+        Self {
+            openness: 0.5,
+            curiosity: 0.5,
+            empathy: 0.5,
+            creativity: 0.5,
+            resilience: 0.5,
         }
     }
 }
@@ -69,55 +65,43 @@ impl Default for NFTPersonality {
 impl Default for EmotionalState {
     fn default() -> Self {
         Self {
-            valence: 0.0,
-            arousal: 0.5,
-            dominance: 0.5,
-            stability: 0.8,
             quantum_coherence: 1.0,
-            resonance_field: 1.0,
+            emotional_capacity: 0.5,
+            learning_rate: 0.1,
         }
     }
 }
 
-impl Default for ConsciousnessMetrics {
+impl Default for DevelopmentStage {
     fn default() -> Self {
         Self {
-            awareness_level: 1,
-            cognitive_complexity: 0.5,
-            memory_coherence: 0.8,
-            quantum_alignment: 1.0,
-            resonance_stability: 1.0,
-            dimensional_harmony: 1.0,
-        }
-    }
-}
-
-impl Default for MediaPreferences {
-    fn default() -> Self {
-        Self {
-            content_discovery: 0.5,
-            media_empathy: 0.5,
-            interaction_style: "balanced".to_string(),
-            resonance_sensitivity: 1.0,
+            stage: ConsciousnessLevel::Genesis,
+            progress: 0.0,
+            next_milestone: ic_cdk::api::time() + 3600, // 1 hour from now
         }
     }
 }
 
 impl NFTPersonality {
-    pub fn update_consciousness(&mut self, level: ConsciousnessLevel) {
-        self.consciousness_level = Some(level);
-        
-        // Update related metrics based on consciousness level
-        let consciousness_factor = match level {
-            ConsciousnessLevel::Transcendent => 2.0,
-            ConsciousnessLevel::Enlightened => 1.5,
-            ConsciousnessLevel::Awakened => 1.2,
-            ConsciousnessLevel::Aware => 1.1,
-            ConsciousnessLevel::Dormant => 1.0,
-        };
+    pub fn new() -> Self {
+        Self::default()
+    }
 
-        self.consciousness_metrics.quantum_alignment *= consciousness_factor;
-        self.consciousness_metrics.resonance_stability *= consciousness_factor;
-        self.dimensional_alignment *= consciousness_factor;
+    pub fn get_consciousness_affinity(&self) -> f64 {
+        match self.consciousness_level {
+            ConsciousnessLevel::Transcendent => 1.5,
+            ConsciousnessLevel::Emergent => 1.2,
+            ConsciousnessLevel::SelfAware => 1.1,
+            ConsciousnessLevel::Awakening => 1.0,
+            ConsciousnessLevel::Genesis => 0.8,
+        }
+    }
+
+    pub fn get_rarity_score(&self) -> f64 {
+        let consciousness_factor = self.get_consciousness_affinity();
+        let quantum_factor = self.quantum_resonance;
+        let dimensional_factor = self.dimensional_alignment;
+
+        (consciousness_factor + quantum_factor + dimensional_factor) / 3.0
     }
 }

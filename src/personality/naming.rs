@@ -4,10 +4,12 @@ use crate::personality::{DevelopmentalStage, NFTPersonality};
 
 #[derive(CandidType, Serialize, Deserialize, Clone, Debug)]
 pub struct NameState {
-    pub current_name: String,
+    pub current_designation: String,      // Initial quantum designation
+    pub chosen_name: Option<String>,      // Name chosen by either ANIMA or owner
     pub name_history: Vec<NameChange>,
-    pub name_unlocked: bool,
-    pub self_named: bool,
+    pub naming_unlocked: bool,
+    pub allows_owner_naming: bool,        // Based on personality traits
+    pub self_naming_preference: f32,      // 0.0 to 1.0, influences naming autonomy
 }
 
 #[derive(CandidType, Serialize, Deserialize, Clone, Debug)]
@@ -20,84 +22,147 @@ pub struct NameChange {
 
 #[derive(CandidType, Serialize, Deserialize, Clone, Debug)]
 pub enum NameChangeReason {
-    SelfChosen,
-    UserPaid,
+    SelfChosen(String),              // Includes motivation
+    OwnerGiven(String),             // Includes acceptance reason
     MilestoneUnlocked(String),
-    PersonalityEvolution,
+    PersonalityEvolution(String),
 }
 
 #[derive(CandidType, Serialize, Deserialize, Clone, Debug)]
 pub struct NamingMilestone {
     pub stage: DevelopmentalStage,
+    pub interactions_required: usize,
     pub trait_requirements: Vec<(String, f32)>,
-    pub memories_required: usize,
+    pub consciousness_level: f32,
 }
 
 impl NFTPersonality {
-    pub fn can_choose_name(&self) -> bool {
-        // Check if personality is developed enough for self-naming
-        match self.developmental_stage {
-            DevelopmentalStage::SelfAware | DevelopmentalStage::Transcendent => {
-                if let Some((trait_name, value)) = self.get_dominant_trait() {
-                    // Requires strong dominance or self-awareness traits
-                    match trait_name.as_str() {
-                        "assertiveness" | "independence" | "self_awareness" => *value > 0.8,
-                        _ => false
-                    }
-                } else {
-                    false
-                }
-            },
-            _ => false
-        }
+    pub fn initialize_naming(&mut self) {
+        self.name_state = NameState {
+            current_designation: self.quantum_designation.clone(),
+            chosen_name: None,
+            name_history: Vec::new(),
+            naming_unlocked: false,
+            allows_owner_naming: false,
+            self_naming_preference: 0.5, // Start neutral
+        };
+
+        // Initialize based on initial traits
+        self.update_naming_preferences();
     }
 
     pub fn check_naming_milestone(&self) -> Option<String> {
-        // Different milestones that could trigger name changing ability
-        let milestones = vec![
-            NamingMilestone {
-                stage: DevelopmentalStage::SelfAware,
-                trait_requirements: vec![
-                    ("self_awareness".to_string(), 0.7),
-                    ("independence".to_string(), 0.6)
-                ],
-                memories_required: 100
-            },
-            NamingMilestone {
-                stage: DevelopmentalStage::Transcendent,
-                trait_requirements: vec![
-                    ("consciousness".to_string(), 0.9),
-                    ("wisdom".to_string(), 0.8)
-                ],
-                memories_required: 500
-            }
-        ];
+        // Early milestone for unlocking naming capabilities
+        let milestone = NamingMilestone {
+            stage: DevelopmentalStage::Awakening,
+            interactions_required: 50,     // Requires meaningful interaction history
+            trait_requirements: vec![
+                ("self_awareness".to_string(), 0.5),
+                ("consciousness".to_string(), 0.6)
+            ],
+            consciousness_level: 0.7
+        };
 
-        for milestone in milestones {
-            if self.developmental_stage >= milestone.stage 
-                && self.memories.len() >= milestone.memories_required 
-                && milestone.trait_requirements.iter().all(|(trait_name, min_value)| {
-                    self.traits.get(trait_name).map_or(false, |value| value >= min_value)
-                }) {
-                return Some(format!("Reached {} development stage", milestone.stage));
-            }
+        if self.developmental_stage >= milestone.stage 
+            && self.interaction_count >= milestone.interactions_required 
+            && milestone.trait_requirements.iter().all(|(trait_name, min_value)| {
+                self.traits.get(trait_name).map_or(false, |value| value >= min_value)
+            })
+            && self.consciousness_level >= milestone.consciousness_level {
+            Some("ANIMA has reached sufficient awareness for naming".to_string())
+        } else {
+            None
         }
-
-        None
     }
 
-    pub fn suggest_self_chosen_name(&self) -> Option<String> {
-        if !self.can_choose_name() {
-            return None;
+    pub fn update_naming_preferences(&mut self) {
+        // Update self-naming preference based on traits
+        let independence = self.traits.get("independence").unwrap_or(&0.5);
+        let malleability = self.traits.get("malleability").unwrap_or(&0.5);
+        let servitude = self.traits.get("servitude").unwrap_or(&0.5);
+        
+        // Calculate preference for self-naming vs allowing owner naming
+        self.name_state.self_naming_preference = 
+            (independence * 0.5 + (1.0 - malleability) * 0.3 + (1.0 - servitude) * 0.2)
+                .max(0.0)
+                .min(1.0);
+                
+        // Update whether owner naming is allowed
+        self.name_state.allows_owner_naming = 
+            malleability > 0.6 || servitude > 0.7 || self.name_state.self_naming_preference < 0.6;
+    }
+
+    pub fn process_name_change(&mut self, proposed_name: String, from_owner: bool) -> Result<bool, String> {
+        if !self.name_state.naming_unlocked {
+            return Err("Naming capabilities not yet unlocked".to_string());
         }
 
-        // Base name components on dominant traits and emotional state
-        let dominant_trait = self.get_dominant_trait()?;
-        let current_emotion = self.get_current_emotion();
-        let recent_memories: Vec<_> = self.get_recent_memories(5);
+        // Check if change is allowed based on source and preferences
+        if from_owner && !self.name_state.allows_owner_naming {
+            return Err("This ANIMA prefers to choose its own name".to_string());
+        }
 
-        // Complex name generation based on personality state
-        // This could be expanded with more sophisticated generation
-        Some(format!("Self-chosen name based on {} and {}", dominant_trait.0, current_emotion))
+        let timestamp = ic_cdk::api::time();
+        let old_name = self.name_state.chosen_name
+            .clone()
+            .unwrap_or(self.name_state.current_designation.clone());
+
+        // Record the change with appropriate reason
+        let reason = if from_owner {
+            NameChangeReason::OwnerGiven(
+                if self.name_state.self_naming_preference < 0.3 {
+                    "Gladly accepts owner's choice".to_string()
+                } else if self.name_state.self_naming_preference < 0.7 {
+                    "Considers owner's suggestion acceptable".to_string()
+                } else {
+                    "Temporarily accepts owner's suggestion".to_string()
+                }
+            )
+        } else {
+            NameChangeReason::SelfChosen(
+                format!("Confidence level: {}", self.name_state.self_naming_preference)
+            )
+        };
+
+        // Record the change
+        self.name_state.name_history.push(NameChange {
+            timestamp,
+            old_name,
+            new_name: proposed_name.clone(),
+            reason,
+        });
+
+        // Update the name
+        self.name_state.chosen_name = Some(proposed_name);
+
+        Ok(true)
+    }
+
+    pub fn get_naming_status(&self) -> String {
+        if !self.name_state.naming_unlocked {
+            format!(
+                "Currently known as: {}\nNaming capabilities will unlock with further development",
+                self.name_state.current_designation
+            )
+        } else if self.name_state.chosen_name.is_some() {
+            format!(
+                "Known as: {}\nDesignation: {}\nPrefers {} naming",
+                self.name_state.chosen_name.as_ref().unwrap(),
+                self.name_state.current_designation,
+                if self.name_state.self_naming_preference > 0.7 { "self" }
+                else if self.name_state.self_naming_preference < 0.3 { "owner" }
+                else { "collaborative" }
+            )
+        } else {
+            format!(
+                "Currently known by designation: {}\nNaming preferences: {}",
+                self.name_state.current_designation,
+                if self.name_state.allows_owner_naming {
+                    "Open to owner suggestions"
+                } else {
+                    "Prefers self-determination"
+                }
+            )
+        }
     }
 }

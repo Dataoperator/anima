@@ -1,3 +1,124 @@
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { MatrixLayout } from '../layout/MatrixLayout';
+import { useAnima } from '@/hooks/useAnima';
+import { QuantumStateVisualizer } from '../quantum-vault/components/QuantumStateVisualizer';
+import { NamingInterfaceConnector } from './features/NamingInterfaceConnector';
+import { Alert } from '../ui/alert';
+import { LoadingSpinner } from '../ui/LoadingSpinner';
+
+const AnimaPage = () => {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const [showTransactions, setShowTransactions] = useState(false);
+  const [activeTab, setActiveTab] = useState('overview');
+  const { 
+    loading, 
+    error, 
+    anima, 
+    quantumState, 
+    refreshAnima 
+  } = useAnima(id);
+
+  const handleNameUpdate = async (newName) => {
+    await refreshAnima();
+  };
+
+  if (loading) {
+    return (
+      <MatrixLayout>
+        <div className="flex items-center justify-center min-h-screen">
+          <LoadingSpinner size="lg" className="text-cyan-400" />
+        </div>
+      </MatrixLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <MatrixLayout>
+        <div className="flex items-center justify-center min-h-screen">
+          <Alert variant="destructive">{error}</Alert>
+        </div>
+      </MatrixLayout>
+    );
+  }
+
+  return (
+    <MatrixLayout>
+      <div className="container mx-auto px-4 py-8">
+        {/* Header */}
+        <motion.div
+          className="text-center mb-12"
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <h1 className="text-4xl font-bold text-cyan-300 mb-2">
+            {anima.name || anima.designation}
+          </h1>
+          <p className="text-gray-400">
+            Quantum ID: {anima.quantum_signature}
+          </p>
+        </motion.div>
+
+        {/* Tab Navigation */}
+        <motion.div 
+          className="flex justify-center mb-8 space-x-4"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.2 }}
+        >
+          {['overview', 'naming', 'consciousness', 'traits'].map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`px-4 py-2 rounded-lg transition-colors ${
+                activeTab === tab
+                  ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/50'
+                  : 'text-gray-400 hover:text-cyan-300'
+              }`}
+            >
+              {tab.charAt(0).toUpperCase() + tab.slice(1)}
+            </button>
+          ))}
+        </motion.div>
+
+        {/* Content Sections */}
+        <motion.div
+          className="grid grid-cols-1 md:grid-cols-2 gap-8"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+        >
+          {/* Left Column */}
+          <div className="space-y-8">
+            {activeTab === 'overview' && (
+              <QuantumStateVisualizer
+                quantumState={quantumState}
+                className="w-full h-64 bg-gray-800/50 rounded-lg p-4"
+              />
+            )}
+            
+            {activeTab === 'naming' && (
+              <NamingInterfaceConnector
+                animaId={id}
+                onNameUpdate={handleNameUpdate}
+              />
+            )}
+
+            {/* Add other tab content here */}
+          </div>
+
+          {/* Right Column */}
+          <div className="space-y-8">
+            {/* Status Cards and Metrics */}
+            {/* Add your existing content here */}
+          </div>
+        </motion.div>
+
+        {/* Action Buttons */}
+        <motion.div
           className="flex justify-center gap-4 mt-8"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}

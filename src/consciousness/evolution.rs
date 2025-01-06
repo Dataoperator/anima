@@ -4,10 +4,10 @@ use std::collections::{HashMap, VecDeque};
 use ic_cdk::api::time;
 use crate::error::{Result, ErrorCategory};
 use crate::quantum::QuantumState;
-use crate::neural::quantum_bridge::NeuralSignature;
+use crate::neural::NeuralSignature;
 
 const EVOLUTION_THRESHOLD: f64 = 0.8;
-const MINIMUM_EVOLUTION_TIME: u64 = 3600; // 1 hour in seconds
+const MINIMUM_EVOLUTION_TIME: u64 = 3600;
 const MAXIMUM_PATTERNS: usize = 1000;
 
 #[derive(Clone, Debug, CandidType, Deserialize, Serialize)]
@@ -21,7 +21,7 @@ pub struct EvolutionMetrics {
     pub last_evolution: u64,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, CandidType, Deserialize, Serialize)]
 struct NeuralPattern {
     signature: NeuralSignature,
     strength: f64,
@@ -29,13 +29,14 @@ struct NeuralPattern {
     complexity: f64,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, CandidType, Deserialize, Serialize)]
 pub struct EvolutionStage {
     level: u32,
     requirements: HashMap<String, f64>,
     quantum_threshold: f64,
 }
 
+#[derive(Clone, Debug, CandidType, Deserialize, Serialize)]
 pub struct NeuralEvolutionEngine {
     patterns: VecDeque<NeuralPattern>,
     current_stage: EvolutionStage,
@@ -115,7 +116,7 @@ impl NeuralEvolutionEngine {
         quantum_state: &QuantumState
     ) -> f64 {
         let base_strength = signature.strength;
-        let quantum_influence = quantum_state.resonance_metrics.field_strength;
+        let quantum_influence = quantum_state.field_strength;
         let coherence_factor = quantum_state.coherence.powf(0.5);
         
         let strength = base_strength * quantum_influence * coherence_factor;
@@ -165,7 +166,7 @@ impl NeuralEvolutionEngine {
         };
         
         // Update quantum resonance history
-        self.quantum_resonance_history.push_back(quantum_state.resonance_metrics.field_strength);
+        self.quantum_resonance_history.push_back(quantum_state.field_strength);
         if self.quantum_resonance_history.len() > 100 {
             self.quantum_resonance_history.pop_front();
         }
@@ -182,7 +183,7 @@ impl NeuralEvolutionEngine {
         self.evolution_metrics.growth_rate = growth_rate;
         self.evolution_metrics.complexity_index = self.calculate_average_complexity();
         self.evolution_metrics.neural_density = self.calculate_neural_density();
-        self.evolution_metrics.quantum_resonance = quantum_state.resonance_metrics.field_strength;
+        self.evolution_metrics.quantum_resonance = quantum_state.field_strength;
         self.evolution_metrics.stability_factor = resonance_stability;
         
         self.last_evolution_check = current_time;
