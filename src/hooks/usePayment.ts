@@ -1,23 +1,9 @@
 import { useState, useCallback } from 'react';
 import { useAuth } from '@/contexts/auth-context';
+import { useQuantumState } from '@/hooks/useQuantumState';
 import { Principal } from '@dfinity/principal';
-
-interface PaymentResult {
-  height: bigint;
-  transactionId: string;
-}
-
-interface PaymentVerification {
-  verified: boolean;
-  timestamp: bigint;
-  status: 'pending' | 'confirmed' | 'failed';
-}
-
-interface PaymentParams {
-  amount: bigint;
-  memo?: bigint;
-  toCanister: Principal;
-}
+import { PaymentResult, PaymentVerification, PaymentParams, TransactionReceipt, QuantumSignedReceipt } from '../types/payment';
+import { ErrorTracker } from '../error/quantum_error';
 
 const PAYMENT_AMOUNTS = {
   Genesis: BigInt(100_000_000), // 1 ICP
@@ -27,13 +13,64 @@ const PAYMENT_AMOUNTS = {
 };
 
 const VERIFICATION_RETRIES = 3;
-const VERIFICATION_INTERVAL = 2000; // 2 seconds
+const VERIFICATION_INTERVAL = 2000;
+const BALANCE_BUFFER = BigInt(10_000_000); // 0.1 ICP safety buffer
 
 export const usePayment = () => {
   const { actor, principal } = useAuth();
+  const { quantumState, updateQuantumState } = useQuantumState();
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastTransaction, setLastTransaction] = useState<PaymentResult | null>(null);
+  const [transactionReceipts] = useState<Map<string, TransactionReceipt>>(new Map());
+
+  const generateQuantumSignature = useCallback(async (transaction: PaymentResult): Promise<QuantumSignedReceipt> => {
+    if (!quantumState) throw new Error('Quantum state not initialized');
+
+    const quantumSignature = {
+      resonance: quantumState.resonance,
+      coherence: quantumState.coherenceLevel,
+      timestamp: Date.now(),
+      transactionHash: `${transaction.height}-${Date.now()}-${Math.random()}`
+    };
+
+    return {
+      ...transaction,
+      quantum: quantumSignature,
+      verified: true,
+      timestamp: BigInt(Date.now())
+    };
+  }, [quantumState]);
+
+  const validateBalance = useCallback(async (amount: bigint): Promise<boolean> => {
+    try {
+      const balance = await getBalance();
+      const requiredAmount = amount + BALANCE_BUFFER;
+      
+      if (balance < requiredAmount) {
+        throw new Error(`Insufficient balance. Need ${Number(requiredAmount) / 100_000_000} ICP (including buffer)`);
+      }
+
+      const stateValid = await validateQuantumState();
+      if (!stateValid) {
+        throw new Error('Quantum state unstable for transaction');
+      }
+
+      return true;
+    } catch (error) {
+      throw error;
+    }
+  }, []);
+
+  const validateQuantumState = useCallback(async (): Promise<boolean> => {
+    if (!quantumState) return false;
+    
+    const minCoherence = 0.7;
+    const minResonance = 0.6;
+
+    return quantumState.coherenceLevel >= minCoherence && 
+           quantumState.resonance >= minResonance;
+  }, [quantumState]);
 
   const getBalance = useCallback(async (): Promise<bigint> => {
     if (!actor || !principal) {
@@ -65,15 +102,12 @@ export const usePayment = () => {
     setError(null);
 
     try {
-      const balance = await getBalance();
-      if (balance < amount) {
-        throw new Error('Insufficient balance');
-      }
+      await validateBalance(amount);
 
       const result = await actor.icrc2_transfer({
         amount,
         to: { owner: toCanister, subaccount: [] },
-        fee: [], // Let the ledger decide the fee
+        fee: [],
         memo: [memo],
         from_subaccount: [],
         created_at_time: [BigInt(Date.now())],
@@ -88,17 +122,26 @@ export const usePayment = () => {
         transactionId: result.Ok.toString(),
       };
 
+      const signedReceipt = await generateQuantumSignature(payment);
+      transactionReceipts.set(payment.transactionId, signedReceipt);
+
       setLastTransaction(payment);
       return payment;
 
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Payment failed';
       setError(errorMessage);
+      ErrorTracker.getInstance().trackError({
+        type: 'PAYMENT_ERROR',
+        message: errorMessage,
+        timestamp: Date.now(),
+        quantum: quantumState
+      });
       throw new Error(errorMessage);
     } finally {
       setIsProcessing(false);
     }
-  }, [actor, principal, getBalance]);
+  }, [actor, principal, validateBalance, generateQuantumSignature, quantumState]);
 
   const verifyPayment = useCallback(async (height: bigint): Promise<PaymentVerification> => {
     if (!actor) {
@@ -112,18 +155,27 @@ export const usePayment = () => {
         const result = await actor.verify_payment(height);
         
         if ('Ok' in result) {
-          return {
+          const quantumSignedResult = await generateQuantumSignature({
+            height,
+            transactionId: height.toString()
+          });
+
+          const verificationResult: PaymentVerification = {
             verified: true,
             timestamp: result.Ok.timestamp,
-            status: 'confirmed'
+            status: 'confirmed',
+            quantumSignature: quantumSignedResult.quantum
           };
+
+          return verificationResult;
         }
 
         if (retries === 1) {
           return {
             verified: false,
             timestamp: BigInt(Date.now()),
-            status: 'failed'
+            status: 'failed',
+            quantumSignature: null
           };
         }
 
@@ -142,9 +194,14 @@ export const usePayment = () => {
     return {
       verified: false,
       timestamp: BigInt(Date.now()),
-      status: 'failed'
+      status: 'failed',
+      quantumSignature: null
     };
-  }, [actor]);
+  }, [actor, generateQuantumSignature]);
+
+  const getTransactionReceipt = useCallback((transactionId: string): TransactionReceipt | undefined => {
+    return transactionReceipts.get(transactionId);
+  }, [transactionReceipts]);
 
   const getPaymentAmount = useCallback((type: keyof typeof PAYMENT_AMOUNTS) => {
     return PAYMENT_AMOUNTS[type];
@@ -157,7 +214,13 @@ export const usePayment = () => {
 
     try {
       const status = await actor.get_transaction_status(transactionId);
-      return status;
+      const receipt = transactionReceipts.get(transactionId);
+      
+      return {
+        ...status,
+        receipt,
+        quantumVerified: receipt?.quantum ? true : false
+      };
     } catch (err) {
       console.error('Failed to get transaction status:', err);
       throw new Error('Transaction status check failed');
@@ -170,6 +233,7 @@ export const usePayment = () => {
     getBalance,
     getPaymentAmount,
     getTransactionStatus,
+    getTransactionReceipt,
     isProcessing,
     error,
     lastTransaction,

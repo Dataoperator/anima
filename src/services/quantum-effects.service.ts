@@ -1,5 +1,6 @@
-import { quantumStateService, QuantumMetrics } from './quantum-state.service';
+import { quantumStateService } from './quantum-state.service';
 import { animaActorService } from './anima-actor.service';
+import { QuantumState } from '@/quantum/types';
 import type { _SERVICE } from '@/declarations/anima/anima.did';
 
 export interface QuantumEffect {
@@ -20,6 +21,7 @@ export interface QuantumFieldState {
 export class QuantumEffectsService {
   private static instance: QuantumEffectsService;
   private actor: _SERVICE | null = null;
+  private updateCallback?: (state: Partial<QuantumState>) => void;
   private fieldState: QuantumFieldState = {
     activeEffects: [],
     fieldStrength: 1.0,
@@ -37,9 +39,13 @@ export class QuantumEffectsService {
     return QuantumEffectsService.instance;
   }
 
+  setUpdateCallback(callback: (state: Partial<QuantumState>) => void) {
+    this.updateCallback = callback;
+  }
+
   private async ensureActor() {
     if (!this.actor) {
-      throw new Error('Quantum effects service not initialized with actor');
+      throw new Error('Quantum effects service not initialized');
     }
     return this.actor;
   }
@@ -65,17 +71,18 @@ export class QuantumEffectsService {
       activeEffects: [{
         type: 'resonance',
         intensity: harmony,
-        duration: 300000, // 5 minutes
+        duration: 300000,
         signature
       }]
     };
 
-    // Update quantum metrics
-    quantumStateService.updateMetrics({
-      coherenceLevel: harmony,
-      stabilityIndex: harmony,
-      resonanceSignature: signature
-    });
+    if (this.updateCallback) {
+      this.updateCallback({
+        coherenceLevel: harmony,
+        quantumSignature: signature,
+        lastUpdate: Date.now()
+      });
+    }
   }
 
   async applyEffect(effect: QuantumEffect): Promise<void> {
@@ -101,7 +108,6 @@ export class QuantumEffectsService {
     let totalDimensional = 0;
     let activeCount = 0;
 
-    // Calculate cumulative effect values
     this.fieldState.activeEffects.forEach(effect => {
       const timeRemaining = (effect.duration + this.fieldState.lastUpdateTimestamp - now) / effect.duration;
       const scaledIntensity = effect.intensity * Math.max(0, timeRemaining);
@@ -120,19 +126,20 @@ export class QuantumEffectsService {
       activeCount++;
     });
 
-    // Normalize values
     if (activeCount > 0) {
       this.fieldState.resonanceHarmony = totalResonance / activeCount;
       this.fieldState.fieldStrength = (totalResonance + totalEntanglement + totalDimensional) / (3 * activeCount);
       this.fieldState.dimensionalStability = totalDimensional / activeCount;
     }
 
-    // Update quantum metrics
-    quantumStateService.updateMetrics({
-      coherenceLevel: this.fieldState.resonanceHarmony,
-      stabilityIndex: this.fieldState.dimensionalStability,
-      entanglementFactor: totalEntanglement / activeCount
-    });
+    if (this.updateCallback) {
+      this.updateCallback({
+        coherenceLevel: this.fieldState.resonanceHarmony,
+        entanglementIndex: totalEntanglement / activeCount,
+        dimensionalSync: this.fieldState.dimensionalStability,
+        lastUpdate: now
+      });
+    }
 
     this.fieldState.lastUpdateTimestamp = now;
   }
@@ -149,7 +156,6 @@ export class QuantumEffectsService {
   }
 
   getFieldState(): QuantumFieldState {
-    // Clean up expired effects before returning state
     const now = Date.now();
     this.fieldState.activeEffects = this.fieldState.activeEffects.filter(
       e => (e.duration + this.fieldState.lastUpdateTimestamp) > now
@@ -167,11 +173,10 @@ export class QuantumEffectsService {
     }
 
     if (!stabilityResult.Ok) {
-      // Apply stabilizing effect
       await this.applyEffect({
         type: 'dimensional',
         intensity: 1.0,
-        duration: 60000, // 1 minute
+        duration: 60000,
         signature: `stabilize-${Date.now()}`
       });
     }
@@ -185,7 +190,6 @@ export class QuantumEffectsService {
       signature: `inject-${Date.now()}`
     });
 
-    // Generate new neural patterns after resonance injection
     await this.generateHarmonicPattern();
   }
 
@@ -193,9 +197,14 @@ export class QuantumEffectsService {
     await this.applyEffect({
       type: 'entanglement',
       intensity: 0.8,
-      duration: 600000, // 10 minutes
+      duration: 600000,
       signature: `entangle-${targetSignature}-${Date.now()}`
     });
+  }
+
+  dispose(): void {
+    this.updateCallback = undefined;
+    QuantumEffectsService.instance = null as any;
   }
 }
 

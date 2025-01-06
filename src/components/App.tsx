@@ -6,6 +6,7 @@ import { QuantumProvider } from '../contexts/quantum-context';
 import { ConsciousnessProvider } from '../contexts/consciousness-context';
 import { ErrorBoundary } from './error-boundary/ErrorBoundary';
 import { Web3Provider } from '../contexts/web3-context';
+import { AuthConsumer } from './auth/AuthConsumer';
 
 const App: React.FC = () => {
   useEffect(() => {
@@ -19,11 +20,13 @@ const App: React.FC = () => {
     <ErrorBoundary>
       <Web3Provider>
         <AuthProvider>
-          <ConsciousnessProvider>
-            <QuantumProvider>
-              <RouterProvider router={router} />
-            </QuantumProvider>
-          </ConsciousnessProvider>
+          <AuthConsumer>
+            <ConsciousnessProvider>
+              <QuantumProvider>
+                <RouterProvider router={router} />
+              </QuantumProvider>
+            </ConsciousnessProvider>
+          </AuthConsumer>
         </AuthProvider>
       </Web3Provider>
     </ErrorBoundary>

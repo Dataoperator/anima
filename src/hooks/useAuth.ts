@@ -1,16 +1,19 @@
 import { useCallback, useEffect, useState } from 'react';
 import { icManager } from '@/ic-init';
+import { Identity } from '@dfinity/principal';
 
 export function useAuth() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [identity, setIdentity] = useState<Identity | null>(null);
 
   const checkAuth = useCallback(async () => {
     try {
-      const identity = icManager.getIdentity();
-      const isAnonymous = identity?.getPrincipal().isAnonymous();
+      const currentIdentity = icManager.getIdentity();
+      const isAnonymous = currentIdentity?.getPrincipal().isAnonymous();
       setIsAuthenticated(!isAnonymous);
+      setIdentity(currentIdentity);
     } catch (err) {
       console.error('Auth check failed:', err);
       setError(err instanceof Error ? err.message : 'Authentication check failed');
@@ -29,6 +32,8 @@ export function useAuth() {
       setError(null);
       const success = await icManager.login();
       if (success) {
+        const currentIdentity = icManager.getIdentity();
+        setIdentity(currentIdentity);
         setIsAuthenticated(true);
         return true;
       }
@@ -48,6 +53,7 @@ export function useAuth() {
       setError(null);
       await icManager.logout();
       setIsAuthenticated(false);
+      setIdentity(null);
     } catch (err) {
       console.error('Logout error:', err);
       setError(err instanceof Error ? err.message : 'Logout failed');
@@ -62,7 +68,8 @@ export function useAuth() {
     error,
     login,
     logout,
-    checkAuth
+    checkAuth,
+    identity
   };
 }
 
