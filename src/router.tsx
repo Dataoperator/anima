@@ -1,5 +1,5 @@
+import React, { lazy, Suspense } from 'react';
 import { createBrowserRouter } from 'react-router-dom';
-import { lazy, Suspense } from 'react';
 import { ErrorBoundary } from './components/error-boundary/ErrorBoundary';
 import { LoadingFallback } from './components/ui/LoadingFallback';
 import { AuthGuard } from './components/auth';

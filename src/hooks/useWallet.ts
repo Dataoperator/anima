@@ -1,22 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from './useAuth';
-import { walletService, WalletState } from '@/services/wallet.service';
-import { transactionHistoryService, Transaction } from '@/services/transaction-history.service';
-
-interface ExtendedWalletState extends WalletState {
-  transactions: Transaction[];
-}
+import { walletService, WalletState, SwapParams } from '@/services/wallet.service';
 
 export function useWallet() {
   const { identity, isAuthenticated } = useAuth();
-  const [walletState, setWalletState] = useState<ExtendedWalletState>({
-    ...walletService.getState(),
-    transactions: []
-  });
+  const [walletState, setWalletState] = useState<WalletState>(walletService.getState());
   const [isInitializing, setIsInitializing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Initialize wallet and transaction history
   const initializeWallet = useCallback(async () => {
     if (!identity || !isAuthenticated) return;
 
@@ -24,16 +15,8 @@ export function useWallet() {
       setIsInitializing(true);
       setError(null);
       
-      await walletService.initialize(identity);
-      
-      // Start transaction polling
-      transactionHistoryService.startPolling(identity);
-      
-      // Update wallet state
-      setWalletState({
-        ...walletService.getState(),
-        transactions: transactionHistoryService.getTransactions()
-      });
+      const state = await walletService.initialize(identity);
+      setWalletState(state);
     } catch (err) {
       console.error('Failed to initialize wallet:', err);
       setError(err instanceof Error ? err.message : 'Failed to initialize wallet');
@@ -43,17 +26,13 @@ export function useWallet() {
     }
   }, [identity, isAuthenticated]);
 
-  // Refresh balance
   const refreshBalance = useCallback(async () => {
     if (!identity || !isAuthenticated) return;
 
     try {
       setError(null);
       await walletService.refreshBalance(identity);
-      setWalletState({
-        ...walletService.getState(),
-        transactions: transactionHistoryService.getTransactions()
-      });
+      setWalletState(walletService.getState());
     } catch (err) {
       console.error('Failed to refresh balance:', err);
       setError(err instanceof Error ? err.message : 'Failed to refresh balance');
@@ -61,65 +40,73 @@ export function useWallet() {
     }
   }, [identity, isAuthenticated]);
 
-  // Subscribe to wallet updates
-  useEffect(() => {
-    if (!isAuthenticated || !identity) return;
-
-    const unsubscribeWallet = walletService.subscribe((state) => {
-      setWalletState(prev => ({
-        ...state,
-        transactions: prev.transactions
-      }));
-    });
-
-    const unsubscribeTransactions = transactionHistoryService.subscribe((transactions) => {
-      setWalletState(prev => ({
-        ...prev,
-        transactions
-      }));
-    });
-
-    return () => {
-      unsubscribeWallet();
-      unsubscribeTransactions();
-      transactionHistoryService.stopPolling();
-    };
-  }, [isAuthenticated, identity]);
-
-  // Initialize wallet when authenticated
-  useEffect(() => {
-    if (isAuthenticated && identity && !walletService.isInitialized()) {
-      initializeWallet().catch(console.error);
+  const getSwapRate = useCallback(async (direction: 'icpToAnima' | 'animaToIcp') => {
+    try {
+      return await walletService.getSwapRate(direction);
+    } catch (err) {
+      console.error('Failed to get swap rate:', err);
+      throw err;
     }
-  }, [isAuthenticated, identity]);
+  }, []);
 
-  // Execute transaction
-  const executeTransaction = useCallback(async (
-    amount: bigint,
-    operation: 'mint' | 'transfer' | 'burn'
-  ) => {
+  const swapTokens = useCallback(async (params: SwapParams) => {
     if (!identity || !isAuthenticated) {
       throw new Error('Not authenticated');
     }
 
     try {
-      setError(null);
-      const transaction = await walletService.executeTransaction(identity, amount, operation);
-      await refreshBalance();
-      return transaction;
+      const result = await walletService.swapTokens(params);
+      if (result.success) {
+        await refreshBalance();
+      }
+      return result;
     } catch (err) {
-      console.error('Transaction failed:', err);
-      setError(err instanceof Error ? err.message : 'Transaction failed');
+      console.error('Failed to swap tokens:', err);
       throw err;
     }
   }, [identity, isAuthenticated, refreshBalance]);
 
+  const mintAnima = useCallback(async (amount: number) => {
+    if (!identity || !isAuthenticated) {
+      throw new Error('Not authenticated');
+    }
+
+    try {
+      const result = await walletService.mintAnima(amount);
+      if (result.success) {
+        await refreshBalance();
+      }
+      return result;
+    } catch (err) {
+      console.error('Failed to mint ANIMA:', err);
+      throw err;
+    }
+  }, [identity, isAuthenticated, refreshBalance]);
+
+  useEffect(() => {
+    if (isAuthenticated && identity && !walletState.isInitialized) {
+      initializeWallet().catch(console.error);
+    }
+  }, [isAuthenticated, identity, walletState.isInitialized, initializeWallet]);
+
+  // Periodic balance refresh
+  useEffect(() => {
+    if (!isAuthenticated || !identity) return;
+
+    const intervalId = setInterval(() => {
+      refreshBalance().catch(console.error);
+    }, 30000); // Every 30 seconds
+
+    return () => clearInterval(intervalId);
+  }, [isAuthenticated, identity, refreshBalance]);
+
   return {
-    wallet: walletState,
+    ...walletState,
     isInitializing,
     error,
-    executeTransaction,
-    initializeWallet,
-    refreshBalance
+    refreshBalance,
+    getSwapRate,
+    swapTokens,
+    mintAnima
   };
 }

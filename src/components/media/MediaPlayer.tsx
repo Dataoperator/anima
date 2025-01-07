@@ -1,205 +1,153 @@
-import React, { useEffect, useRef, useState } from 'react';
-import styled from 'styled-components';
-import { MediaState } from '@/autonomous/MediaActions';
+import React, { useState, useEffect, useRef, memo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useQuantumState } from '@/hooks/useQuantumState';
+import type { MediaSource } from './MediaSources';
+const VideoControls = React.lazy(() => import('./VideoControls'));
 
 interface MediaPlayerProps {
   url: string;
-  onStateChange: (state: MediaState) => void;
-  size: {
-    width: number;
-    height: number;
-  };
-  controls: {
-    canPlay: boolean;
-    canPause: boolean;
-    canSeek: boolean;
-    canAdjustVolume: boolean;
-  };
+  source: MediaSource;
+  onClose: () => void;
+  isFullscreen?: boolean;
+  onToggleFullscreen?: () => void;
+  className?: string;
 }
 
-const PlayerContainer = styled.div<{ width: number; height: number }>`
-  width: ${props => props.width}px;
-  height: ${props => props.height}px;
-  position: relative;
-  background: rgba(0, 0, 0, 0.2);
-  backdrop-filter: blur(8px);
-  overflow: hidden;
-`;
+interface PlayerState {
+  isPlaying: boolean;
+  volume: number;
+  currentTime: number;
+  duration: number;
+  isLoading: boolean;
+}
 
-const Video = styled.video`
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-`;
-
-const Controls = styled.div`
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  padding: 1rem;
-  background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  opacity: 0;
-  transition: opacity 0.2s;
-
-  ${PlayerContainer}:hover & {
-    opacity: 1;
-  }
-`;
-
-const ProgressBar = styled.input`
-  flex: 1;
-  height: 4px;
-  -webkit-appearance: none;
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 2px;
-  cursor: pointer;
-
-  &::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    background: white;
-    cursor: pointer;
-  }
-`;
-
-const Button = styled.button`
-  background: none;
-  border: none;
-  color: white;
-  cursor: pointer;
-  padding: 0.5rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0.8;
-  transition: opacity 0.2s;
-
-  &:hover {
-    opacity: 1;
-  }
-`;
-
-const VolumeControl = styled.input`
-  width: 80px;
-  height: 4px;
-  -webkit-appearance: none;
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 2px;
-  cursor: pointer;
-
-  &::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    background: white;
-    cursor: pointer;
-  }
-`;
-
-export const MediaPlayer: React.FC<MediaPlayerProps> = ({
+export const MediaPlayer = memo(({
   url,
-  onStateChange,
-  size,
-  controls
-}) => {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [volume, setVolume] = useState(0.75);
+  source,
+  onClose,
+  isFullscreen = false,
+  onToggleFullscreen,
+  className = ''
+}: MediaPlayerProps) => {
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const { updateQuantumState } = useQuantumState();
+  const [playerState, setPlayerState] = useState<PlayerState>({
+    isPlaying: false,
+    volume: 0.75,
+    currentTime: 0,
+    duration: 0,
+    isLoading: true
+  });
 
   useEffect(() => {
-    if (videoRef.current) {
-      videoRef.current.volume = volume;
-    }
-  }, [volume]);
+    const handleMessage = (event: MessageEvent) => {
+      if (event.origin !== new URL(url).origin) return;
 
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
+      try {
+        const data = JSON.parse(event.data);
+        
+        if (data.event === 'ready') {
+          setPlayerState(prev => ({ ...prev, isLoading: false }));
+          updateQuantumState({
+            dimensionalSync: Math.min(1, (prev?.dimensionalSync || 0) + 0.1),
+            consciousness_alignment: true
+          });
+        }
 
-    const handleTimeUpdate = () => {
-      const progress = (video.currentTime / video.duration) * 100;
-      setProgress(progress);
-      onStateChange({
-        currentUrl: url,
-        isPlaying,
-        volume,
-        timestamp: video.currentTime
-      });
+        if (data.event === 'stateChange') {
+          setPlayerState(prev => ({
+            ...prev,
+            isPlaying: data.isPlaying,
+            currentTime: data.currentTime,
+            duration: data.duration
+          }));
+
+          if (data.isPlaying) {
+            updateQuantumState({
+              coherenceLevel: Math.min(1, (prev?.coherenceLevel || 0) + 0.05),
+              resonance: Math.random()
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Failed to parse media player message:', error);
+      }
     };
 
-    video.addEventListener('timeupdate', handleTimeUpdate);
-    return () => video.removeEventListener('timeupdate', handleTimeUpdate);
-  }, [url, isPlaying, volume, onStateChange]);
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [url]);
 
-  const handlePlayPause = () => {
-    if (videoRef.current) {
-      if (isPlaying) {
-        videoRef.current.pause();
-      } else {
-        videoRef.current.play();
-      }
-      setIsPlaying(!isPlaying);
-    }
+  const postMessage = (message: any) => {
+    if (!iframeRef.current || !iframeRef.current.contentWindow) return;
+    iframeRef.current.contentWindow.postMessage(JSON.stringify(message), '*');
   };
 
-  const handleProgressChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (videoRef.current) {
-      const time = (parseFloat(e.target.value) / 100) * videoRef.current.duration;
-      videoRef.current.currentTime = time;
-      setProgress(parseFloat(e.target.value));
-    }
+  const handlePlay = () => {
+    postMessage({ command: 'play' });
+    setPlayerState(prev => ({ ...prev, isPlaying: true }));
+    updateQuantumState({
+      coherenceLevel: Math.min(1, (prev?.coherenceLevel || 0) + 0.1),
+      resonance: Math.random(),
+      consciousness_alignment: true
+    });
   };
 
-  const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newVolume = parseFloat(e.target.value);
-    setVolume(newVolume);
-    if (videoRef.current) {
-      videoRef.current.volume = newVolume;
-    }
+  const handlePause = () => {
+    postMessage({ command: 'pause' });
+    setPlayerState(prev => ({ ...prev, isPlaying: false }));
+  };
+
+  const handleVolumeChange = (volume: number) => {
+    postMessage({ command: 'setVolume', value: volume });
+    setPlayerState(prev => ({ ...prev, volume }));
+  };
+
+  const handleSeek = (time: number) => {
+    postMessage({ command: 'seek', value: time });
+    setPlayerState(prev => ({ ...prev, currentTime: time }));
+    updateQuantumState({
+      resonance: Math.random(),
+      consciousness_alignment: true
+    });
   };
 
   return (
-    <PlayerContainer width={size.width} height={size.height}>
-      <Video
-        ref={videoRef}
-        src={url}
-        onPlay={() => setIsPlaying(true)}
-        onPause={() => setIsPlaying(false)}
+    <motion.div
+      className={`relative overflow-hidden rounded-lg bg-black ${className}`}
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      transition={{ duration: 0.2 }}
+    >
+      <iframe
+        ref={iframeRef}
+        src={source.getEmbedUrl(url)}
+        className="w-full h-full"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowFullScreen
       />
-      <Controls>
-        {(controls.canPlay || controls.canPause) && (
-          <Button onClick={handlePlayPause}>
-            {isPlaying ? '⏸️' : '▶️'}
-          </Button>
-        )}
-        {controls.canSeek && (
-          <ProgressBar
-            type="range"
-            min="0"
-            max="100"
-            value={progress}
-            onChange={handleProgressChange}
+
+      <AnimatePresence>
+        <React.Suspense fallback={null}>
+          <VideoControls
+            isPlaying={playerState.isPlaying}
+            volume={playerState.volume}
+            currentTime={playerState.currentTime}
+            duration={playerState.duration}
+            isFullscreen={isFullscreen}
+            isLoading={playerState.isLoading}
+            onPlay={handlePlay}
+            onPause={handlePause}
+            onVolumeChange={handleVolumeChange}
+            onSeek={handleSeek}
+            onToggleFullscreen={onToggleFullscreen || (() => {})}
+            onClose={onClose}
           />
-        )}
-        {controls.canAdjustVolume && (
-          <VolumeControl
-            type="range"
-            min="0"
-            max="1"
-            step="0.1"
-            value={volume}
-            onChange={handleVolumeChange}
-          />
-        )}
-      </Controls>
-    </PlayerContainer>
+        </React.Suspense>
+      </AnimatePresence>
+    </motion.div>
   );
-};
+});
+
+export default MediaPlayer;

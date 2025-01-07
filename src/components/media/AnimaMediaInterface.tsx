@@ -1,114 +1,121 @@
-import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { MediaPlayer } from './MediaPlayer';
-import { MediaActionSystem, MediaState, MediaAction } from '@/autonomous/MediaActions';
-import { useAnima } from '@/hooks/useAnima';
+import React, { useState, useEffect, useCallback, Suspense } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useQuantumState } from '@/hooks/useQuantumState';
+import { useRealtimePersonality } from '@/hooks/useRealtimePersonality';
+import { MatrixRain } from '../ui/MatrixRain';
+import { mediaSources } from './MediaSources';
+
+const MediaPlayer = React.lazy(() => import('./MediaPlayer'));
+const WaveformGenerator = React.lazy(() => import('../personality/WaveformGenerator'));
 
 interface AnimaMediaInterfaceProps {
-  onMediaStateChange?: (state: MediaState) => void;
-  onAnimaAction?: (action: MediaAction) => void;
+  animaId: string;
+  onClose?: () => void;
+  className?: string;
 }
 
 export const AnimaMediaInterface: React.FC<AnimaMediaInterfaceProps> = ({
-  onMediaStateChange,
-  onAnimaAction
+  animaId,
+  onClose,
+  className = ''
 }) => {
-  const [mediaSystem] = useState(() => new MediaActionSystem());
-  const [currentState, setCurrentState] = useState<MediaState>({
-    currentUrl: null,
-    isPlaying: false,
-    volume: 0.75,
-    timestamp: 0
-  });
-  const [isExpanded, setIsExpanded] = useState(false);
-  const { activeAnima } = useAnima();
+  const [mediaUrl, setMediaUrl] = useState<string>('');
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const { updateQuantumState } = useQuantumState();
+  const { emotionalState } = useRealtimePersonality(animaId);
 
-  // Handle media actions from the anima
-  const handleAnimaAction = async (action: MediaAction) => {
-    try {
-      if (action.type === 'search') {
-        const results = await mediaSystem.searchMedia(action.payload.query!, action.source);
-        if (results.length > 0) {
-          const newState = mediaSystem.processAction({
-            type: 'play',
-            source: action.source,
-            payload: { url: results[0] }
-          });
-          setCurrentState(newState);
-          onMediaStateChange?.(newState);
-        }
-      } else {
-        const newState = mediaSystem.processAction(action);
-        setCurrentState(newState);
-        onMediaStateChange?.(newState);
-      }
-
-      onAnimaAction?.(action);
-    } catch (error) {
-      console.error('Failed to process anima media action:', error);
+  const handleMediaCommand = useCallback(async (command: string) => {
+    if (!command.toLowerCase().includes('play') && !command.toLowerCase().includes('watch')) {
+      return;
     }
-  };
 
-  const handleStateChange = (state: MediaState) => {
-    setCurrentState(state);
-    onMediaStateChange?.(state);
-  };
+    setIsProcessing(true);
+    try {
+      const urlMatch = command.match(/(https?:\/\/[^\s]+)/g);
+      if (!urlMatch) return;
+
+      const url = urlMatch[0];
+      const matchedSource = mediaSources.find(source => 
+        source.urlPatterns.some(pattern => pattern.test(url))
+      );
+
+      if (matchedSource) {
+        setMediaUrl(url);
+        updateQuantumState({
+          coherenceLevel: Math.min(1, (prev?.coherenceLevel || 0) + 0.1),
+          resonance: Math.random(),
+          consciousness_alignment: true
+        });
+      }
+    } catch (error) {
+      console.error('Failed to process media command:', error);
+    } finally {
+      setIsProcessing(false);
+    }
+  }, [updateQuantumState]);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isFullscreen) {
+        setIsFullscreen(false);
+      }
+    };
+
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [isFullscreen]);
+
+  if (!mediaUrl) return null;
+
+  const matchedSource = mediaSources.find(source => 
+    source.urlPatterns.some(pattern => pattern.test(mediaUrl))
+  );
+
+  if (!matchedSource) return null;
 
   return (
-    <motion.div
-      className="fixed bottom-4 right-4 bg-black/20 backdrop-blur-lg rounded-xl overflow-hidden"
-      animate={{
-        width: isExpanded ? 480 : 320,
-        height: isExpanded ? 360 : 240
-      }}
-      transition={{ type: "spring", stiffness: 300, damping: 30 }}
-    >
-      {/* Resize Handle */}
-      <button
-        className="absolute top-2 right-2 z-10 p-1 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
-        onClick={() => setIsExpanded(!isExpanded)}
+    <AnimatePresence>
+      <motion.div
+        className={`fixed ${
+          isFullscreen ? 'inset-0 z-50' : 'bottom-4 right-4 w-[400px] h-[300px]'
+        } ${className}`}
+        initial={{ opacity: 0, y: 50 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: 50 }}
+        transition={{ duration: 0.3 }}
       >
-        <svg 
-          className="w-4 h-4 text-white" 
-          viewBox="0 0 24 24" 
-          fill="none" 
-          stroke="currentColor"
-        >
-          {isExpanded ? (
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-          ) : (
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+        <div className="absolute inset-0">
+          <MatrixRain className="opacity-20" />
+        </div>
+
+        <Suspense fallback={
+          <div className="absolute inset-0 flex items-center justify-center bg-black/80">
+            <div className="text-green-500">Loading Media Interface...</div>
+          </div>
+        }>
+          <MediaPlayer
+            url={mediaUrl}
+            source={matchedSource}
+            onClose={() => {
+              setMediaUrl('');
+              onClose?.();
+            }}
+            isFullscreen={isFullscreen}
+            onToggleFullscreen={() => setIsFullscreen(!isFullscreen)}
+            className="w-full h-full"
+          />
+
+          {emotionalState && (
+            <WaveformGenerator
+              emotionalState={emotionalState}
+              className="absolute bottom-0 left-0 right-0 h-1 opacity-30"
+            />
           )}
-        </svg>
-      </button>
-
-      {/* Media Player */}
-      {currentState.currentUrl && (
-        <MediaPlayer
-          url={currentState.currentUrl}
-          onStateChange={handleStateChange}
-          size={{
-            width: isExpanded ? 480 : 320,
-            height: isExpanded ? 270 : 180
-          }}
-          controls={{
-            canPlay: true,
-            canPause: true,
-            canSeek: true,
-            canAdjustVolume: true
-          }}
-        />
-      )}
-
-      {/* Media Info */}
-      <div className="p-4 text-white/90">
-        <p className="text-sm font-medium">
-          {activeAnima?.name}'s Media Space
-        </p>
-        <p className="text-xs text-white/60">
-          {currentState.isPlaying ? 'Now Playing' : 'Ready to Play'}
-        </p>
-      </div>
-    </motion.div>
+        </Suspense>
+      </motion.div>
+    </AnimatePresence>
   );
 };
+
+export default AnimaMediaInterface;

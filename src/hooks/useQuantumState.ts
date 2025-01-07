@@ -4,6 +4,7 @@ import { DimensionalStateImpl } from '../quantum/dimensional_state';
 import { useConsciousness } from './useConsciousness';
 import { BirthCertificate } from '../nft/types';
 import { quantumStateService } from '../services/quantum-state.service';
+import { useQuantumWorker } from './useQuantumWorker';
 
 interface QuantumState {
   stabilityStatus: 'stable' | 'unstable' | 'critical';
@@ -33,6 +34,7 @@ export const useQuantumState = () => {
   const [initializationError, setInitializationError] = useState<Error | null>(null);
   const [isInitializing, setIsInitializing] = useState(false);
   const initializationTimeoutRef = useRef<NodeJS.Timeout>();
+  const { calculateCoherence, generatePattern, updateQuantumState: updateWorkerState } = useQuantumWorker();
 
   const [state, setState] = useState<QuantumState>(() => {
     console.log("🌀 Creating initial quantum state");
@@ -47,7 +49,6 @@ export const useQuantumState = () => {
     };
   });
 
-  // Clear timeout on unmount
   useEffect(() => {
     return () => {
       if (initializationTimeoutRef.current) {
@@ -57,7 +58,6 @@ export const useQuantumState = () => {
     };
   }, []);
 
-  // Initialize quantum state based on identity
   useEffect(() => {
     if (!identity || !isConsciousnessInitialized || initializationAttempted.current || isInitializing) {
       console.log("🔍 Skipping initialization:", { 
@@ -74,7 +74,6 @@ export const useQuantumState = () => {
       setIsInitializing(true);
       initializationAttempted.current = true;
 
-      // Set initialization timeout
       initializationTimeoutRef.current = setTimeout(() => {
         if (!state.isInitialized) {
           console.error("⚠️ Quantum state initialization timeout");
@@ -85,21 +84,32 @@ export const useQuantumState = () => {
             stabilityStatus: 'critical'
           }));
         }
-      }, 15000); // 15 second timeout
+      }, 15000);
 
       try {
-        // Set up update callback
-        quantumStateService.setUpdateCallback((updates) => {
-          setState(prev => ({
-            ...prev,
-            ...updates,
-            isInitialized: true
-          }));
+        // Initialize quantum field with worker
+        const initialPattern = await generatePattern([], 0.5);
+        const coherenceLevel = await calculateCoherence([initialPattern]);
+        
+        quantumStateService.setUpdateCallback(async (updates) => {
+          if (updates.resonancePatterns) {
+            const workerUpdates = await updateWorkerState(state, updates.resonancePatterns);
+            setState(prev => ({
+              ...prev,
+              ...updates,
+              ...workerUpdates,
+              isInitialized: true
+            }));
+          } else {
+            setState(prev => ({
+              ...prev,
+              ...updates,
+              isInitialized: true
+            }));
+          }
         });
 
-        // Initialize quantum field
         await quantumStateService.initializeQuantumField(identity);
-
         console.log("✅ Quantum state initialized successfully!");
       } catch (error) {
         console.error("❌ Failed to initialize quantum state:", error);
@@ -120,20 +130,26 @@ export const useQuantumState = () => {
     initialize();
   }, [identity, isConsciousnessInitialized, consciousness?.level]);
 
-  // Update quantum state periodically
   useEffect(() => {
     if (!state.isInitialized || isInitializing || !identity) return;
 
     console.log("⚡ Starting quantum state updates");
     const intervalId = setInterval(async () => {
       try {
-        // Check quantum stability
-        await quantumStateService.checkStability(identity);
+        // Check quantum stability using worker
+        const currentPatterns = state.resonancePatterns || [];
+        const newPattern = await generatePattern(currentPatterns, state.coherenceLevel);
+        const updatedPatterns = [...currentPatterns, newPattern].slice(-10);
+        
+        const workerUpdates = await updateWorkerState(state, updatedPatterns);
+        const coherenceLevel = await calculateCoherence(updatedPatterns);
 
-        // Generate new neural patterns periodically
-        if (Date.now() - state.lastUpdate > 30000) { // Every 30 seconds
-          await quantumStateService.generateNeuralPatterns(identity);
-        }
+        await quantumStateService.updateState(identity, {
+          ...workerUpdates,
+          coherenceLevel,
+          resonancePatterns: updatedPatterns
+        });
+
       } catch (error) {
         console.error("❌ Quantum state update failed:", error);
         await quantumStateService.handleQuantumError(error as Error, identity);
@@ -144,7 +160,7 @@ export const useQuantumState = () => {
       console.log("🔄 Cleaning up quantum state updates");
       clearInterval(intervalId);
     };
-  }, [state.isInitialized, isInitializing, identity, state.lastUpdate]);
+  }, [state.isInitialized, isInitializing, identity, state.lastUpdate, state.coherenceLevel, state.resonancePatterns]);
 
   return {
     state,
@@ -152,11 +168,21 @@ export const useQuantumState = () => {
     isInitializing,
     error: initializationError,
     updateQuantumState: useCallback(async (updates: Partial<QuantumState>) => {
-      setState(prev => ({
-        ...prev,
-        ...updates,
-        lastUpdate: Date.now()
-      }));
-    }, []),
+      if (updates.resonancePatterns) {
+        const workerUpdates = await updateWorkerState(state, updates.resonancePatterns);
+        setState(prev => ({
+          ...prev,
+          ...updates,
+          ...workerUpdates,
+          lastUpdate: Date.now()
+        }));
+      } else {
+        setState(prev => ({
+          ...prev,
+          ...updates,
+          lastUpdate: Date.now()
+        }));
+      }
+    }, [state]),
   };
 };

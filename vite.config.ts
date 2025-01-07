@@ -5,10 +5,10 @@ import path from 'path';
 export default defineConfig({
   plugins: [
     react({
-      jsxRuntime: 'classic',
+      jsxRuntime: 'automatic',
       babel: {
         plugins: [
-          ['@babel/plugin-transform-react-jsx', { runtime: 'classic' }]
+          ['@babel/plugin-transform-react-jsx', { runtime: 'automatic' }]
         ]
       }
     })
@@ -20,8 +20,7 @@ export default defineConfig({
       'buffer': 'buffer',
       'util': 'util',
       'process': 'process/browser',
-      'react/jsx-runtime': 'react/jsx-runtime.js',
-      'react/jsx-dev-runtime': 'react/jsx-dev-runtime.js'
+      'react': 'react'
     }
   },
   define: {
@@ -39,13 +38,16 @@ export default defineConfig({
     sourcemap: true,
     commonjsOptions: {
       include: [/node_modules/],
-      transformMixedEsModules: true
+      transformMixedEsModules: true,
+      defaultIsModuleExports: true
     },
     rollupOptions: {
       external: ['@dfinity/nns-proto', 'fsevents'],
       output: {
         globals: {
-          '@dfinity/nns-proto': 'dfinity_nns_proto'
+          '@dfinity/nns-proto': 'dfinity_nns_proto',
+          'react': 'React',
+          'react-dom': 'ReactDOM'
         },
         format: 'es'
       }
@@ -75,6 +77,7 @@ export default defineConfig({
       define: {
         global: 'globalThis'
       },
+      jsx: 'automatic',
       platform: 'browser'
     }
   }
