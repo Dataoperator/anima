@@ -1,9 +1,13 @@
+import './polyfills';  // Must be first import
 import React, { Suspense } from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
 
+// Ensure React is initialized globally for context creation
+window.React = React;
+
 // Import components directly to avoid lazy loading issues
-import App from './components/App';
+import App from './App';
 import { ErrorBoundary } from './components/error-boundary/ErrorBoundary';
 import { LoadingFallback } from './components/ui/LoadingFallback';
 
@@ -38,7 +42,6 @@ async function initializeApp() {
       throw new Error('Root element not found');
     }
 
-    // Create root directly
     const root = ReactDOM.createRoot(rootElement);
 
     root.render(

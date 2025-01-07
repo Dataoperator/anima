@@ -7,3 +7,5 @@ export { TransactionHistory } from './TransactionHistory';
 export { QuantumParticle } from './QuantumParticle';
 export { NeuralActivityVisualizer } from './NeuralActivityVisualizer';
 export { DepositModal } from './DepositModal';
+export { MetricsVisualizer } from './MetricsVisualizer';
+export { TemporalAwarenessDisplay } from './TemporalAwarenessDisplay';

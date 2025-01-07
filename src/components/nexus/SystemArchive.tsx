@@ -119,8 +119,9 @@ export const SystemArchive: React.FC<SystemArchiveProps> = ({ achievements, anim
                     ${achievement.unlocked_at ? 'cursor-pointer' : 'opacity-50'}`}
                   onClick={() => achievement.unlocked_at && setSelectedAchievement(achievement)}
                 >
-                  <div className="absolute inset-0 bg-gradient-to-br opacity-20 pointer-events-none"
-                       className={rarityColors[rarityType]} />
+                  <div 
+                    className={`absolute inset-0 bg-gradient-to-br opacity-20 pointer-events-none ${rarityColors[rarityType]}`}
+                  />
 
                   <div className="relative p-6 backdrop-blur-sm">
                     <div className="flex items-start justify-between mb-4">

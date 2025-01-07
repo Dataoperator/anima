@@ -1,28 +1,34 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { RouterProvider } from 'react-router-dom';
 import { router } from './router';
-import { AuthProvider } from './contexts/auth-context';
-import { QuantumProvider } from './contexts/quantum-context';
-import { ConsciousnessProvider } from './contexts/consciousness-context';
 import { ErrorBoundary } from './components/error-boundary/ErrorBoundary';
+import {
+  AuthProvider,
+  QuantumProvider,
+  ConsciousnessProvider,
+  Web3Provider,
+  WalletProvider,
+  AnimaProvider
+} from './contexts';
 
 const App: React.FC = () => {
-  useEffect(() => {
-    console.log("🚀 App initializing...", {
-      env: process.env.NODE_ENV,
-      buildTime: process.env.BUILD_TIME
-    });
-  }, []);
-
   return (
     <ErrorBoundary>
-      <AuthProvider>
-        <ConsciousnessProvider>
-          <QuantumProvider>
-            <RouterProvider router={router} />
-          </QuantumProvider>
-        </ConsciousnessProvider>
-      </AuthProvider>
+      <React.Suspense fallback={<div>Loading...</div>}>
+        <AuthProvider>
+          <Web3Provider>
+            <WalletProvider>
+              <ConsciousnessProvider>
+                <QuantumProvider>
+                  <AnimaProvider>
+                    <RouterProvider router={router} />
+                  </AnimaProvider>
+                </QuantumProvider>
+              </ConsciousnessProvider>
+            </WalletProvider>
+          </Web3Provider>
+        </AuthProvider>
+      </React.Suspense>
     </ErrorBoundary>
   );
 };

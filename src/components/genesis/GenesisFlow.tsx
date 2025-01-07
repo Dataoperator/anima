@@ -1,6 +1,6 @@
 import React, { Suspense } from 'react';
 import { motion } from 'framer-motion';
-import { Loading } from '../ui/Loading';
+import { LoadingStates } from '../ui/LoadingStates';
 
 const EnhancedGenesis = React.lazy(() => import('./EnhancedGenesis'));
 const GenesisRitual = React.lazy(() => import('./GenesisRitual'));
@@ -15,7 +15,7 @@ const GenesisFlow: React.FC = () => {
             exit={{ opacity: 0 }}
             className="min-h-screen bg-black text-cyan-50"
         >
-            <Suspense fallback={<Loading />}>
+            <Suspense fallback={<LoadingStates />}>
                 <div className="container mx-auto px-4 py-8">
                     <div className="space-y-8">
                         <EnhancedGenesis />

@@ -9,8 +9,12 @@ const LandingPage = lazy(() => import('./components/pages/LandingPage'));
 const QuantumVault = lazy(() => import('./components/quantum-vault/CyberpunkQuantumVault'));
 const GenesisPage = lazy(() => import('./components/pages/GenesisPage'));
 const AnimaPage = lazy(() => import('./components/pages/AnimaPage'));
-const EnhancedNeuralLinkPage = lazy(() => import('./components/pages/EnhancedNeuralLinkPage'));
 const Wallet = lazy(() => import('./components/ui/Wallet'));
+
+// Neural Link Components
+const IntegratedNeuralLinkInterface = lazy(
+  () => import('./components/neural-link/IntegratedNeuralLinkInterface')
+);
 
 const withSuspense = (Component: React.ComponentType) => (
   <Suspense fallback={<LoadingFallback />}>
@@ -42,7 +46,7 @@ export const router = createBrowserRouter([
       },
       {
         path: '/neural-link/:id?',
-        element: withSuspense(EnhancedNeuralLinkPage),
+        element: withSuspense(IntegratedNeuralLinkInterface),
       },
       {
         path: '/wallet',

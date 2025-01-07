@@ -1,8 +1,8 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { AuthClient } from '@dfinity/auth-client';
 import { Principal } from '@dfinity/principal';
-import { ErrorTracker } from '@/error/quantum_error';
-import { icManager } from '@/ic-init';
+import { ErrorTracker } from '../error/quantum_error';  // Updated path
+import { icManager } from '../ic-init';  // Updated path
 
 interface AuthContextType {
   authClient: AuthClient | null;

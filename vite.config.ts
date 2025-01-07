@@ -1,76 +1,81 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import { nodePolyfills } from 'vite-plugin-node-polyfills';
 import path from 'path';
 
 export default defineConfig({
   plugins: [
-    react(),
-    nodePolyfills({
-      include: ['buffer', 'stream', 'util']
+    react({
+      jsxRuntime: 'classic',
+      babel: {
+        plugins: [
+          ['@babel/plugin-transform-react-jsx', { runtime: 'classic' }]
+        ]
+      }
     })
   ],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
-      'qrcode': path.resolve(__dirname, 'node_modules/qrcode')
+      'stream': 'stream-browserify',
+      'buffer': 'buffer',
+      'util': 'util',
+      'process': 'process/browser',
+      'react/jsx-runtime': 'react/jsx-runtime.js',
+      'react/jsx-dev-runtime': 'react/jsx-dev-runtime.js'
     }
   },
   define: {
     'process.env': {
       NODE_ENV: JSON.stringify(process.env.NODE_ENV || 'production'),
-      DFX_NETWORK: JSON.stringify('ic'),
-      CANISTER_ID_ANIMA: JSON.stringify('l2ilz-iqaaa-aaaaj-qngjq-cai'),
-      CANISTER_ID_ANIMA_ASSETS: JSON.stringify('lpp2u-jyaaa-aaaaj-qngka-cai')
+      DFX_NETWORK: JSON.stringify(process.env.DFX_NETWORK || 'ic'),
+      CANISTER_ID_ANIMA: JSON.stringify(process.env.CANISTER_ID_ANIMA),
+      CANISTER_ID_ANIMA_ASSETS: JSON.stringify(process.env.CANISTER_ID_ANIMA_ASSETS)
     },
-    global: 'window'
+    global: 'globalThis',
+    _global: 'globalThis'
   },
   build: {
     target: 'esnext',
     sourcemap: true,
     commonjsOptions: {
+      include: [/node_modules/],
       transformMixedEsModules: true
     },
     rollupOptions: {
+      external: ['@dfinity/nns-proto', 'fsevents'],
       output: {
-        manualChunks: {
-          'quantum-vault': [
-            './src/components/quantum-vault/CyberpunkQuantumVault.tsx',
-            './src/components/quantum-vault/QuantumStateVisualizer.tsx',
-            './src/components/quantum-vault/QuantumInteractions.tsx',
-            './src/components/quantum-vault/QuantumVaultGrid.tsx'
-          ],
-          'neural-link': [
-            './src/components/neural-link/IntegratedNeuralLinkInterface.tsx',
-            './src/components/neural-link/ImmersiveInterface.tsx',
-            './src/components/neural-link/NeuralPatternVisualizer.tsx'
-          ],
-          'genesis': [
-            './src/components/genesis/GenesisFlow.tsx',
-            './src/components/genesis/GenesisRitual.tsx',
-            './src/components/genesis/EnhancedGenesis.tsx',
-            './src/components/genesis/InitialDesignation.jsx',
-            './src/components/genesis/DesignationGenerator.jsx'
-          ],
-          'vendor': [
-            'react',
-            'react-dom',
-            'react-router-dom',
-            'framer-motion',
-            '@dfinity/agent',
-            '@dfinity/auth-client'
-          ]
-        }
+        globals: {
+          '@dfinity/nns-proto': 'dfinity_nns_proto'
+        },
+        format: 'es'
       }
-    },
-    chunkSizeWarningLimit: 600
+    }
   },
   optimizeDeps: {
+    include: [
+      'react',
+      'react-dom',
+      'react-router',
+      'react-router-dom',
+      '@dfinity/agent',
+      '@dfinity/auth-client',
+      '@dfinity/principal',
+      '@dfinity/candid',
+      '@dfinity/identity',
+      '@dfinity/ledger-icp',
+      'buffer',
+      'process/browser',
+      'events',
+      'util',
+      'stream-browserify'
+    ],
     esbuildOptions: {
       target: 'esnext',
-      supported: { 
-        bigint: true 
-      }
+      supported: { bigint: true },
+      define: {
+        global: 'globalThis'
+      },
+      platform: 'browser'
     }
   }
 });

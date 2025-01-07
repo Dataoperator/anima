@@ -1,10 +1,11 @@
 import React, { useEffect, useRef } from 'react';
-import * as QRCodeLib from 'qrcode/lib/browser';
+import QRCode from 'qrcode';
 
 interface QRCodeProps {
   value: string;
   size?: number;
-  level?: string;
+  level?: 'L' | 'M' | 'Q' | 'H';
+  includeMargin?: boolean;
   className?: string;
 }
 
@@ -12,34 +13,24 @@ export const QRCodeCanvas: React.FC<QRCodeProps> = ({
   value,
   size = 200,
   level = 'H',
-  className = ''
+  includeMargin = true,
+  className = '',
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     if (!canvasRef.current) return;
 
-    QRCodeLib.toCanvas(canvasRef.current, value, {
+    QRCode.toCanvas(canvasRef.current, value, {
       width: size,
-      margin: 2,
-      errorCorrectionLevel: level as any,
+      margin: includeMargin ? 4 : 0,
+      errorCorrectionLevel: level,
       color: {
-        dark: '#8B5CF6', // Tailwind purple-500
-        light: '#FFFFFF'
-      }
-    }).catch(error => {
-      console.error('QR Code generation error:', error);
-    });
-  }, [value, size, level]);
+        dark: '#000',
+        light: '#fff',
+      },
+    }).catch(console.error);
+  }, [value, size, level, includeMargin]);
 
-  return (
-    <canvas
-      ref={canvasRef}
-      className={className}
-      width={size}
-      height={size}
-    />
-  );
+  return <canvas ref={canvasRef} className={className} />;
 };
-
-export default QRCodeCanvas;

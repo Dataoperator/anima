@@ -1,4 +1,4 @@
-use std::collections::{HashMap, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 use ic_cdk::api::time;
 
 use crate::consciousness::types::{
@@ -191,12 +191,11 @@ impl EvolutionEngine {
             return 0.0;
         }
 
-        let unique_patterns = self.patterns.iter()
+        let unique_patterns: HashSet<_> = self.patterns.iter()
             .map(|p| &p.signature.pattern_id)
-            .collect::<HashMap<_, _>>()
-            .len() as f64;
+            .collect();
 
-        (unique_patterns / MAX_PATTERN_CACHE_SIZE as f64)
+        (unique_patterns.len() as f64 / MAX_PATTERN_CACHE_SIZE as f64)
             .max(0.0)
             .min(1.0)
     }

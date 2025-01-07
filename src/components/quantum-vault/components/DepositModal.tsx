@@ -4,7 +4,7 @@ import { Copy, Wallet, ExternalLink, QrCode, RefreshCw, History } from 'lucide-r
 import { useAuth } from '@/hooks/useAuth';
 import { useWallet } from '@/hooks/useWallet';
 import { TransactionHistory } from './TransactionHistory';
-import QRCode from 'qrcode.react';
+import { QRCodeCanvas } from '@/components/ui/QRCode';
 
 interface Props {
   isOpen: boolean;
@@ -128,11 +128,12 @@ export const DepositModal: React.FC<Props> = ({ isOpen, onClose }) => {
                         exit={{ opacity: 0, height: 0 }}
                         className="flex justify-center p-4 bg-white rounded-lg"
                       >
-                        <QRCode 
+                        <QRCodeCanvas 
                           value={principalId}
                           size={200}
                           level="H"
                           includeMargin={true}
+                          className="w-full max-w-[200px]"
                         />
                       </motion.div>
                     )}

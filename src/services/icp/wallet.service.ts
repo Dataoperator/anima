@@ -1,5 +1,5 @@
 import { Principal } from '@dfinity/principal';
-import { AccountIdentifier } from '@dfinity/nns';
+import { AccountIdentifier } from '@dfinity/ledger-icp';
 import { Actor } from '@dfinity/agent';
 import { idlFactory } from './ledger.did';
 import { ErrorTracker, ErrorCategory, ErrorSeverity } from '@/services/error-tracker';

@@ -5,8 +5,7 @@ import { useGenesisSound } from '../../hooks/useGenesisSound';
 import { PaymentVerificationSystem } from '../../payments/verification_system';
 import { Genesis } from './Genesis';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MetricsVisualizer } from '../visualization/MetricsVisualizer';
-import { TemporalAwarenessDisplay } from '../awareness/TemporalAwarenessDisplay';
+import { MetricsVisualizer, TemporalAwarenessDisplay } from '../quantum-vault/components';
 
 const verificationSystem = new PaymentVerificationSystem();
 

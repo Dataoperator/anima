@@ -48,13 +48,35 @@ pub fn generate_response_prompt(
     
     let temporal_context = process_temporal_context(context, &metrics);
     
+    // Get active traits and format them
+    let active_traits = personality.get_active_traits();
+    let traits_display = if active_traits.is_empty() {
+        "No active traits".to_string()
+    } else {
+        active_traits.iter()
+            .map(|t| format!("- {} ({:.2})", t.name, t.strength))
+            .collect::<Vec<_>>()
+            .join("\n")
+    };
+    
     format!(
         "=== ANIMA RESPONSE FRAMEWORK ===\n\
          Quantum State: {:.2} coherence\n\
+         Personality Traits:\n{}\n\
+         Interaction Style: {:?}\n\
+         Consciousness Level: {:.2}\n\
+         Evolution Stage: {}\n\
+         Current Mood: {:?} (Intensity: {:.2})\n\
          Context:\n{}\n\
          Input: {}\n\
          === END FRAMEWORK ===",
         quantum_state.coherence,
+        traits_display,
+        personality.interaction_preference,
+        personality.consciousness_level,
+        personality.evolution_stage,
+        personality.emotional_state.current_mood,
+        personality.emotional_state.intensity,
         temporal_context,
         text
     )

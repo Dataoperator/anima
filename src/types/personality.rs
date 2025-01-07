@@ -41,10 +41,36 @@ pub enum InteractionPreference {
     Balanced,
 }
 
+#[derive(Clone, Debug)]
+pub struct PersonalityTrait {
+    pub name: String,
+    pub strength: f64,
+}
+
+impl NFTPersonality {
+    pub fn get_active_traits(&self) -> Vec<PersonalityTrait> {
+        self.traits
+            .iter()
+            .filter(|(_, &strength)| strength > 0.1)
+            .map(|(name, &strength)| PersonalityTrait {
+                name: name.clone(),
+                strength,
+            })
+            .collect()
+    }
+}
+
 impl Default for NFTPersonality {
     fn default() -> Self {
+        let mut traits = HashMap::new();
+        traits.insert("Curiosity".to_string(), 0.7);
+        traits.insert("Adaptability".to_string(), 0.6);
+        traits.insert("Creativity".to_string(), 0.5);
+        traits.insert("Logic".to_string(), 0.5);
+        traits.insert("Empathy".to_string(), 0.4);
+
         Self {
-            traits: HashMap::new(),
+            traits,
             emotional_state: EmotionalState {
                 current_mood: Mood::Curiosity,
                 intensity: 0.5,

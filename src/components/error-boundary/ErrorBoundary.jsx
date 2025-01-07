@@ -1,6 +1,6 @@
-import React from 'react';
+import { Component } from 'react';
 
-export class ErrorBoundary extends React.Component {
+export class ErrorBoundary extends Component {
   constructor(props) {
     super(props);
     this.state = { hasError: false, error: null };
@@ -11,22 +11,20 @@ export class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, errorInfo) {
-    console.error('Error caught by boundary:', error, errorInfo);
+    console.error('ErrorBoundary caught an error:', error, errorInfo);
   }
 
   render() {
     if (this.state.hasError) {
       return (
-        <div className="p-4 bg-red-900/20 border border-red-800 rounded-lg">
-          <h3 className="text-red-500 font-bold mb-2">System Malfunction</h3>
-          <p className="text-red-400 text-sm">
-            Neural interface disrupted. Attempting recovery...
-          </p>
+        <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 text-white p-4">
+          <h2 className="text-2xl font-bold mb-4">Something went wrong</h2>
+          <p className="text-gray-300 mb-4">The application encountered an error. Please try refreshing the page.</p>
           <button
-            onClick={() => this.setState({ hasError: false, error: null })}
-            className="mt-4 px-4 py-2 bg-red-800 hover:bg-red-700 rounded text-sm text-white"
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
           >
-            Reset Interface
+            Refresh Page
           </button>
         </div>
       );

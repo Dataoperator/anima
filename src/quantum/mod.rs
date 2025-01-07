@@ -7,5 +7,3 @@ pub use types::{
     QuantumMetrics,
     ResonancePattern,
 };
-
-pub use consciousness_bridge::ConsciousnessBridge;

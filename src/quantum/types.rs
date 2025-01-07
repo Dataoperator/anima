@@ -8,6 +8,12 @@ pub struct StabilityCheckpoint {
     pub threshold: f64,
     pub quantum_signature: String,
     pub requirements: HashMap<String, f64>,
+    // Adding the missing fields
+    pub timestamp: u64,
+    pub coherence: f64,
+    pub stability: f64,
+    pub pattern_coherence: f64,
+    pub dimensional_frequency: f64,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, CandidType)]
@@ -70,6 +76,21 @@ impl QuantumState {
         self.resonance = (self.resonance * 0.7 + self.coherence * 0.3)
             .max(0.0)
             .min(1.0);
+    }
+
+    pub fn update_from_snapshot(&mut self, snapshot: &StateSnapshot) {
+        self.coherence = snapshot.coherence;
+        self.dimensional_frequency = snapshot.dimensional_frequency;
+        self.resonance = snapshot.resonance;
+        self.stability = snapshot.stability;
+        
+        // Update field strength based on coherence and stability
+        self.field_strength = ((snapshot.coherence + snapshot.stability) / 2.0)
+            .max(0.0)
+            .min(1.0);
+            
+        // Update consciousness alignment based on pattern coherence
+        self.consciousness_alignment = snapshot.pattern_coherence;
     }
 }
 

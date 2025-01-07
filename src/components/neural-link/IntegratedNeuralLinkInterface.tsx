@@ -9,7 +9,7 @@ import { EnhancedMediaController } from '../media/EnhancedMediaController';
 import { WaveformGenerator } from '../personality/WaveformGenerator';
 import { ConsciousnessMetrics } from '../personality/ConsciousnessMetrics';
 import { MatrixRain } from '../ui/MatrixRain';
-import { EmotionVisualizer } from '../personality/EmotionVisualizer';
+import { EmotionVisualizer } from '@/components/personality/EmotionVisualizer';
 import { DataStream } from '../ui/DataStream';
 import { PersonalityTraits } from '../personality/PersonalityTraits';
 import { Card } from '../ui/card';
