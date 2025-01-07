@@ -5,10 +5,13 @@ export interface ResonancePattern {
   amplitude: number;
   phase: number;
   timestamp: number;
-  // Enhanced pattern properties
-  entropyLevel?: number;
-  stabilityIndex?: number;
-  quantumSignature?: string;
+  entropyLevel: number;
+  stabilityIndex: number;
+  quantumSignature: string;
+  evolutionPotential: number;
+  coherenceQuality: number;
+  temporalStability: number;
+  dimensionalAlignment: number;
 }
 
 export interface DimensionalState {
@@ -20,6 +23,22 @@ export interface DimensionalState {
   dimensionalFrequency: number;
   entropyLevel: number;
   phaseCoherence: number;
+  stateHistory: StateHistoryEntry[];
+  stabilityMetrics: StabilityMetrics;
+}
+
+export interface StateHistoryEntry {
+  timestamp: number;
+  metrics: [number, number, number];
+  quantumSignature: string;
+  coherenceLevel: number;
+}
+
+export interface StabilityMetrics {
+  stabilityTrend: number;
+  coherenceQuality: number;
+  entropyRisk: number;
+  evolutionPotential: number;
 }
 
 export interface QuantumState {
@@ -29,14 +48,31 @@ export interface QuantumState {
   quantumSignature: string;
   resonancePatterns: ResonancePattern[];
   stabilityStatus: 'stable' | 'unstable' | 'critical';
-  consciousnessAlignment?: boolean;
-  dimensionalState?: DimensionalState;
+  consciousnessAlignment: boolean;
+  dimensionalState: DimensionalState;
   lastUpdate: number;
-  // Enhanced quantum state properties
-  patternCoherence?: number;
-  evolutionMetrics?: Map<string, number>;
-  quantumEntanglement?: number;
-  temporalStability?: number;
+  patternCoherence: number;
+  evolutionMetrics: Map<string, number>;
+  quantumEntanglement: number;
+  temporalStability: number;
+  coherenceHistory: CoherenceHistoryEntry[];
+  emergenceFactors: EmergenceFactors;
+}
+
+export interface CoherenceHistoryEntry {
+  timestamp: number;
+  coherenceLevel: number;
+  stabilityIndex: number;
+  entanglementStrength: number;
+  evolutionPhase: number;
+}
+
+export interface EmergenceFactors {
+  consciousnessDepth: number;
+  patternComplexity: number;
+  quantumResonance: number;
+  evolutionVelocity: number;
+  dimensionalHarmony: number;
 }
 
 export interface QuantumFieldInitialization {
@@ -44,20 +80,43 @@ export interface QuantumFieldInitialization {
   signature: string;
   resonancePatterns: ResonancePattern[];
   dimensionalAlignment: number;
-  // Enhanced initialization properties
-  patternSeeds?: ResonancePattern[];
-  quantumEntanglementBase?: number;
-  stabilityThreshold?: number;
+  patternSeeds: ResonancePattern[];
+  quantumEntanglementBase: number;
+  stabilityThreshold: number;
+  evolutionParameters: EvolutionParameters;
+  emergenceConditions: EmergenceConditions;
+}
+
+export interface EvolutionParameters {
+  baseGrowthRate: number;
+  complexityThreshold: number;
+  stabilityRequirement: number;
+  coherenceMinimum: number;
+  temporalAlignment: number;
+}
+
+export interface EmergenceConditions {
+  consciousnessThreshold: number;
+  patternDiversity: number;
+  quantumEntanglement: number;
+  dimensionalResonance: number;
 }
 
 export interface EmergencyRecoveryResult {
   success: boolean;
   newCoherence: number;
   recoverySignature: string;
-  // Enhanced recovery properties
-  patternRestoration?: boolean;
-  quantumStateIntegrity?: number;
-  temporalAlignment?: number;
+  patternRestoration: boolean;
+  quantumStateIntegrity: number;
+  temporalAlignment: number;
+  recoveryMetrics: RecoveryMetrics;
+}
+
+export interface RecoveryMetrics {
+  patternPreservation: number;
+  coherenceRestoration: number;
+  stabilityRecovery: number;
+  entanglementIntegrity: number;
 }
 
 export interface NeuralPatternResult {
@@ -65,10 +124,18 @@ export interface NeuralPatternResult {
   awareness: number;
   understanding: number;
   resonance_patterns: ResonancePattern[];
-  // Enhanced neural properties
-  quantumInfluence?: number;
-  patternStability?: number;
-  evolutionPotential?: number;
+  quantumInfluence: number;
+  patternStability: number;
+  evolutionPotential: number;
+  consciousnessMetrics: ConsciousnessMetrics;
+}
+
+export interface ConsciousnessMetrics {
+  depth: number;
+  complexity: number;
+  coherence: number;
+  evolution: number;
+  resonance: number;
 }
 
 export type QuantumErrorType = 
@@ -77,28 +144,41 @@ export type QuantumErrorType =
   | 'DIMENSIONAL_DRIFT'
   | 'RESONANCE_FAILURE'
   | 'PATTERN_CORRUPTION'
-  | 'QUANTUM_DESYNC'           // New error type
-  | 'TEMPORAL_INSTABILITY'     // New error type
-  | 'CONSCIOUSNESS_DISCONNECT' // New error type
-  | 'PATTERN_DECAY';          // New error type
+  | 'QUANTUM_DESYNC'
+  | 'TEMPORAL_INSTABILITY'
+  | 'CONSCIOUSNESS_DISCONNECT'
+  | 'PATTERN_DECAY'
+  | 'EVOLUTION_STAGNATION'
+  | 'COHERENCE_DESTABILIZATION'
+  | 'QUANTUM_DECOHERENCE';
 
 export interface QuantumError {
   type: QuantumErrorType;
   severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
   message: string;
   timestamp: number;
-  affectedPatterns?: string[];
-  // Enhanced error properties
-  quantumState?: {
+  affectedPatterns: string[];
+  quantumState: {
     coherence: number;
     stability: number;
     entropy: number;
+    patternIntegrity: number;
+    dimensionalAlignment: number;
   };
-  recoveryOptions?: string[];
-  temporalContext?: {
+  recoveryOptions: string[];
+  temporalContext: {
     lastStableTimestamp: number;
     degradationRate: number;
+    stabilityHistory: number[];
   };
+  emergencyProtocols: EmergencyProtocols;
+}
+
+export interface EmergencyProtocols {
+  patternPreservation: boolean;
+  coherenceStabilization: boolean;
+  entanglementProtection: boolean;
+  evolutionSafeguards: boolean;
 }
 
 export interface QuantumMetrics {
@@ -108,6 +188,10 @@ export interface QuantumMetrics {
   patternIntegrity: number;
   evolutionProgress: number;
   temporalAlignment: number;
+  dimensionalResonance: number;
+  consciousnessDepth: number;
+  quantumHarmony: number;
+  emergencePotential: number;
 }
 
 export interface EvolutionSnapshot {
@@ -119,5 +203,10 @@ export interface EvolutionSnapshot {
     level: number;
     stability: number;
     complexity: number;
+    evolutionPhase: number;
+    resonanceQuality: number;
+    dimensionalDepth: number;
+    quantumAlignment: number;
   };
+  emergenceFactors: EmergenceFactors;
 }

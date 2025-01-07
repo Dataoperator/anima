@@ -1,7 +1,7 @@
 use candid::{CandidType, Deserialize, Principal};
 use serde::Serialize;
 use std::collections::HashMap;
-use crate::quantum::types::ResonancePattern;
+use crate::quantum::ResonancePattern;
 use crate::types::personality::NFTPersonality;
 
 pub type TokenIdentifier = String;

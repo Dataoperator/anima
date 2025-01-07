@@ -1,113 +1,80 @@
 import { Principal } from '@dfinity/principal';
-import { ICPLedgerService } from './icp-ledger';
-import { ErrorTracker } from '@/error/quantum_error';
-
-const TREASURY_PRINCIPAL = 'l2ilz-iqaaa-aaaaj-qngjq-cai'; // Replace with actual treasury principal
-const GENESIS_FEE = BigInt(100_000_000); // 1 ICP
+import { WalletService } from './wallet.service';
+import { ErrorTracker } from './error-tracker';
 
 export class TreasuryService {
-  private static instance: TreasuryService;
+  private static instance: TreasuryService | null = null;
   private errorTracker: ErrorTracker;
-  private transferHistory: Map<string, {
-    amount: bigint;
-    timestamp: number;
-    status: 'pending' | 'complete' | 'failed';
-    transactionId?: string;
-  }>;
+  private readonly TREASURY_ADDRESS = process.env.TREASURY_ADDRESS || '';
+  private initialized = false;
 
-  private constructor() {
+  private constructor(private walletService: WalletService) {
     this.errorTracker = ErrorTracker.getInstance();
-    this.transferHistory = new Map();
   }
 
-  static getInstance(): TreasuryService {
+  static getInstance(walletService: WalletService): TreasuryService {
     if (!TreasuryService.instance) {
-      TreasuryService.instance = new TreasuryService();
+      TreasuryService.instance = new TreasuryService(walletService);
     }
     return TreasuryService.instance;
   }
 
-  async processGenesisFee(ledger: ICPLedgerService): Promise<{ success: boolean; transactionId?: string }> {
-    console.log('🔄 Processing genesis fee transfer...');
-    
+  async initialize(): Promise<void> {
+    if (this.initialized) return;
+
     try {
-      const balance = await ledger.getBalance();
-      if (balance < GENESIS_FEE) {
-        throw new Error(`Insufficient balance: ${Number(balance) / 100_000_000} ICP`);
+      // Verify treasury wallet exists
+      const treasuryWallet = await this.walletService.getWallet(this.TREASURY_ADDRESS);
+      if (!treasuryWallet) {
+        throw new Error('Treasury wallet not found');
       }
-
-      const transferId = `genesis-${Date.now()}`;
-      this.transferHistory.set(transferId, {
-        amount: GENESIS_FEE,
-        timestamp: Date.now(),
-        status: 'pending'
-      });
-
-      // Transfer to treasury
-      const result = await ledger.transfer({
-        to: Principal.fromText(TREASURY_PRINCIPAL),
-        amount: GENESIS_FEE,
-        memo: BigInt(Date.now()),
-        fee: BigInt(10000) // 0.0001 ICP fee
-      });
-
-      if ('Err' in result) {
-        throw new Error(result.Err);
-      }
-
-      const transactionId = result.Ok.toString();
-      
-      // Update history
-      this.transferHistory.set(transferId, {
-        amount: GENESIS_FEE,
-        timestamp: Date.now(),
-        status: 'complete',
-        transactionId
-      });
-
-      console.log('✅ Genesis fee transferred successfully');
-      console.log('📝 Transaction ID:', transactionId);
-
-      return {
-        success: true,
-        transactionId
-      };
-
+      this.initialized = true;
     } catch (error) {
-      console.error('❌ Genesis fee transfer failed:', error);
-
-      await this.errorTracker.trackError({
-        errorType: 'TREASURY_TRANSFER',
-        severity: 'HIGH',
-        context: 'Genesis Fee Processing',
-        error: error as Error
+      this.errorTracker.trackError({
+        type: 'TreasuryInitializationError',
+        message: error instanceof Error ? error.message : 'Failed to initialize treasury',
+        context: { treasuryAddress: this.TREASURY_ADDRESS }
       });
-
-      return {
-        success: false
-      };
+      throw error;
     }
   }
 
-  async verifyTransfer(transactionId: string): Promise<boolean> {
-    // Verify the transaction status on-chain
-    // This would call your ledger's verification method
+  async collectFees(amount: bigint, from: Principal): Promise<void> {
+    if (!this.initialized) {
+      throw new Error('Treasury not initialized');
+    }
+
     try {
-      // Add verification logic here
-      return true;
+      await this.walletService.transfer({
+        from,
+        to: Principal.fromText(this.TREASURY_ADDRESS),
+        amount,
+        memo: 'ANIMA Quantum Fee'
+      });
     } catch (error) {
-      console.error('❌ Transfer verification failed:', error);
-      return false;
+      this.errorTracker.trackError({
+        type: 'FeeCollectionError',
+        message: error instanceof Error ? error.message : 'Failed to collect fees',
+        context: { amount: amount.toString(), from: from.toString() }
+      });
+      throw error;
     }
   }
 
-  getTransferHistory(): Map<string, any> {
-    return new Map(this.transferHistory);
-  }
+  async distributePools(): Promise<void> {
+    if (!this.initialized) {
+      throw new Error('Treasury not initialized');
+    }
 
-  getTransferStatus(transferId: string) {
-    return this.transferHistory.get(transferId);
+    try {
+      // TODO: Implement staking and rewards pool distribution
+    } catch (error) {
+      this.errorTracker.trackError({
+        type: 'PoolDistributionError',
+        message: error instanceof Error ? error.message : 'Failed to distribute pools',
+        context: {}
+      });
+      throw error;
+    }
   }
 }
-
-export const treasuryService = TreasuryService.getInstance();

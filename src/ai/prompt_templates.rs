@@ -1,10 +1,8 @@
 use crate::types::personality::NFTPersonality;
-use crate::quantum::types::QuantumMetrics;
-use crate::quantum::QuantumState;
+use crate::quantum::{QuantumMetrics, QuantumState};
 
 pub fn process_temporal_context(
     context: Option<&[String]>,
-    _quantum_state: &QuantumState,
     metrics: &QuantumMetrics
 ) -> String {
     if let Some(ctx) = context {
@@ -40,7 +38,15 @@ pub fn generate_response_prompt(
     quantum_state: &QuantumState,
     context: Option<&[String]>
 ) -> String {
-    let temporal_context = process_temporal_context(context, quantum_state, quantum_state);
+    let metrics = QuantumMetrics {
+        coherence: quantum_state.coherence,
+        dimensional_frequency: quantum_state.dimensional_frequency,
+        field_strength: quantum_state.field_strength,
+        resonance: quantum_state.resonance,
+        stability: quantum_state.stability,
+    };
+    
+    let temporal_context = process_temporal_context(context, &metrics);
     
     format!(
         "=== ANIMA RESPONSE FRAMEWORK ===\n\

@@ -30,7 +30,40 @@ export default defineConfig({
     sourcemap: true,
     commonjsOptions: {
       transformMixedEsModules: true
-    }
+    },
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'quantum-vault': [
+            './src/components/quantum-vault/CyberpunkQuantumVault.tsx',
+            './src/components/quantum-vault/QuantumStateVisualizer.tsx',
+            './src/components/quantum-vault/QuantumInteractions.tsx',
+            './src/components/quantum-vault/QuantumVaultGrid.tsx'
+          ],
+          'neural-link': [
+            './src/components/neural-link/IntegratedNeuralLinkInterface.tsx',
+            './src/components/neural-link/ImmersiveInterface.tsx',
+            './src/components/neural-link/NeuralPatternVisualizer.tsx'
+          ],
+          'genesis': [
+            './src/components/genesis/GenesisFlow.tsx',
+            './src/components/genesis/GenesisRitual.tsx',
+            './src/components/genesis/EnhancedGenesis.tsx',
+            './src/components/genesis/InitialDesignation.jsx',
+            './src/components/genesis/DesignationGenerator.jsx'
+          ],
+          'vendor': [
+            'react',
+            'react-dom',
+            'react-router-dom',
+            'framer-motion',
+            '@dfinity/agent',
+            '@dfinity/auth-client'
+          ]
+        }
+      }
+    },
+    chunkSizeWarningLimit: 600
   },
   optimizeDeps: {
     esbuildOptions: {
