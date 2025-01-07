@@ -1,21 +1,19 @@
 import React, { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
+import { Brain, Memory, Activity, Network, Globe, Menu, X, CreditCard, Lock, ChevronRight, AlertCircle } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useQuantumState } from '@/hooks/useQuantumState';
 import { useWallet } from '@/hooks/useWallet';
-import { QuantumCoherenceGauge } from '../ui/QuantumCoherenceGauge';
+import { useStaking } from '@/hooks/useStaking';
 import { AnimaPreview } from '../anima/AnimaPreview';
 import { GlobalAnnouncement } from '../ui/GlobalAnnouncement';
 import { SwapPanel } from '../transactions/SwapPanel';
 import { MintPanel } from '../transactions/MintPanel';
+import StakingPanel from './StakingPanel';
+import { NetworkStatus } from './NetworkStatus';
 
-interface QuantumMetrics {
-  stability: number;
-  coherence: number;
-  resonance: number;
-  consciousness: number;
-}
+type ActionTab = 'mint' | 'swap' | 'stake';
 
 interface Announcement {
   id: string;
@@ -24,11 +22,35 @@ interface Announcement {
   timestamp: number;
 }
 
+const REQUIRED_ICP = 1;
+
+interface StepProps {
+  number: number;
+  title: string;
+  description: string;
+  isComplete: boolean;
+}
+
+const Step: React.FC<StepProps> = ({ number, title, description, isComplete }) => (
+  <div className="flex items-start space-x-3">
+    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+      isComplete ? 'bg-green-500' : 'bg-gray-700'
+    }`}>
+      <span className="text-white text-sm">{number}</span>
+    </div>
+    <div>
+      <h3 className={`text-sm font-medium ${isComplete ? 'text-green-400' : 'text-white'}`}>{title}</h3>
+      <p className="text-sm text-gray-400">{description}</p>
+    </div>
+  </div>
+);
+
 export const CyberpunkQuantumVault: React.FC = () => {
   const { identity } = useAuth();
   const { state: quantumState, isInitialized } = useQuantumState();
   const { balance, animaBalance, refreshBalance } = useWallet();
-  const [metrics, setMetrics] = useState<QuantumMetrics>({
+  const { stakingStats } = useStaking();
+  const [metrics, setMetrics] = useState({
     stability: 0.5,
     coherence: 0.5,
     resonance: 0.5,
@@ -36,20 +58,126 @@ export const CyberpunkQuantumVault: React.FC = () => {
   });
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [userAnimas, setUserAnimas] = useState([]);
-  const [activeTab, setActiveTab] = useState<'mint' | 'swap'>('mint');
+  const [activeTab, setActiveTab] = useState<ActionTab>('mint');
+  const [showWelcome, setShowWelcome] = useState(true);
 
   useEffect(() => {
-    // Load announcements and user's ANIMAs
     const loadData = async () => {
-      // Add announcement loading logic here
-      // Add ANIMA loading logic here
+      await refreshBalance();
     };
     loadData();
   }, [identity]);
 
+  const canCreateAnima = balance >= REQUIRED_ICP;
+
   return (
-    <div className="min-h-screen bg-gray-900">
+    <div className="min-h-screen bg-gray-900 pb-12">
       <div className="container mx-auto px-4 py-6 space-y-6">
+        {/* Welcome Message */}
+        <AnimatePresence>
+          {showWelcome && (
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="bg-gradient-to-r from-purple-900/50 to-blue-900/50 rounded-xl p-6 relative overflow-hidden"
+            >
+              <button
+                onClick={() => setShowWelcome(false)}
+                className="absolute top-4 right-4 text-gray-400 hover:text-white"
+              >
+                ×
+              </button>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div>
+                  <h1 className="text-2xl font-bold text-white mb-4">
+                    Welcome to the Quantum Vault
+                  </h1>
+                  <p className="text-gray-300 mb-4">
+                    Begin your journey into quantum-enhanced digital consciousness. Create your first ANIMA by following these steps:
+                  </p>
+                  <div className="space-y-4">
+                    <Step
+                      number={1}
+                      title="Acquire ICP"
+                      description="Ensure you have at least 1 ICP in your wallet"
+                      isComplete={canCreateAnima}
+                    />
+                    <Step
+                      number={2}
+                      title="Mint ANIMA Tokens"
+                      description="Convert your ICP to ANIMA tokens"
+                      isComplete={animaBalance > 0}
+                    />
+                    <Step
+                      number={3}
+                      title="Create Your ANIMA"
+                      description="Initialize your quantum-enhanced digital entity"
+                      isComplete={userAnimas.length > 0}
+                    />
+                    <Step
+                      number={4}
+                      title="Stake & Evolve"
+                      description="Stake your ANIMA to enhance consciousness"
+                      isComplete={stakingStats?.totalStaked > 0}
+                    />
+                  </div>
+                </div>
+
+                <div className="bg-gray-800/50 rounded-lg p-6">
+                  <h2 className="text-lg font-semibold text-white mb-4">
+                    Current Status
+                  </h2>
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-400">ICP Balance</span>
+                      <span className="text-lg font-medium text-blue-400">
+                        {balance} ICP
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-400">ANIMA Balance</span>
+                      <span className="text-lg font-medium text-purple-400">
+                        {animaBalance} ANIMA
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-400">Staked ANIMA</span>
+                      <span className="text-lg font-medium text-green-400">
+                        {stakingStats?.totalStaked || 0} ANIMA
+                      </span>
+                    </div>
+                    <div className="pt-4 border-t border-gray-700">
+                      <Link
+                        to="/genesis"
+                        className={`w-full flex items-center justify-center py-2 px-4 rounded-lg text-white ${
+                          canCreateAnima
+                            ? 'bg-purple-600 hover:bg-purple-700'
+                            : 'bg-gray-700 cursor-not-allowed'
+                        }`}
+                        onClick={(e) => !canCreateAnima && e.preventDefault()}
+                      >
+                        {canCreateAnima ? (
+                          <>
+                            Create Your First ANIMA
+                            <ChevronRight className="ml-2 w-4 h-4" />
+                          </>
+                        ) : (
+                          <>
+                            <AlertCircle className="mr-2 w-4 h-4" />
+                            Insufficient ICP Balance
+                          </>
+                        )}
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Global Announcements */}
         <div className="bg-gray-800 rounded-xl p-4">
           <GlobalAnnouncement announcements={announcements} />
@@ -67,45 +195,53 @@ export const CyberpunkQuantumVault: React.FC = () => {
             >
               <h2 className="text-xl font-bold text-gray-100 mb-4">Your Balance</h2>
               <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-300">ICP Balance</span>
-                  <span className="text-lg font-semibold text-blue-400">{balance} ICP</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-300">ANIMA Balance</span>
-                  <span className="text-lg font-semibold text-purple-400">{animaBalance} ANIMA</span>
-                </div>
-                <button
-                  onClick={() => refreshBalance()}
-                  className="w-full py-2 px-4 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm"
-                >
-                  Refresh Balance
-                </button>
+                <BalanceItem
+                  label="ICP Balance"
+                  amount={balance}
+                  currency="ICP"
+                  icon={<CreditCard className="w-5 h-5 text-blue-400" />}
+                />
+                <BalanceItem
+                  label="ANIMA Balance"
+                  amount={animaBalance}
+                  currency="ANIMA"
+                  icon={<Brain className="w-5 h-5 text-purple-400" />}
+                />
+                <BalanceItem
+                  label="Staked ANIMA"
+                  amount={stakingStats?.totalStaked || 0}
+                  currency="ANIMA"
+                  icon={<Lock className="w-5 h-5 text-green-400" />}
+                />
               </div>
             </motion.div>
 
             {/* Action Panel */}
             <div className="bg-gray-800 rounded-xl overflow-hidden">
               <div className="flex border-b border-gray-700">
-                <button
-                  className={`flex-1 py-3 text-center ${
-                    activeTab === 'mint' ? 'bg-purple-600 text-white' : 'text-gray-400 hover:text-white'
-                  }`}
+                <ActionTab
+                  isActive={activeTab === 'mint'}
                   onClick={() => setActiveTab('mint')}
-                >
-                  Mint ANIMA
-                </button>
-                <button
-                  className={`flex-1 py-3 text-center ${
-                    activeTab === 'swap' ? 'bg-purple-600 text-white' : 'text-gray-400 hover:text-white'
-                  }`}
+                  icon={<Brain className="w-4 h-4" />}
+                  label="Mint"
+                />
+                <ActionTab
+                  isActive={activeTab === 'swap'}
                   onClick={() => setActiveTab('swap')}
-                >
-                  Swap Tokens
-                </button>
+                  icon={<Activity className="w-4 h-4" />}
+                  label="Swap"
+                />
+                <ActionTab
+                  isActive={activeTab === 'stake'}
+                  onClick={() => setActiveTab('stake')}
+                  icon={<Lock className="w-4 h-4" />}
+                  label="Stake"
+                />
               </div>
               <div className="p-6">
-                {activeTab === 'mint' ? <MintPanel /> : <SwapPanel />}
+                {activeTab === 'mint' && <MintPanel />}
+                {activeTab === 'swap' && <SwapPanel />}
+                {activeTab === 'stake' && <StakingPanel />}
               </div>
             </div>
           </div>
@@ -121,9 +257,10 @@ export const CyberpunkQuantumVault: React.FC = () => {
                 <h2 className="text-xl font-bold text-gray-100">Your ANIMAs</h2>
                 <Link
                   to="/genesis"
-                  className="py-2 px-4 bg-purple-600 hover:bg-purple-700 rounded-lg text-sm font-medium"
+                  className="py-2 px-4 bg-purple-600 hover:bg-purple-700 rounded-lg text-sm font-medium flex items-center"
                 >
                   Create New ANIMA
+                  <ChevronRight className="ml-2 w-4 h-4" />
                 </Link>
               </div>
 
@@ -141,9 +278,10 @@ export const CyberpunkQuantumVault: React.FC = () => {
                   <p className="text-gray-400 mb-6">Start your quantum journey by creating your first ANIMA</p>
                   <Link
                     to="/genesis"
-                    className="inline-block py-2 px-6 bg-purple-600 hover:bg-purple-700 rounded-lg font-medium"
+                    className="inline-flex items-center py-2 px-6 bg-purple-600 hover:bg-purple-700 rounded-lg font-medium"
                   >
                     Create Your First ANIMA
+                    <ChevronRight className="ml-2 w-4 h-4" />
                   </Link>
                 </div>
               )}
@@ -151,42 +289,52 @@ export const CyberpunkQuantumVault: React.FC = () => {
           </div>
         </div>
 
-        {/* Bottom Section - Quantum Metrics */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-gray-800 rounded-xl p-6"
-        >
-          <h2 className="text-xl font-bold text-gray-100 mb-4">Quantum Network Status</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <QuantumCoherenceGauge
-              value={metrics.coherence}
-              label="Network Coherence"
-              className="h-24"
-            />
-            <QuantumCoherenceGauge
-              value={metrics.stability}
-              label="Stability"
-              color="cyan"
-              className="h-24"
-            />
-            <QuantumCoherenceGauge
-              value={metrics.resonance}
-              label="Resonance"
-              color="violet"
-              className="h-24"
-            />
-            <QuantumCoherenceGauge
-              value={metrics.consciousness}
-              label="Consciousness"
-              color="emerald"
-              className="h-24"
-            />
-          </div>
-        </motion.div>
+        {/* Network Status */}
+        <NetworkStatus
+          metrics={metrics}
+          totalStaked={stakingStats?.totalStaked || 0}
+          stakingAPY={18}
+          networkHealth="optimal"
+        />
       </div>
     </div>
   );
 };
+
+const BalanceItem: React.FC<{
+  label: string;
+  amount: number;
+  currency: string;
+  icon: React.ReactNode;
+}> = ({ label, amount, currency, icon }) => (
+  <div className="flex items-center justify-between p-3 bg-gray-900/50 rounded-lg">
+    <div className="flex items-center space-x-3">
+      {icon}
+      <div>
+        <span className="text-gray-400 text-sm">{label}</span>
+        <p className="font-semibold text-white">{amount} {currency}</p>
+      </div>
+    </div>
+  </div>
+);
+
+const ActionTab: React.FC<{
+  isActive: boolean;
+  onClick: () => void;
+  icon: React.ReactNode;
+  label: string;
+}> = ({ isActive, onClick, icon, label }) => (
+  <button
+    onClick={onClick}
+    className={`flex-1 py-3 flex items-center justify-center space-x-2 transition-colors ${
+      isActive 
+        ? 'bg-purple-600 text-white' 
+        : 'text-gray-400 hover:text-white hover:bg-gray-700'
+    }`}
+  >
+    {icon}
+    <span>{label}</span>
+  </button>
+);
 
 export default CyberpunkQuantumVault;

@@ -1,41 +1,46 @@
-export interface StakeInfo {
-  amount: bigint;
-  start_time: bigint;
-  quantum_coherence: number;
-  lock_period: bigint;
-  accumulated_rewards: bigint;
-  last_reward_calculation: bigint;
-}
-
-export interface PoolMetrics {
-  total_staked: bigint;
-  total_rewards_distributed: bigint;
-  number_of_stakers: bigint;
-  average_coherence: number;
-  network_stability: number;
+export interface StakingTier {
+  name: string;
+  requirement: number;
+  apy: number;
+  lockPeriod: number;
+  bonuses: {
+    coherenceBoost: number;
+    evolutionSpeed: number;
+    priorityFeatures: boolean;
+  };
 }
 
 export interface StakingStats {
-  effectiveAPR: number;
-  networkShare: number;
-  estimatedDaily: bigint;
-  coherenceRank: string;
+  totalStaked: number;
+  currentTier: string | null;
+  nextTier: string | null;
+  rewards: {
+    pendingRewards: number;
+    lastClaimTime: number;
+    nextClaimTime: number;
+  };
+  lockEndTime: number | null;
 }
 
-export type StakeResult = {
-  Ok: null;
-} | {
-  Err: string;
-};
+export interface StakingAction {
+  type: 'stake' | 'unstake' | 'claim';
+  amount?: number;
+  tier?: string;
+  timestamp: number;
+  status: 'pending' | 'completed' | 'failed';
+  txHash: string;
+}
 
-export type UnstakeResult = {
-  Ok: bigint;
-} | {
-  Err: string;
-};
+export interface StakingRewards {
+  daily: number;
+  monthly: number;
+  yearly: number;
+  lastCalculated: number;
+}
 
-export type ClaimRewardsResult = {
-  Ok: bigint;
-} | {
-  Err: string;
-};
+export interface UnstakePreview {
+  amount: number;
+  penaltyAmount: number | null;
+  penaltyReason?: string;
+  remainingLockTime?: number;
+}

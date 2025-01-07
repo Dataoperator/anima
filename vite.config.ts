@@ -42,14 +42,44 @@ export default defineConfig({
       defaultIsModuleExports: true
     },
     rollupOptions: {
-      external: ['@dfinity/nns-proto', 'fsevents'],
+      external: [
+        '@dfinity/nns-proto',
+        'fsevents',
+        /\.rs$/
+      ],
       output: {
         globals: {
           '@dfinity/nns-proto': 'dfinity_nns_proto',
           'react': 'React',
           'react-dom': 'ReactDOM'
         },
-        format: 'es'
+        format: 'es',
+        manualChunks: {
+          'neural-interface': [
+            './src/components/neural-link/IntegratedNeuralLinkInterface.tsx',
+            './src/components/neural-link/ImmersiveInterface.tsx',
+            './src/components/neural-link/NeuralPatternVisualizer.tsx'
+          ],
+          'quantum-vault': [
+            './src/components/quantum-vault/CyberpunkQuantumVault.tsx',
+            './src/components/quantum-vault/NetworkStatus.tsx'
+          ],
+          'consciousness': [
+            './src/components/personality/ConsciousnessMetrics.tsx',
+            './src/components/personality/EmotionVisualizer.tsx',
+            './src/components/personality/WaveformGenerator.tsx',
+            './src/components/personality/PersonalityTraits.tsx'
+          ],
+          'media': [
+            './src/components/media/EnhancedMediaController.tsx',
+            './src/components/media/MediaPlayer.tsx'
+          ],
+          'quantum-core': [
+            './src/quantum/dimensional_state.ts',
+            './src/quantum/types.ts',
+            './src/services/quantum-state.service.ts'
+          ]
+        }
       }
     }
   },
@@ -71,6 +101,9 @@ export default defineConfig({
       'util',
       'stream-browserify'
     ],
+    exclude: [
+      '**/*.rs'
+    ],
     esbuildOptions: {
       target: 'esnext',
       supported: { bigint: true },
@@ -80,5 +113,6 @@ export default defineConfig({
       jsx: 'automatic',
       platform: 'browser'
     }
-  }
+  },
+  assetsInclude: ['**/*.did']
 });

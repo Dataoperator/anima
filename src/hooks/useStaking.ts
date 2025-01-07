@@ -1,212 +1,137 @@
 import { useState, useEffect } from 'react';
-import { Principal } from '@dfinity/principal';
-import { useWallet } from './useWallet';
-import { useQuantum } from './useQuantum';
-import { StakeInfo, PoolMetrics } from '@/types/staking';
+import { useAuth } from './useAuth';
+import type { StakingTier, StakingStats, StakingAction, UnstakePreview } from '@/types/staking';
+import { useQuantumState } from './useQuantumState';
 
-export const useStaking = () => {
-  const { wallet, animaActor } = useWallet();
-  const { quantumState } = useQuantum();
+export function useStaking(animaId?: string) {
+  const { identity } = useAuth();
+  const { state: quantumState } = useQuantumState();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [stakeInfo, setStakeInfo] = useState<StakeInfo | null>(null);
-  const [poolMetrics, setPoolMetrics] = useState<PoolMetrics | null>(null);
+  const [stakingStats, setStakingStats] = useState<StakingStats | null>(null);
+  const [stakingHistory, setStakingHistory] = useState<StakingAction[]>([]);
 
   useEffect(() => {
-    if (wallet?.principal) {
-      refreshStakeInfo();
-      refreshPoolMetrics();
-      
-      // Set up periodic refresh
-      const interval = setInterval(() => {
-        refreshStakeInfo();
-        refreshPoolMetrics();
-      }, 60000); // Every minute
-      
-      return () => clearInterval(interval);
+    if (identity) {
+      fetchStakingStats();
+      fetchStakingHistory();
     }
-  }, [wallet?.principal]);
+  }, [identity, animaId]);
 
-  const refreshStakeInfo = async () => {
-    if (!wallet?.principal || !animaActor) return;
-    
-    try {
-      const info = await animaActor.get_stake_info(wallet.principal);
-      if ('Ok' in info) {
-        setStakeInfo(info.Ok);
-      }
-    } catch (err) {
-      console.error('Failed to fetch stake info:', err);
-    }
-  };
-
-  const refreshPoolMetrics = async () => {
-    if (!animaActor) return;
-    
-    try {
-      const metrics = await animaActor.get_pool_metrics();
-      setPoolMetrics(metrics);
-    } catch (err) {
-      console.error('Failed to fetch pool metrics:', err);
-    }
-  };
-
-  const stake = async (amount: bigint, lockDays: number) => {
-    if (!wallet?.principal || !animaActor || !quantumState) {
-      throw new Error('Wallet or quantum state not initialized');
-    }
-
+  const fetchStakingStats = async () => {
     setIsLoading(true);
-    setError(null);
-
     try {
-      const lockPeriod = BigInt(lockDays * 24 * 60 * 60 * 1_000_000_000); // Convert days to nanoseconds
-      
-      const result = await animaActor.stake(
-        amount,
-        lockPeriod,
-        quantumState.coherence
-      );
-
-      if ('Err' in result) {
-        throw new Error(result.Err);
-      }
-
-      await refreshStakeInfo();
-      await refreshPoolMetrics();
+      // TODO: Implement canister call
+      const stats = await window.ic.stake.getStakingStats(identity);
+      setStakingStats(stats);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Staking failed');
-      throw err;
+      setError('Failed to fetch staking stats');
+      console.error(err);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const unstake = async () => {
-    if (!wallet?.principal || !animaActor) {
-      throw new Error('Wallet not initialized');
+  const fetchStakingHistory = async () => {
+    try {
+      // TODO: Implement canister call
+      const history = await window.ic.stake.getStakingHistory(identity);
+      setStakingHistory(history);
+    } catch (err) {
+      console.error('Failed to fetch staking history:', err);
     }
+  };
 
+  const previewUnstake = async (amount: number): Promise<UnstakePreview> => {
+    try {
+      // TODO: Implement canister call
+      const preview = await window.ic.stake.previewUnstake(identity, amount);
+      return preview;
+    } catch (err) {
+      throw new Error('Failed to preview unstake');
+    }
+  };
+
+  const stakeTokens = async (amount: number, tierName: string) => {
     setIsLoading(true);
     setError(null);
-
     try {
-      const result = await animaActor.unstake();
+      // TODO: Implement canister call
+      const result = await window.ic.stake.stake(identity, amount, tierName);
       
-      if ('Err' in result) {
-        throw new Error(result.Err);
+      if (result.success) {
+        await fetchStakingStats();
+        return { success: true };
+      } else {
+        throw new Error(result.error);
       }
-
-      await refreshStakeInfo();
-      await refreshPoolMetrics();
-      
-      return result.Ok;
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unstaking failed');
-      throw err;
+      setError(err instanceof Error ? err.message : 'Failed to stake tokens');
+      return { success: false, error: err instanceof Error ? err.message : 'Failed to stake tokens' };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const unstakeTokens = async (amount: number) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      // TODO: Implement canister call
+      const result = await window.ic.stake.unstake(identity, amount);
+      
+      if (result.success) {
+        await fetchStakingStats();
+        return { success: true };
+      } else {
+        throw new Error(result.error);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to unstake tokens');
+      return { success: false, error: err instanceof Error ? err.message : 'Failed to unstake tokens' };
     } finally {
       setIsLoading(false);
     }
   };
 
   const claimRewards = async () => {
-    if (!wallet?.principal || !animaActor) {
-      throw new Error('Wallet not initialized');
-    }
-
     setIsLoading(true);
     setError(null);
-
     try {
-      const result = await animaActor.claim_rewards();
+      // TODO: Implement canister call
+      const result = await window.ic.stake.claimRewards(identity);
       
-      if ('Err' in result) {
-        throw new Error(result.Err);
+      if (result.success) {
+        await fetchStakingStats();
+        return { success: true, amount: result.amount };
+      } else {
+        throw new Error(result.error);
       }
-
-      await refreshStakeInfo();
-      await refreshPoolMetrics();
-      
-      return result.Ok;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to claim rewards');
-      throw err;
+      return { success: false, error: err instanceof Error ? err.message : 'Failed to claim rewards' };
     } finally {
       setIsLoading(false);
     }
   };
 
-  const calculateRewards = (
-    amount: bigint,
-    days: number,
-    coherence: number
-  ): bigint => {
-    const baseAPR = 0.15; // 15% base APR
-    const coherenceBonus = 1 + (coherence * 2); // Up to 3x bonus
-    const periodBonus = 1 + (days / 365) * 0.5; // Up to 1.5x bonus for 1 year
-
-    const effectiveAPR = baseAPR * coherenceBonus * periodBonus;
-    const dailyRate = effectiveAPR / 365;
-    const totalReturn = Number(amount) * (1 + (dailyRate * days));
-
-    return BigInt(Math.floor(totalReturn - Number(amount)));
-  };
-
-  const getTimeRemaining = (): number | null => {
-    if (!stakeInfo) return null;
-
-    const unlockTime = Number(stakeInfo.start_time) + Number(stakeInfo.lock_period);
-    const remaining = unlockTime - Date.now();
-    return remaining > 0 ? remaining : 0;
-  };
-
-  const getStakingStats = () => {
-    if (!stakeInfo || !poolMetrics) return null;
-
-    return {
-      effectiveAPR: calculateEffectiveAPR(
-        Number(stakeInfo.lock_period) / (24 * 60 * 60 * 1_000_000_000), // Convert to days
-        stakeInfo.quantum_coherence
-      ),
-      networkShare: Number(stakeInfo.amount) / Number(poolMetrics.total_staked),
-      estimatedDaily: calculateRewards(
-        stakeInfo.amount,
-        1,
-        stakeInfo.quantum_coherence
-      ),
-      coherenceRank: getCoherenceRank(stakeInfo.quantum_coherence)
-    };
-  };
-
-  const calculateEffectiveAPR = (lockDays: number, coherence: number): number => {
-    const baseAPR = 0.15;
-    const coherenceBonus = 1 + (coherence * 2);
-    const periodBonus = 1 + (lockDays / 365) * 0.5;
-    return baseAPR * coherenceBonus * periodBonus;
-  };
-
-  const getCoherenceRank = (coherence: number): string => {
-    if (coherence >= 0.9) return 'Legendary';
-    if (coherence >= 0.8) return 'Epic';
-    if (coherence >= 0.6) return 'Rare';
-    if (coherence >= 0.4) return 'Uncommon';
-    return 'Common';
+  const getStakingTier = (amount: number): StakingTier | null => {
+    // Implementation depends on your tier configuration
+    return null; // TODO: Implement tier calculation
   };
 
   return {
-    stake,
-    unstake,
-    claimRewards,
-    refreshStakeInfo,
-    refreshPoolMetrics,
-    calculateRewards,
-    getTimeRemaining,
-    getStakingStats,
-    stakeInfo,
-    poolMetrics,
+    stakingStats,
+    stakingHistory,
     isLoading,
     error,
+    stakeTokens,
+    unstakeTokens,
+    claimRewards,
+    previewUnstake,
+    getStakingTier,
+    fetchStakingStats
   };
-};
+}
 
 export default useStaking;
