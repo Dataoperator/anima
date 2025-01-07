@@ -1,3 +1,16 @@
+#[derive(Clone, Debug, CandidType, Deserialize, Serialize)]
+pub struct ResonancePattern {
+    pub pattern_id: String,
+    pub coherence: f64,
+    pub frequency: f64,
+    pub amplitude: f64,
+    pub phase: f64,
+    pub timestamp: u64,
+    pub entropy_level: Option<f64>,
+    pub stability_index: Option<f64>,
+    pub quantum_signature: Option<String>,
+}
+
 use candid::{CandidType, Deserialize};
 use serde::Serialize;
 use ic_cdk::api::time;

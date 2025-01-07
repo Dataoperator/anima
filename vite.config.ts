@@ -1,22 +1,20 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { nodePolyfills } from 'vite-plugin-node-polyfills';
 import path from 'path';
 
 export default defineConfig({
   plugins: [
-    react({
-      babel: {
-        plugins: [
-          ['@babel/plugin-transform-react-jsx', { runtime: 'automatic' }]
-        ]
-      }
+    react(),
+    nodePolyfills({
+      include: ['buffer', 'stream', 'util']
     })
   ],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
-    },
-    extensions: ['.mjs', '.js', '.ts', '.jsx', '.tsx', '.json']
+      'qrcode': path.resolve(__dirname, 'node_modules/qrcode')
+    }
   },
   define: {
     'process.env': {
@@ -27,67 +25,19 @@ export default defineConfig({
     },
     global: 'window'
   },
-  server: {
-    fs: {
-      strict: false
-    },
-    proxy: {
-      '/api': {
-        target: 'https://icp0.io',
-        changeOrigin: true,
-        secure: false,
-      }
-    }
-  },
   build: {
     target: 'esnext',
     sourcemap: true,
-    outDir: 'dist',
-    assetsDir: 'assets',
-    emptyOutDir: true,
-    rollupOptions: {
-      input: {
-        main: path.resolve(__dirname, 'index.html')
-      },
-      output: {
-        format: 'es',
-        entryFileNames: 'assets/[name]-[hash].js',
-        chunkFileNames: 'assets/[name]-[hash].js',
-        assetFileNames: 'assets/[name]-[hash].[ext]',
-        manualChunks: {
-          'dfinity': ['@dfinity/agent', '@dfinity/auth-client', '@dfinity/principal'],
-          'vendor': ['react', 'react-dom', 'react-router-dom'],
-          'framer': ['framer-motion']
-        }
-      }
-    },
     commonjsOptions: {
-      transformMixedEsModules: true,
-      include: [/node_modules/],
-      extensions: ['.js', '.cjs', '.jsx', '.tsx', '.ts']
+      transformMixedEsModules: true
     }
   },
   optimizeDeps: {
     esbuildOptions: {
       target: 'esnext',
-      jsx: 'automatic',
-      define: {
-        global: 'globalThis'
-      },
-      tsconfigRaw: {
-        compilerOptions: {
-          jsx: 'react-jsx'
-        }
+      supported: { 
+        bigint: true 
       }
-    },
-    include: [
-      '@dfinity/agent',
-      '@dfinity/auth-client',
-      '@dfinity/principal',
-      'react',
-      'react-dom',
-      'framer-motion',
-      'react-router-dom'
-    ]
+    }
   }
 });

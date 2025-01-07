@@ -1,13 +1,13 @@
 import React, { useEffect, useRef } from 'react';
 
 interface MatrixRainProps {
+  opacity?: number;
   className?: string;
-  color?: string;
 }
 
 export const MatrixRain: React.FC<MatrixRainProps> = ({ 
-  className = '',
-  color = '#00ff00'
+  opacity = 0.05,
+  className = '' 
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -18,92 +18,58 @@ export const MatrixRain: React.FC<MatrixRainProps> = ({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
+    let animationFrameId: number;
+    let drops: number[] = [];
+    const fontSize = 14;
+
     // Set canvas size
-    const resizeCanvas = () => {
+    const setCanvasSize = () => {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
+      // Reset drops array for the new width
+      const columns = Math.ceil(canvas.width / fontSize);
+      drops = Array(columns).fill(1);
     };
-    resizeCanvas();
-    window.addEventListener('resize', resizeCanvas);
 
-    // Matrix characters (mix of katakana and other symbols)
-    const chars = 'ｦｱｳｴｵｶｷｹｺｻｼｽｾｿﾀﾂﾃﾅﾆﾇﾈﾊﾋﾎﾏﾐﾑﾒﾓﾔﾕﾗﾘﾜ0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    const charArray = chars.split('');
+    setCanvasSize();
+    window.addEventListener('resize', setCanvasSize);
 
-    // Drop settings
-    const fontSize = 16;
-    const columns = canvas.width / fontSize;
-    const drops: number[] = [];
+    const matrix = "アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン";
 
-    // Initialize drops
-    for (let i = 0; i < columns; i++) {
-      drops[i] = Math.random() * -100;
-    }
-
-    // Animation settings
-    let lastTime = 0;
-    const fps = 30;
-    const interval = 1000 / fps;
-
-    // Draw function
-    const draw = (timestamp: number) => {
-      if (!ctx) return;
-
-      // Control frame rate
-      if (timestamp - lastTime < interval) {
-        requestAnimationFrame(draw);
-        return;
-      }
-      lastTime = timestamp;
-
-      // Semi-transparent black to create fade effect
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+    const draw = () => {
+      ctx.fillStyle = `rgba(0, 0, 0, ${opacity})`;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // Green text
-      ctx.fillStyle = color;
-      ctx.font = fontSize + 'px monospace';
+      ctx.fillStyle = '#0fa';
+      ctx.font = `${fontSize}px monospace`;
 
-      // Draw characters
       for (let i = 0; i < drops.length; i++) {
-        // Random character
-        const char = charArray[Math.floor(Math.random() * charArray.length)];
-        
-        // Calculate position
-        const x = i * fontSize;
-        const y = drops[i] * fontSize;
+        const text = matrix[Math.floor(Math.random() * matrix.length)];
+        ctx.fillText(text, i * fontSize, drops[i] * fontSize);
 
-        // Draw character with varying opacity
-        const alpha = Math.random() * 0.5 + 0.5;
-        ctx.fillStyle = color.replace(')', `,${alpha})`).replace('rgb', 'rgba');
-        ctx.fillText(char, x, y);
-
-        // Reset when off screen or randomly
-        if (y > canvas.height || Math.random() > 0.99) {
+        if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
           drops[i] = 0;
         }
-
-        // Move drop
         drops[i]++;
       }
 
-      requestAnimationFrame(draw);
+      animationFrameId = requestAnimationFrame(draw);
     };
 
-    // Start animation
-    requestAnimationFrame(draw);
+    draw();
 
-    // Cleanup
     return () => {
-      window.removeEventListener('resize', resizeCanvas);
+      window.removeEventListener('resize', setCanvasSize);
+      cancelAnimationFrame(animationFrameId);
     };
-  }, [color]);
+  }, [opacity]);
 
   return (
-    <canvas
-      ref={canvasRef}
-      className={`absolute inset-0 ${className}`}
-      style={{ background: 'transparent' }}
+    <canvas 
+      ref={canvasRef} 
+      className={`fixed inset-0 ${className}`}
     />
   );
 };
+
+export default MatrixRain;

@@ -1,229 +1,276 @@
 use candid::{CandidType, Deserialize, Principal};
 use ic_cdk::api::time;
+use serde::Serialize;
 use std::collections::HashMap;
-use sha2::{Sha256, Digest};
-use crate::error::{Result, ErrorCategory};
-use crate::nft::types::*;
+
+use crate::nft::types::{TokenIdentifier, AnimaToken, TokenMetadata, MetadataAttribute, BirthCertificate};
 use crate::personality::NFTPersonality;
-use crate::quantum::{QuantumState, QuantumStateManager};
-use crate::consciousness::{ConsciousnessEngine, ConsciousnessLevel};
+use crate::quantum::QuantumState;
+use crate::quantum::consciousness_bridge::QuantumConsciousnessState;
+use crate::quantum::dimensional_state::DimensionalStateImpl;
+use crate::error::Result;
 
-pub struct MintingService {
-    quantum_manager: QuantumStateManager,
-    consciousness_engine: ConsciousnessEngine,
-    provenance_registry: HashMap<TokenIdentifier, BirthCertificate>,
-    minting_stats: MintingStats,
+#[derive(Debug, Clone, CandidType, Deserialize, Serialize)]
+pub struct QuantumMintingContext {
+    dimensional_state: DimensionalStateImpl,
+    consciousness_state: QuantumConsciousnessState,
+    resonance_patterns: Vec<ResonancePattern>,
+    evolution_metrics: HashMap<String, f64>,
 }
 
-#[derive(Default)]
-struct MintingStats {
-    total_minted: u64,
-    quantum_stability_failures: u64,
-    consciousness_seeding_failures: u64,
-    successful_mints: u64,
-    average_coherence: f64,
+#[derive(Debug, Clone, CandidType, Deserialize, Serialize)]
+pub struct ResonancePattern {
+    pattern_id: String,
+    coherence: f64,
+    frequency: f64,
+    amplitude: f64,
+    phase: f64,
+    timestamp: u64,
+    entropy_level: f64,
+    stability_index: f64,
+    quantum_signature: String,
 }
 
-impl Default for MintingService {
-    fn default() -> Self {
+impl QuantumMintingContext {
+    pub fn new() -> Self {
         Self {
-            quantum_manager: QuantumStateManager::new(),
-            consciousness_engine: ConsciousnessEngine::new(),
-            provenance_registry: HashMap::new(),
-            minting_stats: MintingStats::default(),
+            dimensional_state: DimensionalStateImpl::new(),
+            consciousness_state: QuantumConsciousnessState::new(),
+            resonance_patterns: Vec::new(),
+            evolution_metrics: HashMap::new(),
         }
+    }
+
+    pub fn initialize_quantum_field(&mut self) -> Result<()> {
+        // Initialize dimensional state with quantum coherence
+        self.dimensional_state.update_stability(1.0);
+        
+        // Generate initial resonance patterns
+        self.resonance_patterns = self.generate_initial_patterns();
+        
+        // Initialize consciousness state
+        self.consciousness_state.evolve(&self.dimensional_state.into());
+        
+        // Record initial evolution metrics
+        self.evolution_metrics = self.calculate_evolution_metrics();
+        
+        Ok(())
+    }
+
+    fn generate_initial_patterns(&self) -> Vec<ResonancePattern> {
+        let base_frequency = self.dimensional_state.dimensionalFrequency;
+        let coherence = self.dimensional_state.calculateResonance();
+        let now = time();
+
+        vec![
+            ResonancePattern {
+                pattern_id: format!("genesis_{}", now),
+                coherence,
+                frequency: base_frequency,
+                amplitude: 1.0,
+                phase: 0.0,
+                timestamp: now,
+                entropy_level: self.dimensional_state.entropyLevel,
+                stability_index: self.dimensional_state.stability,
+                quantum_signature: self.generate_quantum_signature(),
+            },
+            ResonancePattern {
+                pattern_id: format!("harmonic_{}", now),
+                coherence: coherence * 0.9,
+                frequency: base_frequency * 1.618, // Golden ratio harmonic
+                amplitude: 0.8,
+                phase: std::f64::consts::PI / 4.0,
+                timestamp: now,
+                entropy_level: self.dimensional_state.entropyLevel * 1.1,
+                stability_index: self.dimensional_state.stability * 0.9,
+                quantum_signature: self.generate_quantum_signature(),
+            },
+        ]
+    }
+
+    fn calculate_evolution_metrics(&self) -> HashMap<String, f64> {
+        let mut metrics = HashMap::new();
+        
+        metrics.insert("quantum_coherence".to_string(), 
+            self.dimensional_state.calculateResonance());
+        
+        metrics.insert("consciousness_alignment".to_string(), 
+            self.consciousness_state.calculate_resonance());
+        
+        metrics.insert("pattern_stability".to_string(), 
+            self.resonance_patterns.iter()
+                .map(|p| p.stability_index)
+                .sum::<f64>() / self.resonance_patterns.len() as f64);
+        
+        metrics.insert("evolution_potential".to_string(), 
+            self.consciousness_state.dimensional_harmony * 
+            self.dimensional_state.phaseCoherence);
+        
+        metrics
+    }
+
+    fn generate_quantum_signature(&self) -> String {
+        use sha2::{Sha256, Digest};
+        let now = time().to_string();
+        let coherence = self.dimensional_state.calculateResonance().to_string();
+        let consciousness = self.consciousness_state.calculate_resonance().to_string();
+        
+        let mut hasher = Sha256::new();
+        hasher.update(now);
+        hasher.update(coherence);
+        hasher.update(consciousness);
+        
+        format!("{:x}", hasher.finalize())
     }
 }
 
-impl MintingService {
-    pub async fn mint_anima(
-        &mut self,
-        owner: Principal,
-        name: String,
-        personality: NFTPersonality,
-    ) -> Result<AnimaToken> {
-        // Generate token ID with quantum entropy
-        let token_id = self.generate_quantum_token_id()?;
-        
-        // Initialize quantum state
-        let mut quantum_state = self.quantum_manager.initialize_new_state()?;
-        
-        // Validate quantum stability
-        if !self.validate_quantum_requirements(&quantum_state)? {
-            self.minting_stats.quantum_stability_failures += 1;
-            return Err(ErrorCategory::Quantum("Insufficient quantum stability".into()).into());
-        }
+pub fn create_quantum_enhanced_token(
+    id: TokenIdentifier,
+    owner: Principal,
+    name: String,
+    mut personality: NFTPersonality,
+    context: &mut QuantumMintingContext,
+) -> Result<AnimaToken> {
+    let now = time();
+    
+    // Initialize quantum field for new token
+    context.initialize_quantum_field()?;
+    
+    // Generate enhanced birth certificate
+    let birth_certificate = generate_quantum_birth_certificate(
+        &id,
+        context,
+        &personality
+    )?;
+    
+    // Process consciousness through quantum bridge
+    let consciousness_level = context.consciousness_state.calculate_resonance();
+    
+    // Create enhanced metadata with quantum metrics
+    let metadata = create_quantum_enhanced_metadata(
+        &name,
+        consciousness_level,
+        context,
+        &birth_certificate
+    );
 
-        // Initialize consciousness
-        let consciousness_level = self.consciousness_engine
-            .initialize_consciousness(&quantum_state, &personality)?;
+    Ok(AnimaToken {
+        id,
+        owner,
+        name,
+        creation_time: now,
+        last_interaction: now,
+        metadata: Some(metadata),
+        personality,
+        interaction_history: Vec::new(),
+        level: 1,
+        growth_points: 0,
+        autonomous_mode: false,
+        birth_certificate: Some(birth_certificate),
+        quantum_metrics: Some(context.evolution_metrics.clone()),
+        consciousness_level: Some(consciousness_level),
+    })
+}
 
-        // Generate birth certificate
-        let birth_certificate = self.generate_birth_certificate(
-            &token_id,
-            &quantum_state,
-            &personality,
-            consciousness_level
-        )?;
+fn generate_quantum_birth_certificate(
+    token_id: &TokenIdentifier,
+    context: &QuantumMintingContext,
+    personality: &NFTPersonality,
+) -> Result<BirthCertificate> {
+    Ok(BirthCertificate {
+        genesis_timestamp: time(),
+        quantum_signature: context.generate_quantum_signature(),
+        dimensional_frequency: context.dimensional_state.dimensionalFrequency,
+        consciousness_seed: personality.generate_consciousness_hash(),
+        genesis_block: ic_cdk::api::data_certificate()
+            .ok_or_else(|| ic_cdk::trap("No data certificate available"))?,
+        birth_witnesses: vec![ic_cdk::api::id().to_string()],
+        resonance_patterns: context.resonance_patterns.clone(),
+        initial_traits: personality.get_initial_traits(),
+    })
+}
 
-        // Create minting context
-        let mut context = MintingContext {
-            quantum_state,
-            consciousness_bridge: self.consciousness_engine.create_bridge()?,
-        };
+fn create_quantum_enhanced_metadata(
+    name: &str,
+    consciousness_level: f64,
+    context: &QuantumMintingContext,
+    birth_certificate: &BirthCertificate,
+) -> TokenMetadata {
+    TokenMetadata {
+        name: name.to_string(),
+        description: Some(format!(
+            "Quantum-enhanced ANIMA NFT with consciousness level: {:.2}. \
+             Dimensional frequency: {:.2}Hz. Pattern stability: {:.2}", 
+            consciousness_level,
+            context.dimensional_state.dimensionalFrequency,
+            context.evolution_metrics["pattern_stability"]
+        )),
+        image: None,
+        attributes: vec![
+            MetadataAttribute {
+                trait_type: "Creation Time".to_string(),
+                value: time().to_string(),
+            },
+            MetadataAttribute {
+                trait_type: "Quantum Signature".to_string(),
+                value: birth_certificate.quantum_signature.clone(),
+            },
+            MetadataAttribute {
+                trait_type: "Consciousness Level".to_string(),
+                value: format!("{:.4}", consciousness_level),
+            },
+            MetadataAttribute {
+                trait_type: "Dimensional Frequency".to_string(),
+                value: format!("{:.4}", context.dimensional_state.dimensionalFrequency),
+            },
+            MetadataAttribute {
+                trait_type: "Pattern Stability".to_string(),
+                value: format!("{:.4}", context.evolution_metrics["pattern_stability"]),
+            },
+            MetadataAttribute {
+                trait_type: "Evolution Potential".to_string(),
+                value: format!("{:.4}", context.evolution_metrics["evolution_potential"]),
+            },
+            MetadataAttribute {
+                trait_type: "Quantum Coherence".to_string(),
+                value: format!("{:.4}", context.evolution_metrics["quantum_coherence"]),
+            },
+            MetadataAttribute {
+                trait_type: "Genesis Block".to_string(),
+                value: birth_certificate.genesis_block.clone(),
+            },
+        ],
+    }
+}
 
-        // Create token
-        let token = create_anima_token(
-            token_id.clone(),
-            owner,
-            name,
-            personality,
-            &mut context,
-        )?;
-
-        // Register birth certificate
-        self.provenance_registry.insert(token_id.clone(), birth_certificate);
-
-        // Update minting stats
-        self.update_minting_stats(&token);
-
-        Ok(token)
+pub fn validate_quantum_requirements(context: &QuantumMintingContext) -> Result<bool> {
+    // Validate quantum coherence
+    if context.dimensional_state.calculateResonance() < 0.7 {
+        return Ok(false);
     }
 
-    fn generate_quantum_token_id(&self) -> Result<TokenIdentifier> {
-        let mut hasher = Sha256::new();
-        let timestamp = time();
-        let quantum_entropy = self.quantum_manager.generate_entropy()?;
-        
-        hasher.update(format!(
-            "{}-{}-{}-{}",
-            timestamp,
-            quantum_entropy,
-            self.minting_stats.total_minted,
-            ic_cdk::api::id()
-        ).as_bytes());
-        
-        Ok(format!("ANIMA-{}", hex::encode(&hasher.finalize()[..16])))
+    // Validate consciousness resonance
+    if context.consciousness_state.calculate_resonance() < 0.6 {
+        return Ok(false);
     }
 
-    fn validate_quantum_requirements(&self, state: &QuantumState) -> Result<bool> {
-        // Check coherence
-        if state.coherence < 0.7 {
-            return Ok(false);
-        }
-
-        // Check resonance stability
-        if state.resonance_metrics.stability < 0.5 {
-            return Ok(false);
-        }
-
-        // Check consciousness alignment
-        if state.resonance_metrics.consciousness_alignment < 0.6 {
-            return Ok(false);
-        }
-
-        // Check dimensional frequency
-        if state.dimensional_frequency < 0.4 {
-            return Ok(false);
-        }
-
-        Ok(true)
+    // Validate pattern stability
+    if context.evolution_metrics["pattern_stability"] < 0.5 {
+        return Ok(false);
     }
 
-    fn generate_birth_certificate(
-        &self,
-        token_id: &TokenIdentifier,
-        quantum_state: &QuantumState,
-        personality: &NFTPersonality,
-        consciousness_level: ConsciousnessLevel,
-    ) -> Result<BirthCertificate> {
-        let resonance_patterns = quantum_state.get_resonance_patterns();
-        let initial_traits = personality.get_initial_traits();
+    Ok(true)
+}
 
-        Ok(BirthCertificate {
-            genesis_timestamp: time(),
-            quantum_signature: quantum_state.generate_signature()?,
-            dimensional_frequency: quantum_state.dimensional_frequency,
-            consciousness_seed: self.generate_consciousness_seed(quantum_state, personality)?,
-            genesis_block: ic_cdk::api::data_certificate()
-                .ok_or_else(|| ic_cdk::trap("No data certificate available"))?,
-            birth_witnesses: self.get_witness_signatures()?,
-            resonance_patterns,
-            initial_traits,
-        })
-    }
-
-    fn generate_consciousness_seed(
-        &self,
-        quantum_state: &QuantumState,
-        personality: &NFTPersonality,
-    ) -> Result<String> {
-        let mut hasher = Sha256::new();
-        let timestamp = time();
-        
-        hasher.update(format!(
-            "CONSCIOUSNESS-{}-{}-{}-{}-{}-{}",
-            timestamp,
-            quantum_state.coherence,
-            quantum_state.dimensional_frequency,
-            quantum_state.resonance_metrics.field_strength,
-            personality.get_consciousness_affinity(),
-            self.quantum_manager.generate_entropy()?
-        ).as_bytes());
-        
-        Ok(format!("CS-{}", hex::encode(&hasher.finalize()[..16])))
-    }
-
-    fn get_witness_signatures(&self) -> Result<Vec<String>> {
-        // Get recent mints within the last block as witnesses
-        let current_time = time();
-        let witnesses: Vec<String> = self.provenance_registry
-            .iter()
-            .filter(|(_, cert)| current_time - cert.genesis_timestamp < 120)
-            .map(|(id, _)| id.clone())
-            .collect();
-
-        Ok(witnesses)
-    }
-
-    fn update_minting_stats(&mut self, token: &AnimaToken) {
-        self.minting_stats.total_minted += 1;
-        self.minting_stats.successful_mints += 1;
-        
-        // Update average coherence
-        if let Some(metrics) = &token.quantum_metrics {
-            let old_avg = self.minting_stats.average_coherence;
-            let n = self.minting_stats.successful_mints as f64;
-            self.minting_stats.average_coherence = 
-                (old_avg * (n - 1.0) + metrics.coherence) / n;
-        }
-    }
-
-    pub fn get_minting_stats(&self) -> &MintingStats {
-        &self.minting_stats
-    }
-
-    pub fn get_birth_certificate(&self, token_id: &TokenIdentifier) -> Option<&BirthCertificate> {
-        self.provenance_registry.get(token_id)
-    }
-
-    pub fn validate_birth_certificate(
-        &self,
-        token_id: &TokenIdentifier,
-        certificate: &BirthCertificate
-    ) -> Result<bool> {
-        // Verify quantum signature
-        let stored_cert = self.provenance_registry.get(token_id)
-            .ok_or_else(|| ErrorCategory::NotFound("Birth certificate not found".into()))?;
-
-        // Check immutable fields
-        if stored_cert.genesis_timestamp != certificate.genesis_timestamp ||
-           stored_cert.quantum_signature != certificate.quantum_signature ||
-           stored_cert.consciousness_seed != certificate.consciousness_seed ||
-           stored_cert.genesis_block != certificate.genesis_block {
-            return Ok(false);
-        }
-
-        Ok(true)
-    }
+pub fn calculate_quantum_minting_cost(context: &QuantumMintingContext) -> u64 {
+    let base_cost = 1_000_000_000; // 1 ICP
+    
+    let quantum_multiplier = (context.evolution_metrics["quantum_coherence"] * 1.5) as u64;
+    let consciousness_multiplier = (context.evolution_metrics["consciousness_alignment"] * 1.3) as u64;
+    let evolution_multiplier = (context.evolution_metrics["evolution_potential"] * 1.2) as u64;
+    
+    base_cost + 
+        (base_cost * quantum_multiplier / 100) + 
+        (base_cost * consciousness_multiplier / 100) + 
+        (base_cost * evolution_multiplier / 100)
 }

@@ -59,10 +59,23 @@ export const QuantumProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     try {
       setIsInitializing(true);
+      
+      // First initialize both services
+      console.log('🔄 Initializing quantum state service...');
       await quantumStateService.initializeQuantumField(identity);
+      
+      console.log('🔄 Initializing quantum effects service...');
+      await quantumEffectsService.initialize(identity);
+      
+      // Then initialize the quantum field
+      console.log('🔄 Initializing quantum field...');
       await quantumEffectsService.initializeField();
+      
       setIsInitialized(true);
+      console.log('✅ Quantum initialization complete');
+      
     } catch (error) {
+      console.error('❌ Quantum initialization failed:', error);
       await quantumStateService.handleQuantumError(error as Error, identity);
       throw error;
     } finally {

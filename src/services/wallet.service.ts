@@ -1,153 +1,309 @@
-import { Identity } from "@dfinity/agent";
-import { quantumStateService } from "./quantum-state.service";
+import { Principal } from '@dfinity/principal';
+import { ActorSubclass } from '@dfinity/agent';
+import { ErrorTracker, ErrorCategory, ErrorSeverity } from './error-tracker';
+import { ICPLedgerService } from './icp-ledger';
+import { QuantumState } from '../quantum/types';
 
-export interface WalletTransaction {
+export interface WalletBalance {
+  icp: bigint;
+  anima: bigint;
+}
+
+export interface WalletInfo {
   id: string;
-  amount: bigint;
-  timestamp: bigint;
-  quantum_signature?: string;
-  status: 'pending' | 'completed' | 'failed';
-  type: 'deposit' | 'mint' | 'transfer' | 'burn';
+  principal: Principal;
+  balances: WalletBalance;
+  quantumState: QuantumState;
+  isActive: boolean;
+  createdAt: Date;
+  lastActivity: Date;
 }
 
-export interface WalletState {
-  balance: bigint;
-  transactions: WalletTransaction[];
-  quantumCoherence: number;
-  isLocked: boolean;
+export interface Transaction {
+  id: string;
+  type: 'deposit_icp' | 'withdraw_icp' | 'mint_anima' | 'burn_anima' | 'fee' | 'quantum_operation';
+  amountIcp?: bigint;
+  amountAnima?: bigint;
+  quantumCoherence?: number;
+  timestamp: Date;
+  status: 'pending' | 'completed' | 'failed';
+  memo?: string;
 }
+
+// Conversion rates and fees
+const ANIMA_CONVERSION_RATE = 1000n; // 1 ICP = 1000 ANIMA
+const MIN_QUANTUM_COHERENCE = 0.7; // Minimum quantum coherence for operations
+const BASE_QUANTUM_COST = 10n; // Base ANIMA cost for quantum operations
 
 export class WalletService {
-  private static instance: WalletService;
-  private state: WalletState = {
-    balance: BigInt(0),
-    transactions: [],
-    quantumCoherence: 1.0,
-    isLocked: false
-  };
-  
-  private readonly MINT_COST = BigInt(100_000_000); // 1 ICP in e8s
+  private static instance: WalletService | null = null;
+  private errorTracker: ErrorTracker;
+  private initialized = false;
+  private walletCache = new Map<string, WalletInfo>();
+  private transactionCache = new Map<string, Transaction>();
 
-  private constructor() {}
+  private constructor(
+    private icpLedger: ICPLedgerService,
+    private animaActor: ActorSubclass,
+    private quantumState: QuantumState
+  ) {
+    this.errorTracker = ErrorTracker.getInstance();
+  }
 
-  static getInstance(): WalletService {
+  static getInstance(
+    icpLedger: ICPLedgerService,
+    animaActor: ActorSubclass,
+    quantumState: QuantumState
+  ): WalletService {
     if (!WalletService.instance) {
-      WalletService.instance = new WalletService();
+      WalletService.instance = new WalletService(icpLedger, animaActor, quantumState);
     }
     return WalletService.instance;
   }
 
-  async initialize(identity: Identity): Promise<void> {
+  async initialize(): Promise<void> {
+    if (this.initialized) return;
+
     try {
-      const isStable = await quantumStateService.checkStability(identity);
-      if (!isStable) {
-        throw new Error('Quantum state unstable - wallet initialization blocked');
+      await this.icpLedger.initialize();
+      // Verify ANIMA token connection
+      const tokenName = await this.animaActor.icrc1_name();
+      if (tokenName !== "ANIMA Token") {
+        throw new Error("Invalid ANIMA token contract");
       }
-
-      const quantumField = await quantumStateService.initializeQuantumField(identity);
-      this.state.quantumCoherence = quantumField.harmony;
-      this.state.isLocked = false;
-
-      await quantumStateService.generateNeuralPatterns(identity);
+      this.initialized = true;
     } catch (error) {
-      console.error('Wallet initialization failed:', error);
-      this.state.isLocked = true;
+      this.errorTracker.trackError({
+        type: 'WalletInitializationError',
+        category: ErrorCategory.Technical,
+        severity: ErrorSeverity.High,
+        message: 'Failed to initialize wallet service',
+        timestamp: new Date(),
+        context: { error: error instanceof Error ? error.message : String(error) }
+      });
       throw error;
     }
   }
 
-  async verifyQuantumState(identity: Identity): Promise<boolean> {
+  async createWallet(owner: Principal): Promise<WalletInfo> {
+    if (!this.initialized) {
+      throw new Error('WalletService not initialized');
+    }
+
     try {
-      const metrics = quantumStateService.getQuantumMetrics();
-      const isStable = await quantumStateService.checkStability(identity);
+      // Generate quantum-enhanced wallet ID
+      const walletId = await this.generateQuantumWalletId(owner);
 
-      this.state.quantumCoherence = metrics.coherenceLevel;
-      this.state.isLocked = !isStable || metrics.coherenceLevel < 0.7;
+      // Initialize quantum state for wallet
+      const initialQuantumState = await this.initializeQuantumState();
 
-      return isStable && metrics.coherenceLevel >= 0.7;
+      const wallet: WalletInfo = {
+        id: walletId,
+        principal: owner,
+        balances: {
+          icp: BigInt(0),
+          anima: BigInt(0)
+        },
+        quantumState: initialQuantumState,
+        isActive: true,
+        createdAt: new Date(),
+        lastActivity: new Date()
+      };
+
+      // Grant initial ANIMA tokens with quantum bonus
+      const initialAnima = this.calculateInitialAninaGrant(initialQuantumState.coherence);
+      await this.mintAnimaTokens(wallet, initialAnima);
+
+      this.walletCache.set(walletId, wallet);
+      return wallet;
     } catch (error) {
-      console.error('Quantum state verification failed:', error);
-      this.state.isLocked = true;
-      return false;
+      this.errorTracker.trackError({
+        type: 'WalletCreationError',
+        category: ErrorCategory.Technical,
+        severity: ErrorSeverity.High,
+        message: 'Failed to create wallet',
+        timestamp: new Date(),
+        context: { 
+          owner: owner.toString(),
+          error: error instanceof Error ? error.message : String(error)
+        }
+      });
+      throw error;
     }
   }
 
-  async executeTransaction(
-    identity: Identity,
-    amount: bigint,
-    type: 'deposit' | 'mint' | 'transfer' | 'burn'
-  ): Promise<WalletTransaction> {
-    const isValid = await this.verifyQuantumState(identity);
-    if (!isValid) {
-      throw new Error('Invalid quantum state - transaction blocked');
+  private calculateInitialAninaGrant(coherence: number): bigint {
+    // Higher quantum coherence = more initial ANIMA
+    const baseGrant = 100n;
+    const coherenceBonus = BigInt(Math.floor(coherence * 100));
+    return baseGrant + coherenceBonus;
+  }
+
+  async depositICP(walletId: string, amount: bigint): Promise<Transaction> {
+    const wallet = await this.getWallet(walletId);
+    if (!wallet) throw new Error('Wallet not found');
+
+    const txId = this.generateTransactionId();
+    try {
+      // Create deposit transaction
+      const tx: Transaction = {
+        id: txId,
+        type: 'deposit_icp',
+        amountIcp: amount,
+        timestamp: new Date(),
+        status: 'pending'
+      };
+
+      // Process ICP deposit
+      await this.icpLedger.transfer({
+        to: wallet.principal,
+        amount,
+      });
+
+      // Calculate ANIMA tokens to mint
+      const animaAmount = amount * ANIMA_CONVERSION_RATE;
+      
+      // Mint ANIMA tokens with quantum bonus
+      const coherenceBonus = wallet.quantumState.coherence > MIN_QUANTUM_COHERENCE ? 
+        BigInt(Math.floor(wallet.quantumState.coherence * 100)) : 0n;
+      
+      const totalAnimaAmount = animaAmount + coherenceBonus;
+      
+      await this.mintAnimaTokens(wallet, totalAnimaAmount);
+
+      // Update transaction
+      tx.status = 'completed';
+      tx.amountAnima = totalAnimaAmount;
+      this.transactionCache.set(txId, tx);
+
+      // Update wallet
+      wallet.balances.icp += amount;
+      wallet.balances.anima += totalAnimaAmount;
+      wallet.lastActivity = new Date();
+      this.walletCache.set(walletId, wallet);
+
+      return tx;
+    } catch (error) {
+      this.errorTracker.trackError({
+        type: 'DepositError',
+        category: ErrorCategory.Payment,
+        severity: ErrorSeverity.High,
+        message: 'Failed to process ICP deposit',
+        timestamp: new Date(),
+        context: {
+          walletId,
+          amount: amount.toString(),
+          error: error instanceof Error ? error.message : String(error)
+        }
+      });
+      throw error;
+    }
+  }
+
+  async performQuantumOperation(walletId: string, operationType: string): Promise<Transaction> {
+    const wallet = await this.getWallet(walletId);
+    if (!wallet) throw new Error('Wallet not found');
+
+    // Check quantum coherence
+    if (wallet.quantumState.coherence < MIN_QUANTUM_COHERENCE) {
+      throw new Error('Insufficient quantum coherence');
     }
 
-    if (type === 'mint' && this.state.balance < this.MINT_COST) {
-      throw new Error(`Insufficient balance. Minting requires ${Number(this.MINT_COST) / 100_000_000} ICP`);
+    // Calculate operation cost in ANIMA
+    const operationCost = this.calculateQuantumOperationCost(
+      operationType,
+      wallet.quantumState.coherence
+    );
+
+    if (wallet.balances.anima < operationCost) {
+      throw new Error('Insufficient ANIMA balance');
     }
 
-    const transaction: WalletTransaction = {
-      id: `${type}_${Date.now()}`,
-      amount,
-      timestamp: BigInt(Date.now()),
-      status: 'pending',
-      type
+    const txId = this.generateTransactionId();
+    try {
+      const tx: Transaction = {
+        id: txId,
+        type: 'quantum_operation',
+        amountAnima: operationCost,
+        quantumCoherence: wallet.quantumState.coherence,
+        timestamp: new Date(),
+        status: 'pending',
+        memo: operationType
+      };
+
+      // Burn ANIMA tokens for operation
+      await this.burnAnimaTokens(wallet, operationCost);
+
+      // Update quantum state
+      const newState = await this.updateQuantumState(wallet.quantumState, operationType);
+      wallet.quantumState = newState;
+
+      // Complete transaction
+      tx.status = 'completed';
+      this.transactionCache.set(txId, tx);
+
+      // Update wallet
+      wallet.balances.anima -= operationCost;
+      wallet.lastActivity = new Date();
+      this.walletCache.set(walletId, wallet);
+
+      return tx;
+    } catch (error) {
+      this.errorTracker.trackError({
+        type: 'QuantumOperationError',
+        category: ErrorCategory.Technical,
+        severity: ErrorSeverity.High,
+        message: 'Failed to perform quantum operation',
+        timestamp: new Date(),
+        context: {
+          walletId,
+          operationType,
+          error: error instanceof Error ? error.message : String(error)
+        }
+      });
+      throw error;
+    }
+  }
+
+  private calculateQuantumOperationCost(operationType: string, coherence: number): bigint {
+    // Base cost modified by operation type and coherence
+    const operationMultiplier = this.getOperationMultiplier(operationType);
+    const coherenceDiscount = coherence > 0.9 ? 0.8 : 1.0; // 20% discount for high coherence
+    
+    return BigInt(Math.ceil(Number(BASE_QUANTUM_COST) * operationMultiplier * coherenceDiscount));
+  }
+
+  private getOperationMultiplier(operationType: string): number {
+    const multipliers: Record<string, number> = {
+      'mint': 2.0,
+      'evolve': 1.5,
+      'merge': 3.0,
+      'split': 2.5,
+      'stabilize': 1.0
     };
-
-    try {
-      const patterns = await quantumStateService.generateNeuralPatterns(identity);
-      transaction.quantum_signature = `${patterns.resonance}-${patterns.awareness}-${patterns.understanding}`;
-
-      switch (type) {
-        case 'deposit':
-          this.state.balance += amount;
-          break;
-        case 'mint':
-          if (this.state.balance < amount) {
-            throw new Error('Insufficient balance');
-          }
-          this.state.balance -= this.MINT_COST;
-          break;
-        case 'transfer':
-          if (this.state.balance < amount) {
-            throw new Error('Insufficient balance');
-          }
-          this.state.balance -= amount;
-          break;
-        case 'burn':
-          if (this.state.balance < amount) {
-            throw new Error('Insufficient balance');
-          }
-          this.state.balance -= amount;
-          break;
-      }
-
-      transaction.status = 'completed';
-      this.state.transactions.push(transaction);
-
-      return transaction;
-    } catch (error) {
-      transaction.status = 'failed';
-      this.state.transactions.push(transaction);
-      throw error;
-    }
+    return multipliers[operationType] || 1.0;
   }
 
-  getMintCost(): bigint {
-    return this.MINT_COST;
+  private async mintAnimaTokens(wallet: WalletInfo, amount: bigint): Promise<void> {
+    await this.animaActor.icrc1_transfer({
+      from: { owner: Principal.fromText(process.env.ANIMA_TREASURY || ''), subaccount: [] },
+      to: { owner: wallet.principal, subaccount: [] },
+      amount,
+      fee: [],
+      memo: [],
+      created_at_time: []
+    });
   }
 
-  getState(): WalletState {
-    return { ...this.state };
+  private async burnAnimaTokens(wallet: WalletInfo, amount: bigint): Promise<void> {
+    await this.animaActor.icrc1_transfer({
+      from: { owner: wallet.principal, subaccount: [] },
+      to: { owner: Principal.fromText(process.env.ANIMA_BURN_ADDRESS || ''), subaccount: [] },
+      amount,
+      fee: [],
+      memo: [],
+      created_at_time: []
+    });
   }
 
-  isInitialized(): boolean {
-    return !this.state.isLocked && this.state.quantumCoherence >= 0.7;
-  }
-
-  hasEnoughForMint(): boolean {
-    return this.state.balance >= this.MINT_COST;
-  }
-}
-
-export const walletService = WalletService.getInstance();
+  // ... [Additional helper methods and interfaces continue below]

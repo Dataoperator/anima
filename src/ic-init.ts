@@ -1,21 +1,42 @@
 import { Identity, HttpAgent } from "@dfinity/agent";
 import { AuthClient } from "@dfinity/auth-client";
 import { createActor } from "./declarations/anima";
-import type { _SERVICE } from './declarations/anima/anima.did';
+import { idlFactory as ledgerIDL } from "./declarations/ledger/ledger.did.js";
+import { _SERVICE as AnimaService } from './declarations/anima/anima.did';
+import { _SERVICE as LedgerService } from './declarations/ledger/ledger.did.d';
 import { ErrorTracker } from './error/quantum_error';
+import { Principal } from '@dfinity/principal';
+import { Actor, ActorSubclass } from '@dfinity/agent';
 
 const CANISTER_ID = {
   anima: process.env.CANISTER_ID_ANIMA?.toString() || 'l2ilz-iqaaa-aaaaj-qngjq-cai',
-  assets: process.env.CANISTER_ID_ANIMA_ASSETS?.toString() || 'lpp2u-jyaaa-aaaaj-qngka-cai'
+  assets: process.env.CANISTER_ID_ANIMA_ASSETS?.toString() || 'lpp2u-jyaaa-aaaaj-qngka-cai',
+  ledger: 'ryjl3-tyaaa-aaaaa-aaaba-cai' // ICP Ledger canister ID
 };
 
 const HOST = 'https://icp0.io';
 
 type StageChangeCallback = (stage: string) => void;
 
+export async function createICPLedgerActor(identity: Identity): Promise<ActorSubclass<LedgerService>> {
+  const agent = new HttpAgent({
+    identity,
+    host: HOST
+  });
+
+  if (process.env.NODE_ENV !== 'production') {
+    await agent.fetchRootKey().catch(console.error);
+  }
+
+  return Actor.createActor(ledgerIDL, {
+    agent,
+    canisterId: Principal.fromText(CANISTER_ID.ledger)
+  });
+}
+
 class ICManager {
   private static instance: ICManager;
-  private actor: _SERVICE | null = null;
+  private actor: AnimaService | null = null;
   private agent: HttpAgent | null = null;
   private authClient: AuthClient | null = null;
   private identity: Identity | null = null;
@@ -101,7 +122,7 @@ class ICManager {
       this.updateStage('Creating Actor...');
       this.actor = await createActor(canisterId, {
         agent: this.agent
-      }) as _SERVICE;
+      }) as AnimaService;
 
       // Verify the actor
       if (!this.actor || typeof this.actor.initialize_genesis !== 'function') {
@@ -135,7 +156,7 @@ class ICManager {
     }
   }
 
-  getActor(): _SERVICE | null {
+  getActor(): AnimaService | null {
     return this.actor;
   }
 
@@ -162,7 +183,7 @@ declare global {
       agent: HttpAgent | null;
       HttpAgent: any;
     };
-    canister: _SERVICE | null;
+    canister: AnimaService | null;
   }
 }
 

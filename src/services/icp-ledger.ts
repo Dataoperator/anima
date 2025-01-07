@@ -21,6 +21,7 @@ export class ICPLedgerService {
   private errorTracker: ErrorTracker;
   private readonly DEFAULT_FEE = BigInt(10_000);
   private readonly DEFAULT_SUBACCOUNT = [];
+  private initialized: boolean = false;
 
   private constructor(private ledgerActor: ActorSubclass) {
     this.errorTracker = ErrorTracker.getInstance();
@@ -33,6 +34,26 @@ export class ICPLedgerService {
     return ICPLedgerService.instance;
   }
 
+  async initialize(): Promise<void> {
+    if (this.initialized) return;
+
+    try {
+      // Verify actor connection with a simple call
+      await this.ledgerActor.icrc1_name();
+      this.initialized = true;
+    } catch (error) {
+      this.errorTracker.trackError({
+        type: 'LedgerInitializationError',
+        category: ErrorCategory.Technical,
+        severity: ErrorSeverity.High,
+        message: 'Failed to initialize ICP ledger',
+        timestamp: new Date(),
+        context: { error: error instanceof Error ? error.message : String(error) }
+      });
+      throw error;
+    }
+  }
+
   async transfer(args: {
     to: Principal | string;
     amount: bigint;
@@ -40,6 +61,10 @@ export class ICPLedgerService {
     fee?: bigint;
     fromSubaccount?: number[];
   }): Promise<TransactionResponse> {
+    if (!this.initialized) {
+      throw new Error('ICPLedgerService not initialized');
+    }
+
     try {
       const transfer: ICPTransfer = {
         amount: { e8s: args.amount },
@@ -52,7 +77,6 @@ export class ICPLedgerService {
 
       const result = await this.ledgerActor.transfer(transfer);
 
-      // Handle various response types
       if ('Ok' in result) {
         return {
           height: result.Ok,
@@ -64,29 +88,37 @@ export class ICPLedgerService {
 
       throw new Error('Unknown transfer response format');
     } catch (error) {
-      this.errorTracker.trackError(
-        ErrorCategory.PAYMENT,
-        error instanceof Error ? error : new Error('Transfer failed'),
-        ErrorSeverity.HIGH,
-        { args }
-      );
+      this.errorTracker.trackError({
+        type: 'TransferError',
+        category: ErrorCategory.PAYMENT,
+        severity: ErrorSeverity.HIGH,
+        message: error instanceof Error ? error.message : 'Transfer failed',
+        timestamp: new Date(),
+        context: { args }
+      });
       throw error;
     }
   }
 
   async getBalance(principal: Principal): Promise<bigint> {
+    if (!this.initialized) {
+      throw new Error('ICPLedgerService not initialized');
+    }
+
     try {
       const result = await this.ledgerActor.account_balance({
         account: principal,
       });
       return result.e8s;
     } catch (error) {
-      this.errorTracker.trackError(
-        ErrorCategory.PAYMENT,
-        error instanceof Error ? error : new Error('Balance check failed'),
-        ErrorSeverity.HIGH,
-        { principal: principal.toString() }
-      );
+      this.errorTracker.trackError({
+        type: 'BalanceCheckError',
+        category: ErrorCategory.PAYMENT,
+        severity: ErrorSeverity.HIGH,
+        message: error instanceof Error ? error.message : 'Balance check failed',
+        timestamp: new Date(),
+        context: { principal: principal.toString() }
+      });
       throw error;
     }
   }
@@ -101,15 +133,21 @@ export class ICPLedgerService {
       type: 'transfer' | 'mint' | 'burn';
     }>;
   }> {
+    if (!this.initialized) {
+      throw new Error('ICPLedgerService not initialized');
+    }
+
     try {
       return await this.ledgerActor.get_transactions(args);
     } catch (error) {
-      this.errorTracker.trackError(
-        ErrorCategory.PAYMENT,
-        error instanceof Error ? error : new Error('Get transactions failed'),
-        ErrorSeverity.HIGH,
-        { args }
-      );
+      this.errorTracker.trackError({
+        type: 'GetTransactionsError',
+        category: ErrorCategory.PAYMENT,
+        severity: ErrorSeverity.HIGH,
+        message: error instanceof Error ? error.message : 'Get transactions failed',
+        timestamp: new Date(),
+        context: { args }
+      });
       throw error;
     }
   }
@@ -122,7 +160,12 @@ export class ICPLedgerService {
     return amount > 0 && amount < BigInt(Number.MAX_SAFE_INTEGER);
   }
 
+  isInitialized(): boolean {
+    return this.initialized;
+  }
+
   dispose(): void {
+    this.initialized = false;
     ICPLedgerService.instance = null;
   }
 }

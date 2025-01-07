@@ -1,12 +1,10 @@
 import React, { useEffect, useRef } from 'react';
-import { motion } from 'framer-motion';
 
 interface DataStreamProps {
-  intensity: number;
-  color: string;
+  className?: string;
 }
 
-export const DataStream: React.FC<DataStreamProps> = ({ intensity, color }) => {
+export const DataStream: React.FC<DataStreamProps> = ({ className = '' }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -16,39 +14,44 @@ export const DataStream: React.FC<DataStreamProps> = ({ intensity, color }) => {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    canvas.width = canvas.clientWidth * window.devicePixelRatio;
-    canvas.height = canvas.clientHeight * window.devicePixelRatio;
-
-    const columns = Math.floor(canvas.width / 20);
-    const drops: number[] = new Array(columns).fill(0);
-
-    const getRandomChar = () => {
-      const chars = '01アイウエオカキクケコサシスセソタチツテトナニヌネノ';
-      return chars[Math.floor(Math.random() * chars.length)];
-    };
-
     let animationFrameId: number;
+    const streamers: { x: number; y: number; speed: number; char: string }[] = [];
+
+    // Set canvas size
+    const setCanvasSize = () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    };
+    setCanvasSize();
+    window.addEventListener('resize', setCanvasSize);
+
+    // Initialize streamers
+    for (let i = 0; i < Math.floor(canvas.width / 20); i++) {
+      streamers.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        speed: 1 + Math.random() * 3,
+        char: String.fromCharCode(0x30A0 + Math.random() * 96)
+      });
+    }
 
     const draw = () => {
-      ctx.fillStyle = `rgba(0, 0, 0, ${0.1 - intensity * 0.05})`;
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      ctx.fillStyle = color;
-      ctx.font = '15px monospace';
+      ctx.fillStyle = '#0fa';
+      ctx.font = '12px monospace';
 
-      for (let i = 0; i < drops.length; i++) {
-        const text = getRandomChar();
-        const x = i * 20;
-        const y = drops[i] * 20;
+      streamers.forEach(streamer => {
+        ctx.fillText(streamer.char, streamer.x, streamer.y);
+        streamer.y += streamer.speed;
 
-        ctx.fillText(text, x, y);
-
-        if (y > canvas.height && Math.random() > 0.975) {
-          drops[i] = 0;
+        if (streamer.y > canvas.height) {
+          streamer.y = 0;
+          streamer.x = Math.random() * canvas.width;
+          streamer.char = String.fromCharCode(0x30A0 + Math.random() * 96);
         }
-
-        drops[i]++;
-      }
+      });
 
       animationFrameId = requestAnimationFrame(draw);
     };
@@ -56,25 +59,12 @@ export const DataStream: React.FC<DataStreamProps> = ({ intensity, color }) => {
     draw();
 
     return () => {
+      window.removeEventListener('resize', setCanvasSize);
       cancelAnimationFrame(animationFrameId);
     };
-  }, [intensity, color]);
+  }, []);
 
-  return (
-    <motion.div 
-      className="w-full h-full"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.5 }}
-    >
-      <canvas
-        ref={canvasRef}
-        className="w-full h-full"
-        style={{ 
-          filter: `blur(0.5px) brightness(${1 + intensity * 0.5})`,
-          opacity: 0.8 + intensity * 0.2
-        }}
-      />
-    </motion.div>
-  );
+  return <canvas ref={canvasRef} className={`fixed inset-0 ${className}`} />;
 };
+
+export default DataStream;
