@@ -14,7 +14,7 @@ import {
   History,
   Globe
 } from 'lucide-react';
-import { useQuantumState } from '../../hooks/useQuantumState';
+import { useQuantumState } from '@/hooks/useQuantumState';
 import { 
   Card,
   CardContent, 

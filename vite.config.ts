@@ -2,13 +2,35 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 
+// https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
     react({
-      jsxRuntime: 'automatic',
       babel: {
+        presets: [
+          ['@babel/preset-env', {
+            targets: {
+              esmodules: true
+            },
+            bugfixes: true,
+            loose: false,
+            modules: false
+          }],
+          ['@babel/preset-react', {
+            runtime: 'automatic',
+            importSource: '@emotion/react'
+          }],
+          ['@babel/preset-typescript', {
+            allowDeclareFields: true,
+            optimizeConstEnums: true
+          }]
+        ],
         plugins: [
-          ['@babel/plugin-transform-react-jsx', { runtime: 'automatic' }]
+          ['@babel/plugin-transform-runtime', {
+            corejs: 3,
+            helpers: true,
+            regenerator: false
+          }]
         ]
       }
     })
@@ -20,7 +42,6 @@ export default defineConfig({
       'buffer': 'buffer',
       'util': 'util',
       'process': 'process/browser',
-      'react': 'react'
     }
   },
   define: {
@@ -35,26 +56,36 @@ export default defineConfig({
   },
   build: {
     target: 'esnext',
-    sourcemap: true,
-    commonjsOptions: {
-      include: [/node_modules/],
-      transformMixedEsModules: true,
-      defaultIsModuleExports: true
-    },
+    minify: 'esbuild',
+    sourcemap: process.env.NODE_ENV !== 'production',
+    assetsInlineLimit: 4096,
+    cssCodeSplit: true,
     rollupOptions: {
       external: [
         '@dfinity/nns-proto',
-        'fsevents',
-        /\.rs$/
+        'fsevents'
       ],
       output: {
-        globals: {
-          '@dfinity/nns-proto': 'dfinity_nns_proto',
-          'react': 'React',
-          'react-dom': 'ReactDOM'
-        },
-        format: 'es',
         manualChunks: {
+          'ic-core': [
+            '@dfinity/agent',
+            '@dfinity/auth-client',
+            '@dfinity/principal',
+            '@dfinity/candid'
+          ],
+          'anima-core': [
+            './src/components/neural-link/IntegratedNeuralLinkInterface.tsx',
+            './src/components/neural-link/ImmersiveInterface.tsx',
+            './src/components/neural-link/NeuralPatternVisualizer.tsx',
+            './src/quantum/dimensional_state.ts',
+            './src/quantum/types.ts',
+            './src/services/quantum-state.service.ts'
+          ],
+          'visualization': [
+            '@react-three/fiber',
+            '@react-three/drei',
+            'three'
+          ],
           'neural-interface': [
             './src/components/neural-link/IntegratedNeuralLinkInterface.tsx',
             './src/components/neural-link/ImmersiveInterface.tsx',
@@ -69,15 +100,6 @@ export default defineConfig({
             './src/components/personality/EmotionVisualizer.tsx',
             './src/components/personality/WaveformGenerator.tsx',
             './src/components/personality/PersonalityTraits.tsx'
-          ],
-          'media': [
-            './src/components/media/EnhancedMediaController.tsx',
-            './src/components/media/MediaPlayer.tsx'
-          ],
-          'quantum-core': [
-            './src/quantum/dimensional_state.ts',
-            './src/quantum/types.ts',
-            './src/services/quantum-state.service.ts'
           ]
         }
       }
@@ -99,14 +121,18 @@ export default defineConfig({
       'process/browser',
       'events',
       'util',
-      'stream-browserify'
+      'stream-browserify',
+      '@react-three/fiber',
+      '@react-three/drei',
+      'three'
     ],
-    exclude: [
-      '**/*.rs'
-    ],
+    exclude: ['@dfinity/nns-proto', '**/*.rs'],
     esbuildOptions: {
       target: 'esnext',
-      supported: { bigint: true },
+      supported: {
+        bigint: true,
+        'import-meta': true
+      },
       define: {
         global: 'globalThis'
       },

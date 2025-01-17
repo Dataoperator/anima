@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useAnima } from '../../contexts/anima-context';
-import { QuantumState } from '../../types/quantum';
+import { QuantumState } from '@/types/quantum';
 
 interface MediaControllerProps {
   url: string | null;

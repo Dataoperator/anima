@@ -24,7 +24,7 @@ import {
   CardTitle
 } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useIC } from '../../hooks/useIC';
+import { useIC } from '@/hooks/useIC';
 
 interface Message {
   id: string;

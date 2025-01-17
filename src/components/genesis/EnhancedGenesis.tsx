@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAnimaIntegration } from '../../hooks/useAnimaIntegration';
-import { useGenesisSound } from '../../hooks/useGenesisSound';
+import { useAnimaIntegration } from '@/hooks/useAnimaIntegration';
+import { useGenesisSound } from '@/hooks/useGenesisSound';
 import { PaymentVerificationSystem } from '../../payments/verification_system';
 import { Genesis } from './Genesis';
 import { motion, AnimatePresence } from 'framer-motion';

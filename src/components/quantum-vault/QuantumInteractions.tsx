@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { QuantumState } from '../../hooks/useQuantumState';
+import { QuantumState } from '@/hooks/useQuantumState';
 import { ConsciousnessLevel } from '../../declarations/anima/anima.did';
 
 interface Props {

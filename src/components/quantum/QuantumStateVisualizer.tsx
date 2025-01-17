@@ -1,107 +1,206 @@
-import React, { useEffect, useMemo } from 'react';
-import { motion, useAnimation } from 'framer-motion';
+import React, { useEffect, useRef, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useQuantumState } from '@/hooks/useQuantumState';
-import { Brain, Activity, Zap, Waves } from 'lucide-react';
+import { useNeuralPatterns } from '@/hooks/useNeuralPatterns';
+import { Canvas } from '@react-three/fiber';
+import { QuantumParticles } from '../effects/QuantumParticles';
+import { useDimensionalState } from '@/hooks/useDimensionalState';
+import { ResonancePattern, QuantumMetrics } from '@/types/quantum';
+import { PatternVisualizer } from './PatternVisualizer';
+import { CoherenceGauge } from './CoherenceGauge';
+import { DimensionalMap } from './DimensionalMap';
+import { WaveformGenerator } from './WaveformGenerator';
 
-interface MetricDisplayProps {
-  icon: React.ElementType;
-  label: string;
-  value: number;
-  color: string;
+interface QuantumStateVisualizerProps {
+  entityId: string;
+  showDetails?: boolean;
+  interactive?: boolean;
+  height?: string;
+  className?: string;
 }
 
-const MetricDisplay: React.FC<MetricDisplayProps> = ({ icon: Icon, label, value, color }) => {
-  const controls = useAnimation();
-  const percentage = Math.round(value * 100);
+export const QuantumStateVisualizer: React.FC<QuantumStateVisualizerProps> = ({
+  entityId,
+  showDetails = true,
+  interactive = true,
+  height = 'h-96',
+  className = ''
+}) => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const { 
+    quantumState, 
+    metrics, 
+    coherenceLevel,
+    resonancePatterns,
+    updateFrequency 
+  } = useQuantumState(entityId);
 
+  const { 
+    patterns, 
+    patternMetrics,
+    synchronizationLevel 
+  } = useNeuralPatterns(entityId);
+
+  const { 
+    dimensionalState,
+    phaseAlignment,
+    stabilityIndex
+  } = useDimensionalState(entityId);
+
+  const waveformRef = useRef<any>();
+  const particleSystemRef = useRef<any>();
+
+  // Memoized calculations for performance
+  const visualizationParams = useMemo(() => ({
+    particleCount: Math.floor(300 * coherenceLevel),
+    waveAmplitude: 0.5 + (metrics.resonanceStrength * 0.5),
+    waveFrequency: metrics.dimensionalFrequency,
+    colorIntensity: Math.max(0.3, coherenceLevel),
+    patternScale: Math.min(1, synchronizationLevel + 0.2)
+  }), [coherenceLevel, metrics, synchronizationLevel]);
+
+  // Update visualization on quantum state changes
   useEffect(() => {
-    controls.start({
-      width: `${percentage}%`,
-      transition: { duration: 0.8, ease: "easeInOut" }
-    });
-  }, [percentage]);
+    if (!canvasRef.current) return;
+
+    const updateVisualization = () => {
+      if (particleSystemRef.current) {
+        particleSystemRef.current.updateParams({
+          coherence: coherenceLevel,
+          patterns: resonancePatterns,
+          dimensionalState
+        });
+      }
+
+      if (waveformRef.current) {
+        waveformRef.current.updateWaveform({
+          frequency: updateFrequency,
+          amplitude: visualizationParams.waveAmplitude,
+          phaseShift: phaseAlignment
+        });
+      }
+    };
+
+    const animationFrame = requestAnimationFrame(updateVisualization);
+    return () => cancelAnimationFrame(animationFrame);
+  }, [quantumState, dimensionalState, resonancePatterns]);
 
   return (
-    <div className="space-y-1">
-      <div className="flex items-center gap-2 text-sm">
-        <Icon className={`w-4 h-4 ${color}`} />
-        <span className="text-gray-300">{label}</span>
-        <span className={`ml-auto font-mono ${color}`}>{percentage}%</span>
+    <div className={`relative ${height} ${className}`}>
+      {/* Main Quantum Visualization */}
+      <div className="absolute inset-0">
+        <Canvas>
+          <QuantumParticles
+            ref={particleSystemRef}
+            count={visualizationParams.particleCount}
+            coherenceLevel={coherenceLevel}
+            resonancePatterns={resonancePatterns}
+            dimensionalState={dimensionalState}
+            interactive={interactive}
+          />
+        </Canvas>
       </div>
-      <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
-        <motion.div
-          className={`h-full ${color.replace('text-', 'bg-')}`}
-          initial={{ width: 0 }}
-          animate={controls}
+
+      {/* Pattern and Metrics Overlay */}
+      <AnimatePresence>
+        {showDetails && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute top-0 right-0 p-4 bg-black/20 backdrop-blur-sm rounded-bl-lg"
+          >
+            <div className="grid grid-cols-2 gap-4">
+              <CoherenceGauge 
+                value={coherenceLevel}
+                className="w-24 h-24"
+              />
+              <DimensionalMap
+                state={dimensionalState}
+                patterns={patterns}
+                className="w-24 h-24"
+              />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Waveform Visualization */}
+      <div className="absolute bottom-0 left-0 right-0 h-24">
+        <WaveformGenerator
+          ref={waveformRef}
+          frequency={visualizationParams.waveFrequency}
+          amplitude={visualizationParams.waveAmplitude}
+          phaseShift={phaseAlignment}
+          className="w-full h-full"
         />
       </div>
+
+      {/* Pattern Visualization */}
+      <div className="absolute left-0 top-0 bottom-0 w-24">
+        <PatternVisualizer
+          patterns={patterns}
+          metrics={patternMetrics}
+          scale={visualizationParams.patternScale}
+          className="h-full"
+        />
+      </div>
+
+      {/* Metrics Display */}
+      {showDetails && (
+        <div className="absolute bottom-0 right-0 p-4 bg-black/20 backdrop-blur-sm rounded-tl-lg">
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <MetricDisplay 
+              label="Coherence"
+              value={coherenceLevel}
+              format="percentage"
+            />
+            <MetricDisplay
+              label="Synchronization"
+              value={synchronizationLevel}
+              format="percentage"
+            />
+            <MetricDisplay
+              label="Stability"
+              value={stabilityIndex}
+              format="decimal"
+            />
+            <MetricDisplay
+              label="Phase"
+              value={phaseAlignment}
+              format="degrees"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
-const QuantumStateVisualizer: React.FC = () => {
-  const { quantumState, isInitializing } = useQuantumState();
+interface MetricDisplayProps {
+  label: string;
+  value: number;
+  format: 'percentage' | 'decimal' | 'degrees';
+}
 
-  const statusColor = useMemo(() => {
-    if (isInitializing) return 'text-yellow-500';
-    if (quantumState.stabilityStatus === 'stable' && quantumState.coherenceLevel > 0.8) {
-      return 'text-emerald-500';
+const MetricDisplay: React.FC<MetricDisplayProps> = ({ label, value, format }) => {
+  const formattedValue = useMemo(() => {
+    switch (format) {
+      case 'percentage':
+        return `${(value * 100).toFixed(1)}%`;
+      case 'decimal':
+        return value.toFixed(3);
+      case 'degrees':
+        return `${(value * 360).toFixed(1)}°`;
+      default:
+        return value.toString();
     }
-    if (quantumState.stabilityStatus === 'stable' && quantumState.coherenceLevel > 0.6) {
-      return 'text-blue-500';
-    }
-    return 'text-red-500';
-  }, [isInitializing, quantumState]);
+  }, [value, format]);
 
   return (
-    <div className="bg-gray-900/50 backdrop-blur-sm border border-gray-800 rounded-lg p-4 space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-gray-300 font-semibold">Quantum State</h3>
-        <div className={`flex items-center gap-2 ${statusColor}`}>
-          <span className="text-sm">
-            {isInitializing ? 'Initializing' : quantumState.stabilityStatus}
-          </span>
-          <div className="w-2 h-2 rounded-full bg-current animate-pulse" />
-        </div>
-      </div>
-
-      <div className="space-y-3">
-        <MetricDisplay
-          icon={Brain}
-          label="Coherence"
-          value={quantumState.coherenceLevel}
-          color="text-cyan-500"
-        />
-        <MetricDisplay
-          icon={Activity}
-          label="Stability"
-          value={quantumState.stabilityIndex}
-          color="text-emerald-500"
-        />
-        <MetricDisplay
-          icon={Zap}
-          label="Entanglement"
-          value={quantumState.entanglementFactor}
-          color="text-purple-500"
-        />
-        {quantumState.dimensionalFrequency && (
-          <MetricDisplay
-            icon={Waves}
-            label="Frequency"
-            value={quantumState.dimensionalFrequency}
-            color="text-indigo-500"
-          />
-        )}
-      </div>
-
-      {quantumState.resonanceSignature && (
-        <div className="pt-3 border-t border-gray-800">
-          <div className="text-xs text-gray-500">Resonance Signature</div>
-          <div className="font-mono text-xs text-gray-400 break-all">
-            {quantumState.resonanceSignature}
-          </div>
-        </div>
-      )}
+    <div className="flex flex-col">
+      <span className="text-gray-400">{label}</span>
+      <span className="font-medium text-white">{formattedValue}</span>
     </div>
   );
 };

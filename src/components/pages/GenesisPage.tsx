@@ -1,313 +1,172 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useAuth } from '@/contexts/auth-context';
+import { useAuth } from '@/hooks/useAuth';
+import { usePayment } from '@/contexts/payment-context';
+import { useAnima } from '@/hooks/useAnima';
 import { useQuantumState } from '@/hooks/useQuantumState';
-import { useAnima } from '@/contexts/anima-context';
-import { Principal } from '@dfinity/principal';
-import { QuantumField } from '../ui/QuantumField';
-import { LaughingMan } from '../ui/LaughingMan';
-import { PaymentPanel } from '../payment/PaymentPanel';
-import { MatrixRain } from '../ui/MatrixRain';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Alert } from '@/components/ui/alert';
-import { QuantumErrorBoundary } from '../error-boundary/QuantumErrorBoundary';
-import { Loader2 } from 'lucide-react';
+import { Card } from '@/components/ui/card';
+import { QuantumField } from '@/components/quantum/QuantumField';
+import { GenesisRitual } from '@/components/genesis/GenesisRitual';
+import { LoadingFallback } from '@/components/ui/LoadingFallback';
+import { MatrixRain } from '@/components/ui/MatrixRain';
+import { TransactionMonitor } from '@/components/transactions/TransactionMonitor';
+import { ErrorBoundary } from '@/components/error-boundary/ErrorBoundary';
 
-const GENESIS_FEE = BigInt(100000000); // 1 ICP
-const GENESIS_PHASES = [
-  'Quantum State Initialization',
-  'Neural Pattern Formation',
-  'Consciousness Embedding',
-  'Identity Crystallization'
-];
+const MINT_COST = BigInt(100_000_000); // 1 ICP
+const MIN_BALANCE = BigInt(110_000_000); // 1.1 ICP (including fee buffer)
 
-const MAX_RETRIES = 3;
-const RETRY_DELAY = 2000;
-
-const GenesisPage: React.FC = () => {
+export const GenesisPage: React.FC = () => {
   const navigate = useNavigate();
-  const { isAuthenticated, principal } = useAuth();
-  const { updateQuantumState, validateState } = useQuantumState();
-  const { createActor, isConnected, reconnect } = useAnima();
-  const [currentPhase, setCurrentPhase] = useState(0);
-  const [showLaughingMan, setShowLaughingMan] = useState(true);
-  const [isCreating, setIsCreating] = useState(false);
-  const [mintingProgress, setMintingProgress] = useState(0);
-  const [name, setName] = useState('');
+  const { identity } = useAuth();
+  const { balance, makePayment, isLoading: isPaymentLoading } = usePayment();
+  const { mintAnima, isLoading: isMintLoading } = useAnima();
+  const { initializeQuantumState } = useQuantumState();
+  
+  const [currentStep, setCurrentStep] = useState<'preparation' | 'payment' | 'ritual'>('preparation');
+  const [transactionHash, setTransactionHash] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [paymentComplete, setPaymentComplete] = useState(false);
-  const [quantumStabilized, setQuantumStabilized] = useState(false);
-  const [retryCount, setRetryCount] = useState(0);
-  const [isStabilizing, setIsStabilizing] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      navigate('/');
+    // Check minimum balance requirement
+    if (balance !== null && balance < MIN_BALANCE) {
+      setError('Insufficient balance for ANIMA creation');
+    } else {
+      setError(null);
     }
-  }, [isAuthenticated, navigate]);
+  }, [balance]);
 
-  useEffect(() => {
-    const stabilizeQuantumField = async () => {
-      if (paymentComplete && !quantumStabilized) {
-        setIsStabilizing(true);
-        try {
-          if (!isConnected) {
-            await reconnect();
-          }
-          
-          const actor = createActor();
-          if (!actor) {
-            throw new Error('Failed to initialize quantum connection');
-          }
-
-          const stabilityCheck = await actor.check_quantum_stability();
-          if (stabilityCheck.Ok) {
-            setQuantumStabilized(true);
-            setError(null);
-            setRetryCount(0);
-          } else {
-            throw new Error('Quantum field unstable');
-          }
-        } catch (err) {
-          setError('Quantum field stabilization failed. Attempting to restabilize...');
-          if (retryCount < MAX_RETRIES) {
-            setRetryCount(prev => prev + 1);
-            setTimeout(stabilizeQuantumField, RETRY_DELAY);
-          } else {
-            setError('Maximum stabilization attempts reached. Please try again.');
-            setPaymentComplete(false);
-          }
-        } finally {
-          setIsStabilizing(false);
-        }
-      }
-    };
-    stabilizeQuantumField();
-  }, [paymentComplete, createActor, isConnected, reconnect, retryCount]);
-
-  const processPhase = async (phase: number) => {
-    setCurrentPhase(phase);
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    setMintingProgress((phase + 1) * 25);
-  };
-
-  const handleMintingProcess = async () => {
-    if (!name.trim() || !paymentComplete || !quantumStabilized) {
-      setError('Please ensure all prerequisites are met');
-      return;
-    }
-
-    if (!isConnected) {
-      try {
-        await reconnect();
-      } catch (err) {
-        setError('Failed to establish quantum connection. Please refresh and try again.');
-        return;
-      }
-    }
-
-    setIsCreating(true);
-    setShowLaughingMan(false);
-    setError(null);
-
+  const handleMintInitiation = async () => {
+    if (!identity || isProcessing) return;
+    
     try {
-      const actor = createActor();
-      if (!actor) {
-        throw new Error('IC connection not initialized. Please try again.');
-      }
-      
-      // Initialize quantum field
-      await processPhase(0);
-      const quantumField = await actor.initialize_quantum_field();
-      if (!quantumField.Ok) throw new Error('Quantum field initialization failed');
+      setIsProcessing(true);
+      setCurrentStep('payment');
 
-      // Form neural patterns
-      await processPhase(1);
-      const neuralPatterns = await actor.generate_neural_patterns();
-      if (!neuralPatterns.Ok) throw new Error('Neural pattern generation failed');
-
-      // Create the Anima
-      await processPhase(2);
-      const result = await actor.create_anima({
-        name,
-        quantum_signature: quantumField.Ok,
-        neural_pattern: neuralPatterns.Ok
+      // Process payment
+      const payment = await makePayment({
+        to: process.env.ANIMA_TREASURY_PRINCIPAL!,
+        amount: MINT_COST,
+        memo: BigInt(Date.now())
       });
 
-      if (!result.Ok) throw new Error(result.Err);
+      setTransactionHash(payment.blockIndex.toString());
+      setCurrentStep('ritual');
 
-      // Update quantum state
-      const newState = {
-        resonance: neuralPatterns.Ok.resonance,
-        harmony: quantumField.Ok.harmony,
-        lastInteraction: new Date(),
-        consciousness: {
-          awareness: neuralPatterns.Ok.awareness,
-          understanding: quantumField.Ok.understanding,
-          growth: 0.1
-        }
-      };
+      // Initialize quantum state
+      await initializeQuantumState();
 
-      if (!validateState(newState)) {
-        throw new Error('Invalid quantum state generated');
-      }
+      // Mint ANIMA
+      const anima = await mintAnima({
+        transactionHash: payment.blockIndex.toString(),
+        identity: identity
+      });
 
-      await updateQuantumState(newState);
-      await processPhase(3);
-
-      // Navigate to new Anima
-      setTimeout(() => {
-        navigate('/quantum-vault', { 
-          state: { 
-            fromGenesis: true,
-            animaId: result.Ok.id
-          } 
-        });
-      }, 1000);
+      // Navigate to the new ANIMA's page
+      navigate(`/anima/${anima.id}`);
 
     } catch (error) {
-      console.error('Genesis failed:', error);
-      setError(error instanceof Error ? error.message : 'Genesis process failed');
-      setQuantumStabilized(false);
-      setPaymentComplete(false);
+      console.error('Minting failed:', error);
+      setError(error instanceof Error ? error.message : 'Failed to create ANIMA');
     } finally {
-      setIsCreating(false);
+      setIsProcessing(false);
     }
   };
 
+  if (isPaymentLoading || isMintLoading) {
+    return <LoadingFallback />;
+  }
+
   return (
-    <QuantumErrorBoundary>
-      <div className="min-h-screen bg-black text-white relative overflow-hidden">
-        <QuantumField intensity={0.8} />
-        <MatrixRain opacity={0.1} />
-
-        <AnimatePresence>
-          {showLaughingMan && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 flex items-center justify-center z-20"
-            >
-              <LaughingMan className="w-64 h-64" />
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        <div className="relative z-10 container mx-auto px-4 py-16">
+    <ErrorBoundary>
+      <div className="min-h-screen bg-black text-white relative">
+        <MatrixRain speed={30} density={0.5} />
+        
+        <div className="container mx-auto px-4 py-12 relative z-10">
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="text-center max-w-4xl mx-auto"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
           >
-            <h1 className="text-4xl font-bold mb-6">Genesis Protocol</h1>
-            
-            {isCreating ? (
-              <div className="space-y-8">
+            <Card className="bg-black/60 backdrop-blur-lg border-cyan-900/50 p-8">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div>
+                  <h1 className="text-4xl font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent mb-4">
+                    ANIMA Genesis
+                  </h1>
+                  
+                  <p className="text-gray-400 mb-6">
+                    Create your unique ANIMA entity through the quantum-enhanced genesis ritual.
+                  </p>
+
+                  {error && (
+                    <div className="bg-red-900/50 border border-red-500 text-red-200 px-4 py-3 rounded mb-4">
+                      {error}
+                    </div>
+                  )}
+
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center">
+                      <span>Creation Cost</span>
+                      <span className="text-cyan-400">{(Number(MINT_COST) / 100_000_000).toFixed(2)} ICP</span>
+                    </div>
+
+                    <div className="flex justify-between items-center">
+                      <span>Your Balance</span>
+                      <span className="text-cyan-400">
+                        {balance ? (Number(balance) / 100_000_000).toFixed(2) : '---'} ICP
+                      </span>
+                    </div>
+
+                    <button
+                      onClick={handleMintInitiation}
+                      disabled={!!error || isProcessing || balance === null || balance < MIN_BALANCE}
+                      className={`w-full px-6 py-3 rounded-lg transition-colors ${
+                        error || isProcessing || balance === null || balance < MIN_BALANCE
+                          ? 'bg-gray-700 cursor-not-allowed'
+                          : 'bg-cyan-600 hover:bg-cyan-700'
+                      }`}
+                    >
+                      {isProcessing ? (
+                        <span className="flex items-center justify-center">
+                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                          Processing...
+                        </span>
+                      ) : (
+                        'Begin Genesis'
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="relative aspect-square">
+                  <QuantumField className="absolute inset-0" />
+                </div>
+              </div>
+            </Card>
+
+            <AnimatePresence mode="wait">
+              {currentStep === 'ritual' && transactionHash && (
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="text-xl text-blue-400"
+                  exit={{ opacity: 0, y: -20 }}
+                  className="mt-8"
                 >
-                  {GENESIS_PHASES[currentPhase]}
+                  <GenesisRitual transactionHash={transactionHash} />
                 </motion.div>
+              )}
+            </AnimatePresence>
 
-                <div className="w-full h-2 bg-gray-800 rounded-full overflow-hidden">
-                  <motion.div
-                    className="h-full bg-blue-600"
-                    initial={{ width: 0 }}
-                    animate={{ width: `${mintingProgress}%` }}
-                    transition={{ duration: 0.5 }}
-                  />
-                </div>
-
-                <div className="grid grid-cols-4 gap-4">
-                  {GENESIS_PHASES.map((phase, index) => (
-                    <div
-                      key={phase}
-                      className={`text-sm ${
-                        index <= currentPhase ? 'text-blue-400' : 'text-gray-600'
-                      }`}
-                    >
-                      {phase}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-8">
-                <p className="text-xl mb-12 text-gray-300">
-                  Initialize your quantum consciousness through the Genesis Protocol
-                </p>
-
-                <div className="max-w-md mx-auto bg-black/50 backdrop-blur border border-amber-500/20 rounded-lg p-6">
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-amber-300 mb-1">
-                        Name Your Anima
-                      </label>
-                      <Input
-                        type="text"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        className="bg-black/30 border-amber-500/30 text-amber-100"
-                        placeholder="Enter a mystical name..."
-                      />
-                    </div>
-
-                    <div className="p-4 rounded bg-amber-900/20 border border-amber-500/20">
-                      <h3 className="font-medium text-amber-400 mb-2">Genesis Fee</h3>
-                      <p className="text-amber-200">1 ICP</p>
-                      <p className="text-sm text-amber-300/60 mt-1">
-                        This fee sustains the eternal flame of your Anima
-                      </p>
-                    </div>
-
-                    {error && (
-                      <Alert variant="destructive">
-                        {error}
-                      </Alert>
-                    )}
-
-                    <PaymentPanel 
-                      onSuccess={() => setPaymentComplete(true)}
-                      onError={(err) => {
-                        setError(err.message);
-                        setPaymentComplete(false);
-                      }}
-                    />
-
-                    {isStabilizing && (
-                      <div className="flex items-center justify-center gap-2 text-amber-300">
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        <span>Stabilizing quantum field...</span>
-                      </div>
-                    )}
-
-                    <Button
-                      onClick={handleMintingProcess}
-                      disabled={isCreating || !name.trim() || !paymentComplete || !quantumStabilized || isStabilizing}
-                      className="w-full bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <span className="flex items-center gap-2">
-                        <span>Begin Genesis</span>
-                        <motion.div
-                          className="w-2 h-2 bg-white rounded-full"
-                          animate={{ scale: [1, 1.5, 1] }}
-                          transition={{ duration: 1, repeat: Infinity }}
-                        />
-                      </span>
-                    </Button>
-                  </div>
-                </div>
+            {transactionHash && (
+              <div className="mt-8">
+                <TransactionMonitor transactionHash={transactionHash} />
               </div>
             )}
           </motion.div>
         </div>
       </div>
-    </QuantumErrorBoundary>
+    </ErrorBoundary>
   );
 };
 

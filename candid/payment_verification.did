@@ -1,0 +1,42 @@
+type PaymentStatus = variant {
+    pending;
+    confirmed;
+    expired;
+    failed;
+};
+
+type PaymentSession = record {
+    session_id: text;
+    payment_address: text;
+    amount: nat64;
+    owner: principal;
+    expires_at: nat64;
+    status: PaymentStatus;
+    token_id: opt text;
+};
+
+type Result = variant {
+    Ok: PaymentSession;
+    Err: text;
+};
+
+service : {
+    // Create a new payment session for minting
+    create_payment_session: (owner: principal) -> (Result);
+    
+    // Verify payment status
+    verify_payment: (session_id: text) -> (bool) query;
+    
+    // Get session details
+    get_session: (session_id: text) -> (opt PaymentSession) query;
+    
+    // Complete minting process
+    complete_minting: (session_id: text, token_id: text) -> (Result);
+    
+    // Refund failed session
+    refund_session: (session_id: text) -> (Result);
+    
+    // Admin functions
+    get_all_sessions: () -> (vec PaymentSession) query;
+    cleanup_expired_sessions: () -> ();
+}

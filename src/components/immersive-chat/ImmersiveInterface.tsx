@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { useSpring, animated } from '@react-spring/three';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
-import { useQuantumState } from '../../hooks/useQuantumState';
+import { useQuantumState } from '@/hooks/useQuantumState';
 import { useAnimaContext } from '../../contexts/AnimaContext';
 
 const ImmersiveInterface: React.FC = () => {

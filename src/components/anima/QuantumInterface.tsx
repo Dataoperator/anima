@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useIC } from '../../hooks/useIC';
+import { useIC } from '@/hooks/useIC';
 
 interface QuantumState {
   coherence: number;

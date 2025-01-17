@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useIC } from '../../hooks/useIC';
+import { useIC } from '@/hooks/useIC';
 import InitializationFlow from './InitializationFlow';
 import AnimaChat from '../chat/AnimaChat';
 import { Principal } from '@dfinity/principal';

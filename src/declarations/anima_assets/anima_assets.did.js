@@ -8,36 +8,42 @@ export const idlFactory = ({ IDL }) => {
     'max_age' : IDL.Opt(IDL.Nat64),
   });
   const ChunkId = IDL.Nat;
-  const Operation = IDL.Variant({
+  const SetAssetContentArguments = IDL.Record({
+    'key' : Key,
+    'sha256' : IDL.Opt(IDL.Vec(IDL.Nat8)),
+    'chunk_ids' : IDL.Vec(ChunkId),
+    'content_encoding' : IDL.Text,
+  });
+  const BatchOperationKind = IDL.Variant({
     'CreateAsset' : CreateAssetArguments,
-    'UnsetAssetContent' : IDL.Record({
-      'key' : Key,
-      'content_encoding' : IDL.Text,
-    }),
+    'UnsetAssetContent' : IDL.Record({ 'key' : Key }),
     'DeleteAsset' : IDL.Record({ 'key' : Key }),
-    'SetAssetContent' : IDL.Record({
-      'key' : Key,
-      'sha256' : IDL.Opt(IDL.Vec(IDL.Nat8)),
-      'chunk_ids' : IDL.Vec(ChunkId),
-      'content_encoding' : IDL.Text,
-    }),
+    'SetAssetContent' : SetAssetContentArguments,
     'Clear' : IDL.Record({}),
   });
-  const CommitBatchArguments = IDL.Record({
-    'batch_id' : BatchId,
-    'operations' : IDL.Vec(Operation),
-  });
+  const HeaderField = IDL.Tuple(IDL.Text, IDL.Text);
   const Time = IDL.Int;
   return IDL.Service({
-    'commit_batch' : IDL.Func([CommitBatchArguments], [], []),
-    'create_asset' : IDL.Func([CreateAssetArguments], [], []),
-    'create_batch' : IDL.Func([], [IDL.Record({ 'batch_id' : BatchId })], []),
-    'create_chunk' : IDL.Func(
-        [IDL.Record({ 'content' : IDL.Vec(IDL.Nat8), 'batch_id' : BatchId })],
-        [IDL.Record({ 'chunk_id' : ChunkId })],
+    'authorize' : IDL.Func([IDL.Principal], [], []),
+    'clear' : IDL.Func([], [], []),
+    'commit_batch' : IDL.Func(
+        [
+          IDL.Record({
+            'batch_id' : BatchId,
+            'operations' : IDL.Vec(BatchOperationKind),
+          }),
+        ],
+        [],
         [],
       ),
-    'delete_asset' : IDL.Func([IDL.Record({ 'key' : Key })], [], []),
+    'create_asset' : IDL.Func([CreateAssetArguments], [], []),
+    'create_batch' : IDL.Func([], [BatchId], []),
+    'create_chunk' : IDL.Func(
+        [IDL.Record({ 'content' : IDL.Vec(IDL.Nat8), 'batch_id' : BatchId })],
+        [ChunkId],
+        [],
+      ),
+    'delete_asset' : IDL.Func([Key], [], []),
     'get' : IDL.Func(
         [IDL.Record({ 'key' : Key, 'accept_encodings' : IDL.Vec(IDL.Text) })],
         [
@@ -46,10 +52,10 @@ export const idlFactory = ({ IDL }) => {
             'sha256' : IDL.Opt(IDL.Vec(IDL.Nat8)),
             'content_type' : IDL.Text,
             'content_encoding' : IDL.Text,
-            'total_length' : IDL.Nat64,
+            'total_length' : IDL.Nat,
           }),
         ],
-        [],
+        ['query'],
       ),
     'get_chunk' : IDL.Func(
         [
@@ -61,7 +67,7 @@ export const idlFactory = ({ IDL }) => {
           }),
         ],
         [IDL.Record({ 'content' : IDL.Vec(IDL.Nat8) })],
-        [],
+        ['query'],
       ),
     'http_request' : IDL.Func(
         [
@@ -69,13 +75,13 @@ export const idlFactory = ({ IDL }) => {
             'url' : IDL.Text,
             'method' : IDL.Text,
             'body' : IDL.Vec(IDL.Nat8),
-            'headers' : IDL.Vec(IDL.Tuple(IDL.Text, IDL.Text)),
+            'headers' : IDL.Vec(HeaderField),
           }),
         ],
         [
           IDL.Record({
             'body' : IDL.Vec(IDL.Nat8),
-            'headers' : IDL.Vec(IDL.Tuple(IDL.Text, IDL.Text)),
+            'headers' : IDL.Vec(HeaderField),
             'streaming_strategy' : IDL.Opt(
               IDL.Variant({
                 'Callback' : IDL.Record({
@@ -85,43 +91,40 @@ export const idlFactory = ({ IDL }) => {
                     'index' : IDL.Nat,
                     'content_encoding' : IDL.Text,
                   }),
-                  'callback' : IDL.Func([], [], []),
+                  'callback' : IDL.Func(
+                      [
+                        IDL.Record({
+                          'key' : Key,
+                          'sha256' : IDL.Opt(IDL.Vec(IDL.Nat8)),
+                          'index' : IDL.Nat,
+                          'content_encoding' : IDL.Text,
+                        }),
+                      ],
+                      [IDL.Record({ 'content' : IDL.Vec(IDL.Nat8) })],
+                      ['query'],
+                    ),
                 }),
               })
             ),
             'status_code' : IDL.Nat16,
           }),
         ],
-        [],
+        ['query'],
       ),
     'http_request_streaming_callback' : IDL.Func(
         [
           IDL.Record({
-            'token' : IDL.Record({
-              'key' : Key,
-              'sha256' : IDL.Opt(IDL.Vec(IDL.Nat8)),
-              'index' : IDL.Nat,
-              'content_encoding' : IDL.Text,
-            }),
+            'key' : Key,
+            'sha256' : IDL.Opt(IDL.Vec(IDL.Nat8)),
+            'index' : IDL.Nat,
+            'content_encoding' : IDL.Text,
           }),
         ],
-        [
-          IDL.Record({
-            'token' : IDL.Opt(
-              IDL.Record({
-                'key' : Key,
-                'sha256' : IDL.Opt(IDL.Vec(IDL.Nat8)),
-                'index' : IDL.Nat,
-                'content_encoding' : IDL.Text,
-              })
-            ),
-            'body' : IDL.Vec(IDL.Nat8),
-          }),
-        ],
-        [],
+        [IDL.Record({ 'content' : IDL.Vec(IDL.Nat8) })],
+        ['query'],
       ),
     'list' : IDL.Func(
-        [IDL.Record({})],
+        [],
         [
           IDL.Vec(
             IDL.Record({
@@ -140,18 +143,7 @@ export const idlFactory = ({ IDL }) => {
         ],
         ['query'],
       ),
-    'set_asset_content' : IDL.Func(
-        [
-          IDL.Record({
-            'key' : Key,
-            'sha256' : IDL.Opt(IDL.Vec(IDL.Nat8)),
-            'chunk_ids' : IDL.Vec(ChunkId),
-            'content_encoding' : IDL.Text,
-          }),
-        ],
-        [],
-        [],
-      ),
+    'set_asset_content' : IDL.Func([SetAssetContentArguments], [], []),
     'store' : IDL.Func(
         [
           IDL.Record({
@@ -165,11 +157,7 @@ export const idlFactory = ({ IDL }) => {
         [],
         [],
       ),
-    'unset_asset_content' : IDL.Func(
-        [IDL.Record({ 'key' : Key, 'content_encoding' : IDL.Text })],
-        [],
-        [],
-      ),
+    'unset_asset_content' : IDL.Func([Key], [], []),
   });
 };
 export const init = ({ IDL }) => { return []; };

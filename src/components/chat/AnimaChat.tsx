@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useIC } from '../../hooks/useIC';
+import { useIC } from '@/hooks/useIC';
 import ImmersiveAnimaUI from './ImmersiveAnimaUI';
 
 interface Message {

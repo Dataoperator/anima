@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useIC } from '../../hooks/useIC';
+import { useIC } from '@/hooks/useIC';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { ErrorBoundary } from '../error-boundary/ErrorBoundary';
 import {

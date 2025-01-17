@@ -1,83 +1,104 @@
-import React, { useState, useCallback } from 'react';
-import { useParams } from 'react-router-dom';
-import { useAnima } from '@/hooks/useAnima';
-import ImmersiveAnimaUI from '@/components/chat/ImmersiveAnimaUI';
-import { MatrixLayout } from '@/components/layout/MatrixLayout';
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import IntegratedNeuralLinkInterface from '../neural-link/IntegratedNeuralLinkInterface';
+import { useAnima } from '../../hooks/useAnima';
+import { LoadingStates } from '../ui/LoadingStates';
+import { MatrixRain } from '../ui/MatrixRain';
+import { useQuantumState } from '../../hooks/useQuantumState';
 
-export const NeuralLinkPage = () => {
-  const { id } = useParams<{ id: string }>();
-  const { anima, loading, error } = useAnima(id);
-  const [messages, setMessages] = useState<any[]>([]);
-  const [isTyping, setIsTyping] = useState(false);
-  const [chatError, setChatError] = useState<string | null>(null);
+export const NeuralLinkPage: React.FC = () => {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const { anima, isLoading, error } = useAnima(id);
+  const [isInitialized, setIsInitialized] = useState(false);
+  const { state: quantumState, initializeQuantumState } = useQuantumState();
 
-  const handleSendMessage = useCallback(async (content: string) => {
-    try {
-      setIsTyping(true);
-      
-      // Add user message
-      setMessages(prev => [...prev, {
-        content,
-        isUser: true,
-        timestamp: Date.now()
-      }]);
+  useEffect(() => {
+    const initializeNeuralLink = async () => {
+      if (!anima) return;
 
-      // TODO: Implement actual message sending to backend
-      // For now, simulate a response
-      setTimeout(() => {
-        setMessages(prev => [...prev, {
-          content: `Processing neural command: ${content}`,
-          isUser: false,
-          timestamp: Date.now(),
-          personality_updates: [
-            ['curiosity', 0.8],
-            ['creativity', 0.6]
-          ]
-        }]);
-        setIsTyping(false);
-      }, 2000);
+      try {
+        await initializeQuantumState();
+        setIsInitialized(true);
+      } catch (error) {
+        console.error('Failed to initialize neural link:', error);
+      }
+    };
 
-    } catch (err: any) {
-      setChatError(err.message || 'Failed to process neural command');
-    }
-  }, []);
+    initializeNeuralLink();
+  }, [anima, initializeQuantumState]);
 
-  if (loading) {
-    return (
-      <MatrixLayout>
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="text-green-500 animate-pulse">INITIALIZING NEURAL LINK...</div>
-        </div>
-      </MatrixLayout>
-    );
+  if (isLoading) {
+    return <LoadingStates />;
   }
 
   if (error || !anima) {
     return (
-      <MatrixLayout>
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="text-red-500">ERROR: {error || 'NEURAL LINK FAILED'}</div>
+      <div className="min-h-screen bg-black text-cyan-500 flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <h2 className="text-xl">Neural Link Connection Failed</h2>
+          <p className="text-cyan-400/60">{error || 'ANIMA not found'}</p>
+          <button
+            onClick={() => navigate('/quantum-vault')}
+            className="px-4 py-2 border border-cyan-500 hover:bg-cyan-500/10 transition-colors"
+          >
+            Return to Quantum Vault
+          </button>
         </div>
-      </MatrixLayout>
+      </div>
     );
   }
 
   return (
-    <ImmersiveAnimaUI
-      messages={messages}
-      onSendMessage={handleSendMessage}
-      isLoading={isTyping}
-      error={chatError}
-      onClearError={() => setChatError(null)}
-      animaName={anima.name}
-      personality={anima.personality}
-      metrics={{
-        'Consciousness Level': anima.level || 1,
-        'Growth Progress': `${Math.min(Number(anima.growth_points || 0) / 1000 * 100, 100)}%`,
-        'Memory Fragments': anima.personality?.memories?.length || 0,
-        'System State': anima.autonomous_mode ? 'AUTONOMOUS' : 'OPERATIONAL'
-      }}
-      isTyping={isTyping}
-    />
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="min-h-screen bg-black"
+    >
+      <MatrixRain opacity={0.1} />
+      
+      <AnimatePresence mode="wait">
+        {!isInitialized ? (
+          <motion.div
+            key="initializing"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="flex items-center justify-center min-h-screen"
+          >
+            <div className="text-center space-y-4 text-cyan-500">
+              <h2 className="text-2xl font-bold">Initializing Neural Link</h2>
+              <p>Establishing quantum coherence...</p>
+              <div className="w-48 h-1 bg-cyan-900 mx-auto rounded-full overflow-hidden">
+                <motion.div
+                  className="h-full bg-cyan-500"
+                  animate={{
+                    width: ['0%', '100%']
+                  }}
+                  transition={{
+                    duration: 2,
+                    ease: 'linear',
+                    repeat: Infinity
+                  }}
+                />
+              </div>
+            </div>
+          </motion.div>
+        ) : (
+          <motion.div
+            key="interface"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="container mx-auto p-4"
+          >
+            <IntegratedNeuralLinkInterface />
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 };
+
+export default NeuralLinkPage;

@@ -1,4 +1,4 @@
-import { WalletQuantumMetrics, StabilityCheckResult, StabilityRecommendation, WalletEventEmitter } from '../../types/wallet';
+import { WalletQuantumMetrics, StabilityCheckResult, StabilityRecommendation, WalletEventEmitter } from '@/types/wallet';
 import { ErrorTracker, ErrorCategory, ErrorSeverity } from '../error-tracker';
 
 export class WalletStabilityMonitor {

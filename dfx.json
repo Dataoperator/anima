@@ -25,26 +25,48 @@
         "freezing_threshold": "2592000"
       }
     },
+    "payment_verification": {
+      "type": "rust",
+      "package": "payment_verification",
+      "candid": "candid/payment_verification.did",
+      "declarations": {
+        "node_compatibility": true
+      },
+      "settings": {
+        "memory_allocation": "2GB",
+        "compute_allocation": "0.5",
+        "reserved_cycles": "20000000000000",
+        "freezing_threshold": "2592000"
+      }
+    },
     "ledger": {
       "type": "custom",
       "candid": "candid/ledger.did",
-      "wasm": "https://download.dfinity.systems/ic/rrkah-fqaaa-aaaaa-aaaaq-cai/ledger.wasm",
-      "remote": {
-        "candid": "candid/ledger.did",
-        "id": {
-          "ic": "ryjl3-tyaaa-aaaaa-aaaba-cai"
-        }
-      },
+      "wasm": "local_ledger.wasm",
       "declarations": {
         "node_compatibility": true,
         "output": "src/declarations/ledger"
+      },
+      "env": {
+        "LEDGER_ARCHIVE_NODE": "local",
+        "LEDGER_MINTER_ACCOUNT_ID": "test_minter",
+        "LEDGER_INIT_ARGS": "{ \"minting_account\": \"test_minter\", \"initial_values\": [], \"send_whitelist\": [], \"transfer_fee\": [200_000] }"
       }
     }
   },
   "networks": {
+    "local": {
+      "bind": "127.0.0.1:8000",
+      "type": "ephemeral"
+    },
     "ic": {
       "providers": ["https://icp0.io"],
-      "type": "persistent"
+      "type": "persistent",
+      "canisters": {
+        "ledger": {
+          "id": "ryjl3-tyaaa-aaaaa-aaaba-cai"
+        }
+      }
     }
   },
   "version": 1

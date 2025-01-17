@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { useQuantumMemory } from '../../hooks/useQuantumMemory';
+import { useQuantumMemory } from '@/hooks/useQuantumMemory';
 
 interface InteractionPoint {
   x: number;

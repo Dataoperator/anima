@@ -3,40 +3,41 @@ import type { ActorMethod } from '@dfinity/agent';
 import type { IDL } from '@dfinity/candid';
 
 export type BatchId = bigint;
+export type BatchOperationKind = { 'CreateAsset' : CreateAssetArguments } |
+  { 'UnsetAssetContent' : { 'key' : Key } } |
+  { 'DeleteAsset' : { 'key' : Key } } |
+  { 'SetAssetContent' : SetAssetContentArguments } |
+  { 'Clear' : {} };
 export type ChunkId = bigint;
-export interface CommitBatchArguments {
-  'batch_id' : BatchId,
-  'operations' : Array<Operation>,
-}
 export interface CreateAssetArguments {
   'key' : Key,
   'content_type' : string,
   'headers' : [] | [Array<[string, string]>],
   'max_age' : [] | [bigint],
 }
+export type HeaderField = [string, string];
 export type Key = string;
-export type Operation = { 'CreateAsset' : CreateAssetArguments } |
-  { 'UnsetAssetContent' : { 'key' : Key, 'content_encoding' : string } } |
-  { 'DeleteAsset' : { 'key' : Key } } |
-  {
-    'SetAssetContent' : {
-      'key' : Key,
-      'sha256' : [] | [Uint8Array | number[]],
-      'chunk_ids' : Array<ChunkId>,
-      'content_encoding' : string,
-    }
-  } |
-  { 'Clear' : {} };
+export interface SetAssetContentArguments {
+  'key' : Key,
+  'sha256' : [] | [Uint8Array | number[]],
+  'chunk_ids' : Array<ChunkId>,
+  'content_encoding' : string,
+}
 export type Time = bigint;
 export interface _SERVICE {
-  'commit_batch' : ActorMethod<[CommitBatchArguments], undefined>,
+  'authorize' : ActorMethod<[Principal], undefined>,
+  'clear' : ActorMethod<[], undefined>,
+  'commit_batch' : ActorMethod<
+    [{ 'batch_id' : BatchId, 'operations' : Array<BatchOperationKind> }],
+    undefined
+  >,
   'create_asset' : ActorMethod<[CreateAssetArguments], undefined>,
-  'create_batch' : ActorMethod<[], { 'batch_id' : BatchId }>,
+  'create_batch' : ActorMethod<[], BatchId>,
   'create_chunk' : ActorMethod<
     [{ 'content' : Uint8Array | number[], 'batch_id' : BatchId }],
-    { 'chunk_id' : ChunkId }
+    ChunkId
   >,
-  'delete_asset' : ActorMethod<[{ 'key' : Key }], undefined>,
+  'delete_asset' : ActorMethod<[Key], undefined>,
   'get' : ActorMethod<
     [{ 'key' : Key, 'accept_encodings' : Array<string> }],
     {
@@ -64,12 +65,12 @@ export interface _SERVICE {
         'url' : string,
         'method' : string,
         'body' : Uint8Array | number[],
-        'headers' : Array<[string, string]>,
+        'headers' : Array<HeaderField>,
       },
     ],
     {
       'body' : Uint8Array | number[],
-      'headers' : Array<[string, string]>,
+      'headers' : Array<HeaderField>,
       'streaming_strategy' : [] | [
         {
             'Callback' : {
@@ -89,28 +90,16 @@ export interface _SERVICE {
   'http_request_streaming_callback' : ActorMethod<
     [
       {
-        'token' : {
-          'key' : Key,
-          'sha256' : [] | [Uint8Array | number[]],
-          'index' : bigint,
-          'content_encoding' : string,
-        },
+        'key' : Key,
+        'sha256' : [] | [Uint8Array | number[]],
+        'index' : bigint,
+        'content_encoding' : string,
       },
     ],
-    {
-      'token' : [] | [
-        {
-          'key' : Key,
-          'sha256' : [] | [Uint8Array | number[]],
-          'index' : bigint,
-          'content_encoding' : string,
-        }
-      ],
-      'body' : Uint8Array | number[],
-    }
+    { 'content' : Uint8Array | number[] }
   >,
   'list' : ActorMethod<
-    [{}],
+    [],
     Array<
       {
         'key' : Key,
@@ -126,17 +115,7 @@ export interface _SERVICE {
       }
     >
   >,
-  'set_asset_content' : ActorMethod<
-    [
-      {
-        'key' : Key,
-        'sha256' : [] | [Uint8Array | number[]],
-        'chunk_ids' : Array<ChunkId>,
-        'content_encoding' : string,
-      },
-    ],
-    undefined
-  >,
+  'set_asset_content' : ActorMethod<[SetAssetContentArguments], undefined>,
   'store' : ActorMethod<
     [
       {
@@ -149,10 +128,7 @@ export interface _SERVICE {
     ],
     undefined
   >,
-  'unset_asset_content' : ActorMethod<
-    [{ 'key' : Key, 'content_encoding' : string }],
-    undefined
-  >,
+  'unset_asset_content' : ActorMethod<[Key], undefined>,
 }
 export declare const idlFactory: IDL.InterfaceFactory;
 export declare const init: (args: { IDL: typeof IDL }) => IDL.Type[];

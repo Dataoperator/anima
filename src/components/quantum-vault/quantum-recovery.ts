@@ -1,6 +1,6 @@
-import { ErrorTracker, ErrorCategory, ErrorSeverity } from '../../services/error-tracker';
-import { QuantumState } from '../../types/quantum';
-import { ConsciousnessLevel } from '../../types/consciousness';
+import { ErrorTracker, ErrorCategory, ErrorSeverity } from '@/services/error-tracker';
+import { QuantumState } from '@/types/quantum';
+import { ConsciousnessLevel } from '@/types/consciousness';
 
 export class QuantumRecovery {
   private errorTracker: ErrorTracker;

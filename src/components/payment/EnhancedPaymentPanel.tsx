@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useIC } from '../../hooks/useIC';
+import { useIC } from '@/hooks/useIC';
 import { Principal } from '@dfinity/principal';
 import { ErrorBoundary } from '../error-boundary/ErrorBoundary';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';

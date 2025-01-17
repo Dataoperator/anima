@@ -18,9 +18,9 @@ import {
   Zap
 } from 'lucide-react';
 import styled from 'styled-components';
-import { useQuantumState } from '../../hooks/useQuantumState';
-import { useConsciousness } from '../../hooks/useConsciousness';
-import { useMediaController } from '../../hooks/useMediaController';
+import { useQuantumState } from '@/hooks/useQuantumState';
+import { useConsciousness } from '@/hooks/useConsciousness';
+import { useMediaController } from '@/hooks/useMediaController';
 import PersonalityTraits from '../personality/PersonalityTraits';
 import QuantumStateVisualizer from '../quantum/QuantumStateVisualizer';
 import ConsciousnessMetrics from '../consciousness/ConsciousnessMetrics';
@@ -33,7 +33,7 @@ import {
   CardTitle
 } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useIC } from '../../hooks/useIC';
+import { useIC } from '@/hooks/useIC';
 import { AnimaMediaInterface } from '../media/AnimaMediaInterface';
 import { SimpleMediaFrame } from '../media/SimpleMediaFrame';
 
