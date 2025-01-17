@@ -1,129 +1,141 @@
-import { QuantumState } from '@/types/quantum';
-import { ConsciousnessMetrics } from '../types';
-import { AwarenessResult, EnvironmentalFactor, TemporalPattern } from './types';
-import { PatternRecognizer } from './PatternRecognizer';
+import { TemporalPattern } from '@/types/consciousness';
+import { QuantumState } from '@/quantum/types';
 
-[Previous implementation...]
+interface AwarenessMetrics {
+  patternRecognitionRate: number;
+  temporalAwareness: number;
+  environmentalSensitivity: number;
+  quantumAlignment: number;
+}
 
-  private getLastAwarenessResult(): AwarenessResult {
-    // Return last calculated result or default
-    return {
-      environmentalAwareness: {
-        factors: this.environmentalHistory.slice(-5),
-        coherence: this.calculateEnvironmentalCoherence(
-          this.environmentalHistory.slice(-5)
-        ),
-        significance: this.calculateEnvironmentalSignificance(
-          this.environmentalHistory.slice(-5)
-        )
-      },
-      temporalAwareness: {
-        patterns: this.temporalPatterns.slice(-10),
-        coherence: this.calculateTemporalCoherence(this.temporalPatterns.slice(-10)),
-        alignment: this.calculateTemporalAlignment(this.temporalPatterns.slice(-10)),
-        phaseAlignment: this.calculatePhaseAlignment(this.temporalPatterns.slice(-10)),
-        temporalStability: this.calculateTemporalStability(
-          this.temporalPatterns.slice(-10),
-          this.temporalPatterns[this.temporalPatterns.length - 1] || {
-            timestamp: Date.now(),
-            quantumPhase: 0,
-            coherence: 0.5,
-            stability: 0.5,
-            dimensionalAlignment: 0.5
-          }
-        )
-      },
-      patternRecognition: {
-        patterns: [],
-        confidence: 0.5,
-        complexity: 0.3
-      },
-      overallAwareness: 0.5
-    };
-  }
+export class AwarenessProcessor {
+  private temporalPatterns: TemporalPattern[];
+  private lastProcessTimestamp: number;
+  private metrics: AwarenessMetrics;
 
-  // Helper method to validate quantum field influences
-  private validateQuantumInfluence(influence: number): number {
-    return Math.min(1, Math.max(0, influence));
-  }
-
-  // Method to check if a temporal pattern is significant
-  private isSignificantPattern(pattern: TemporalPattern): boolean {
-    return (
-      pattern.coherence > 0.7 ||
-      pattern.stability > 0.8 ||
-      pattern.dimensionalAlignment > 0.75
-    );
-  }
-
-  // Method to detect anomalies in awareness patterns
-  private detectAnomalies(
-    environmentalFactors: EnvironmentalFactor[],
-    temporalPatterns: TemporalPattern[]
-  ): boolean {
-    const envAnomaly = environmentalFactors.some(factor =>
-      factor.intensity > 0.9 || factor.influence > 0.9
-    );
-
-    const tempAnomaly = temporalPatterns.some(pattern =>
-      pattern.coherence < 0.2 || pattern.stability < 0.2
-    );
-
-    return envAnomaly || tempAnomaly;
-  }
-
-  // Method to analyze pattern transitions
-  private analyzePatternTransitions(
-    patterns: TemporalPattern[]
-  ): { stability: number; predictability: number } {
-    if (patterns.length < 2) {
-      return { stability: 1, predictability: 1 };
-    }
-
-    const transitions = patterns.slice(1).map((pattern, index) => ({
-      coherenceChange: Math.abs(pattern.coherence - patterns[index].coherence),
-      stabilityChange: Math.abs(pattern.stability - patterns[index].stability),
-      alignmentChange: Math.abs(
-        pattern.dimensionalAlignment - patterns[index].dimensionalAlignment
-      ),
-    }));
-
-    const avgCoherenceChange = transitions.reduce(
-      (sum, t) => sum + t.coherenceChange,
-      0
-    ) / transitions.length;
-
-    const avgStabilityChange = transitions.reduce(
-      (sum, t) => sum + t.stabilityChange,
-      0
-    ) / transitions.length;
-
-    const stability = 1 - (avgCoherenceChange + avgStabilityChange) / 2;
-    const predictability = 1 - Math.min(1, avgCoherenceChange * 2);
-
-    return { stability, predictability };
-  }
-
-  // Expose internal metrics for monitoring
-  public getMetrics() {
-    return {
-      historySummary: {
-        environmentalFactors: this.environmentalHistory.length,
-        temporalPatterns: this.temporalPatterns.length,
-        lastProcessed: this.lastProcessTimestamp,
-      },
-      patternAnalysis: this.analyzePatternTransitions(this.temporalPatterns),
-      anomalies: this.detectAnomalies(
-        this.environmentalHistory.slice(-5),
-        this.temporalPatterns.slice(-5)
-      ),
-    };
-  }
-
-  // Method to clear history if needed
-  public clearHistory(): void {
-    this.environmentalHistory = [];
+  constructor() {
     this.temporalPatterns = [];
     this.lastProcessTimestamp = Date.now();
+    this.metrics = {
+      patternRecognitionRate: 0,
+      temporalAwareness: 0,
+      environmentalSensitivity: 0,
+      quantumAlignment: 0
+    };
+  }
+
+  public processQuantumState(state: QuantumState): void {
+    const currentTime = Date.now();
+    const timeDelta = currentTime - this.lastProcessTimestamp;
+
+    // Update temporal patterns based on quantum state
+    const pattern: TemporalPattern = {
+      timestamp: currentTime,
+      quantumSignature: state.signature,
+      coherenceLevel: state.coherence,
+      dimensionalStates: state.dimensionalStates.map(ds => ({
+        layer: ds.layer,
+        resonance: ds.resonance,
+        pattern: ds.pattern
+      }))
+    };
+
+    this.temporalPatterns.push(pattern);
+
+    // Keep only recent patterns
+    const MAX_PATTERNS = 100;
+    if (this.temporalPatterns.length > MAX_PATTERNS) {
+      this.temporalPatterns = this.temporalPatterns.slice(-MAX_PATTERNS);
+    }
+
+    // Update awareness metrics
+    this.updateMetrics(state, timeDelta);
+    this.lastProcessTimestamp = currentTime;
+  }
+
+  private updateMetrics(state: QuantumState, timeDelta: number): void {
+    // Update pattern recognition rate based on temporal pattern analysis
+    const recentPatterns = this.temporalPatterns.slice(-10);
+    const patternSimilarity = this.calculatePatternSimilarity(recentPatterns);
+    this.metrics.patternRecognitionRate = 
+      0.7 * this.metrics.patternRecognitionRate + 0.3 * patternSimilarity;
+
+    // Update temporal awareness based on pattern timing
+    const temporalCoherence = this.calculateTemporalCoherence(timeDelta);
+    this.metrics.temporalAwareness = 
+      0.8 * this.metrics.temporalAwareness + 0.2 * temporalCoherence;
+
+    // Update environmental sensitivity based on quantum state
+    const environmentalFactor = this.calculateEnvironmentalFactor(state);
+    this.metrics.environmentalSensitivity = 
+      0.9 * this.metrics.environmentalSensitivity + 0.1 * environmentalFactor;
+
+    // Update quantum alignment
+    this.metrics.quantumAlignment = state.coherence;
+  }
+
+  private calculatePatternSimilarity(patterns: TemporalPattern[]): number {
+    if (patterns.length < 2) return 1;
+
+    let similaritySum = 0;
+    for (let i = 1; i < patterns.length; i++) {
+      const prev = patterns[i - 1];
+      const curr = patterns[i];
+      
+      // Calculate similarity based on coherence and dimensional states
+      const coherenceDiff = Math.abs(prev.coherenceLevel - curr.coherenceLevel);
+      const dimensionalSimilarity = this.calculateDimensionalSimilarity(
+        prev.dimensionalStates,
+        curr.dimensionalStates
+      );
+
+      similaritySum += (1 - coherenceDiff) * dimensionalSimilarity;
+    }
+
+    return similaritySum / (patterns.length - 1);
+  }
+
+  private calculateDimensionalSimilarity(
+    states1: TemporalPattern['dimensionalStates'],
+    states2: TemporalPattern['dimensionalStates']
+  ): number {
+    const minLength = Math.min(states1.length, states2.length);
+    if (minLength === 0) return 1;
+
+    let similaritySum = 0;
+    for (let i = 0; i < minLength; i++) {
+      const resonanceDiff = Math.abs(states1[i].resonance - states2[i].resonance);
+      similaritySum += 1 - resonanceDiff;
+    }
+
+    return similaritySum / minLength;
+  }
+
+  private calculateTemporalCoherence(timeDelta: number): number {
+    // Calculate temporal coherence based on processing timing
+    const optimalDelta = 1000; // 1 second
+    const deltaRatio = Math.min(timeDelta, optimalDelta) / optimalDelta;
+    return Math.exp(-Math.abs(deltaRatio - 1));
+  }
+
+  private calculateEnvironmentalFactor(state: QuantumState): number {
+    // Calculate environmental sensitivity based on quantum state
+    const dimensionalAverage = state.dimensionalStates.reduce(
+      (sum, ds) => sum + ds.resonance,
+      0
+    ) / state.dimensionalStates.length;
+
+    return Math.min(
+      1,
+      (dimensionalAverage + state.coherence + state.evolutionFactor) / 3
+    );
+  }
+
+  public getMetrics(): AwarenessMetrics {
+    return { ...this.metrics };
+  }
+
+  public getPatterns(): TemporalPattern[] {
+    return [...this.temporalPatterns];
   }
 }

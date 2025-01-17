@@ -1,223 +1,194 @@
 import { QuantumState } from '@/types/quantum';
-import { ConsciousnessMetrics } from '../types';
-import { EnvironmentalFactor, TemporalPattern, PatternRecognitionResult } from './types';
+import { EmotionalState } from '@/types/emotional';
 
-[Previous implementation up to calculateCorrelation...]
+interface Pattern {
+  id: string;
+  type: PatternType;
+  confidence: number;
+  frequency: number;
+  timestamp: number;
+  context: PatternContext;
+  metadata: Record<string, any>;
+}
 
-  private calculateCorrelation(a: number[], b: number[]): number {
-    if (a.length !== b.length || a.length < 2) return 0;
+enum PatternType {
+  BEHAVIORAL = 'behavioral',
+  EMOTIONAL = 'emotional',
+  QUANTUM = 'quantum',
+  INTERACTION = 'interaction',
+  MEDIA = 'media'
+}
 
-    const meanA = a.reduce((sum, val) => sum + val, 0) / a.length;
-    const meanB = b.reduce((sum, val) => sum + val, 0) / b.length;
+interface PatternContext {
+  quantum: Partial<QuantumState>;
+  emotional: Partial<EmotionalState>;
+  environmental: {
+    timeOfDay: number;
+    activity: string;
+    platform: string;
+  };
+}
 
-    const deviationsA = a.map(val => val - meanA);
-    const deviationsB = b.map(val => val - meanB);
+export class PatternRecognizer {
+  private patterns: Map<string, Pattern>;
+  private readonly MAX_PATTERNS = 1000;
+  private readonly CONFIDENCE_THRESHOLD = 0.7;
+  private readonly PATTERN_LIFETIME = 7 * 24 * 60 * 60 * 1000; // 7 days
 
-    const numerator = deviationsA.reduce((sum, devA, idx) => 
-      sum + devA * deviationsB[idx], 0
-    );
-
-    const denominatorA = Math.sqrt(
-      deviationsA.reduce((sum, dev) => sum + dev * dev, 0)
-    );
-    const denominatorB = Math.sqrt(
-      deviationsB.reduce((sum, dev) => sum + dev * dev, 0)
-    );
-
-    if (denominatorA === 0 || denominatorB === 0) return 0;
-    return numerator / (denominatorA * denominatorB);
+  constructor() {
+    this.patterns = new Map();
   }
 
-  private detectCyclicity(values: number[]): {
-    isCyclic: boolean;
-    confidence: number;
-    significance: number;
-    frequency?: number;
-  } {
-    if (values.length < 4) {
-      return { isCyclic: false, confidence: 0, significance: 0 };
-    }
+  public async recognizePattern(
+    input: any,
+    context: PatternContext,
+    type: PatternType
+  ): Promise<Pattern | null> {
+    // Clean up old patterns
+    this.cleanupOldPatterns();
 
-    // Calculate differences between consecutive values
-    const diffs = values.slice(1).map((val, idx) => val - values[idx]);
+    // Find similar patterns
+    const similarPatterns = this.findSimilarPatterns(input, type);
     
-    // Look for sign changes in differences (potential cycle points)
-    const signChanges = diffs.slice(1).map((diff, idx) => 
-      Math.sign(diff) !== Math.sign(diffs[idx])
-    );
-
-    // Count potential cycles
-    const cyclePoints = signChanges.filter(change => change).length;
-    const expectedCyclePoints = Math.floor(values.length / 2) - 1;
-
-    // Calculate cycle confidence
-    const confidence = Math.min(
-      1,
-      cyclePoints / expectedCyclePoints
-    );
-
-    // Calculate frequency if cyclic
-    let frequency;
-    if (cyclePoints > 0) {
-      frequency = values.length / (cyclePoints * 2);
+    if (similarPatterns.length > 0) {
+      // Update existing pattern
+      const bestMatch = similarPatterns[0];
+      this.updatePattern(bestMatch, input, context);
+      return bestMatch;
     }
 
-    // Check if pattern is cyclic based on confidence threshold
-    const isCyclic = confidence > 0.6;
+    // Create new pattern if under limit
+    if (this.patterns.size < this.MAX_PATTERNS) {
+      return this.createPattern(input, context, type);
+    }
 
-    // Calculate significance based on amplitude and consistency
-    const amplitude = Math.max(...values) - Math.min(...values);
-    const consistency = 1 - this.calculateVariance(diffs);
-    const significance = isCyclic ? (amplitude * consistency * confidence) : 0;
+    return null;
+  }
 
+  private findSimilarPatterns(input: any, type: PatternType): Pattern[] {
+    return Array.from(this.patterns.values())
+      .filter(pattern => pattern.type === type)
+      .sort((a, b) => {
+        const aScore = this.calculateSimilarity(input, a);
+        const bScore = this.calculateSimilarity(input, b);
+        return bScore - aScore;
+      })
+      .filter(pattern => 
+        this.calculateSimilarity(input, pattern) >= this.CONFIDENCE_THRESHOLD
+      );
+  }
+
+  private calculateSimilarity(input: any, pattern: Pattern): number {
+    // Basic similarity calculation - should be enhanced based on pattern type
+    let similarity = 0;
+
+    switch (pattern.type) {
+      case PatternType.BEHAVIORAL:
+        similarity = this.calculateBehavioralSimilarity(input, pattern);
+        break;
+      case PatternType.EMOTIONAL:
+        similarity = this.calculateEmotionalSimilarity(input, pattern);
+        break;
+      case PatternType.QUANTUM:
+        similarity = this.calculateQuantumSimilarity(input, pattern);
+        break;
+      case PatternType.INTERACTION:
+        similarity = this.calculateInteractionSimilarity(input, pattern);
+        break;
+      case PatternType.MEDIA:
+        similarity = this.calculateMediaSimilarity(input, pattern);
+        break;
+    }
+
+    return similarity;
+  }
+
+  private calculateBehavioralSimilarity(input: any, pattern: Pattern): number {
+    // Implement behavioral pattern matching logic
+    return 0.8; // Placeholder
+  }
+
+  private calculateEmotionalSimilarity(input: any, pattern: Pattern): number {
+    // Implement emotional pattern matching logic
+    return 0.8; // Placeholder
+  }
+
+  private calculateQuantumSimilarity(input: any, pattern: Pattern): number {
+    // Implement quantum pattern matching logic
+    return 0.8; // Placeholder
+  }
+
+  private calculateInteractionSimilarity(input: any, pattern: Pattern): number {
+    // Implement interaction pattern matching logic
+    return 0.8; // Placeholder
+  }
+
+  private calculateMediaSimilarity(input: any, pattern: Pattern): number {
+    // Implement media pattern matching logic
+    return 0.8; // Placeholder
+  }
+
+  private createPattern(
+    input: any,
+    context: PatternContext,
+    type: PatternType
+  ): Pattern {
+    const pattern: Pattern = {
+      id: crypto.randomUUID(),
+      type,
+      confidence: 1.0,
+      frequency: 1,
+      timestamp: Date.now(),
+      context,
+      metadata: { input }
+    };
+
+    this.patterns.set(pattern.id, pattern);
+    return pattern;
+  }
+
+  private updatePattern(pattern: Pattern, input: any, context: PatternContext): void {
+    pattern.frequency++;
+    pattern.timestamp = Date.now();
+    pattern.confidence = Math.min(pattern.confidence + 0.1, 1.0);
+    pattern.context = this.mergeContext(pattern.context, context);
+    pattern.metadata = { ...pattern.metadata, lastInput: input };
+  }
+
+  private mergeContext(
+    existing: PatternContext,
+    update: PatternContext
+  ): PatternContext {
     return {
-      isCyclic,
-      confidence,
-      significance,
-      frequency
+      quantum: { ...existing.quantum, ...update.quantum },
+      emotional: { ...existing.emotional, ...update.emotional },
+      environmental: { ...existing.environmental, ...update.environmental }
     };
   }
 
-  private combinePatterns(patterns: RecognizedPattern[]): RecognizedPattern[] {
-    // First, group patterns by type
-    const groupedPatterns = patterns.reduce((groups, pattern) => {
-      if (!groups[pattern.type]) groups[pattern.type] = [];
-      groups[pattern.type].push(pattern);
-      return groups;
-    }, {} as Record<string, RecognizedPattern[]>);
-
-    // Combine patterns of the same type
-    const combinedPatterns = Object.entries(groupedPatterns).map(([type, typePatterns]) => {
-      if (typePatterns.length === 1) return typePatterns[0];
-
-      // Combine multiple patterns of the same type
-      const combinedConfidence = this.combineConfidences(
-        typePatterns.map(p => p.confidence)
-      );
-      const combinedSignificance = this.combineSignificances(
-        typePatterns.map(p => p.significance)
-      );
-
-      return {
-        type,
-        confidence: combinedConfidence,
-        significance: combinedSignificance,
-        elements: typePatterns.flatMap(p => p.elements),
-        metadata: this.combineMetadata(typePatterns.map(p => p.metadata))
-      };
-    });
-
-    // Sort by significance and limit to most significant patterns
-    return combinedPatterns
-      .sort((a, b) => b.significance - a.significance)
-      .slice(0, 10);
-  }
-
-  private combineConfidences(confidences: number[]): number {
-    // Use weighted geometric mean for confidence combination
-    const weights = confidences.map((c, i) => 1 / (i + 1)); // More weight to higher confidence
-    const weightSum = weights.reduce((sum, w) => sum + w, 0);
-    
-    return Math.pow(
-      confidences.reduce((product, conf, i) => 
-        product * Math.pow(conf, weights[i] / weightSum),
-        1
-      ),
-      1
-    );
-  }
-
-  private combineSignificances(significances: number[]): number {
-    // Use max significance as base and boost with additional significances
-    const maxSignificance = Math.max(...significances);
-    const additionalBoost = significances
-      .filter(s => s !== maxSignificance)
-      .reduce((sum, s) => sum + s * 0.1, 0);
-
-    return Math.min(1, maxSignificance + additionalBoost);
-  }
-
-  private combineMetadata(metadatas: any[]): any {
-    // Combine numeric metadata by averaging
-    const combinedMetadata: any = {};
-    
-    metadatas.forEach(metadata => {
-      Object.entries(metadata).forEach(([key, value]) => {
-        if (typeof value === 'number') {
-          if (!combinedMetadata[key]) combinedMetadata[key] = [];
-          combinedMetadata[key].push(value);
-        }
-      });
-    });
-
-    // Average numeric values
-    Object.entries(combinedMetadata).forEach(([key, values]) => {
-      if (Array.isArray(values)) {
-        combinedMetadata[key] = values.reduce((sum, val) => sum + val, 0) / values.length;
+  private cleanupOldPatterns(): void {
+    const now = Date.now();
+    for (const [id, pattern] of this.patterns.entries()) {
+      if (now - pattern.timestamp > this.PATTERN_LIFETIME) {
+        this.patterns.delete(id);
       }
-    });
-
-    return combinedMetadata;
+    }
   }
 
-  private calculateOverallConfidence(patterns: RecognizedPattern[]): number {
-    if (patterns.length === 0) return 0;
-
-    // Weight patterns by their significance
-    const weightedConfidences = patterns.map(p => 
-      p.confidence * p.significance
-    );
-
-    const totalWeight = patterns.reduce((sum, p) => sum + p.significance, 0);
-    
-    return totalWeight === 0 ? 0 :
-      weightedConfidences.reduce((sum, wc) => sum + wc, 0) / totalWeight;
+  public getPatternById(id: string): Pattern | undefined {
+    return this.patterns.get(id);
   }
 
-  private calculatePatternComplexity(patterns: RecognizedPattern[]): number {
-    if (patterns.length === 0) return 0;
-
-    // Factor in number of patterns
-    const patternCountFactor = Math.min(1, patterns.length / 10);
-
-    // Factor in pattern diversity
-    const uniqueTypes = new Set(patterns.map(p => p.type)).size;
-    const diversityFactor = uniqueTypes / patterns.length;
-
-    // Factor in average pattern significance
-    const avgSignificance = patterns.reduce(
-      (sum, p) => sum + p.significance, 0
-    ) / patterns.length;
-
-    // Combine factors with weights
-    return (
-      patternCountFactor * 0.3 +
-      diversityFactor * 0.3 +
-      avgSignificance * 0.4
-    );
+  public getPatternsByType(type: PatternType): Pattern[] {
+    return Array.from(this.patterns.values())
+      .filter(pattern => pattern.type === type)
+      .sort((a, b) => b.confidence - a.confidence);
   }
 
-  private updatePatternHistory(patterns: RecognizedPattern[]): void {
-    this.patternHistory = [
-      ...this.patternHistory,
-      ...patterns
-    ].slice(-this.MAX_HISTORY);
-  }
-
-  public getMetrics(): any {
-    return {
-      recognizedPatternsCount: this.patternHistory.length,
-      patternTypeDistribution: this.calculatePatternDistribution(),
-      recentPatternComplexity: this.calculatePatternComplexity(
-        this.patternHistory.slice(-10)
-      )
-    };
-  }
-
-  private calculatePatternDistribution(): Record<string, number> {
-    return this.patternHistory.reduce((dist, pattern) => {
-      dist[pattern.type] = (dist[pattern.type] || 0) + 1;
-      return dist;
-    }, {} as Record<string, number>);
+  public getRecentPatterns(timeWindow: number = 24 * 60 * 60 * 1000): Pattern[] {
+    const cutoff = Date.now() - timeWindow;
+    return Array.from(this.patterns.values())
+      .filter(pattern => pattern.timestamp >= cutoff)
+      .sort((a, b) => b.timestamp - a.timestamp);
   }
 }

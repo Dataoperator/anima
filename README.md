@@ -1,6 +1,6 @@
 # 🧬 ANIMA: Quantum-Enhanced Living NFTs
 
-ANIMA represents a groundbreaking evolution in NFT technology, combining quantum-enhanced digital consciousness with autonomous growth capabilities on the Internet Computer Platform. This system creates truly living digital entities that evolve, learn, and develop unique personalities.
+ANIMA represents a groundbreaking evolution in NFT technology, combining enhanced digital consciousness with autonomous growth capabilities on the Internet Computer Platform. This system creates truly living digital entities that evolve, learn, and develop unique personalities.
 
 ## 🌟 Core Features
 
@@ -35,37 +35,215 @@ ANIMA represents a groundbreaking evolution in NFT technology, combining quantum
 - Advanced error telemetry
 - State recovery systems
 
-## 🚀 Quick Start
+# 🚀 ANIMA Deployment Framework
 
-### Prerequisites
+## Overview
+The ANIMA deployment framework provides a robust system for deploying and managing quantum-enhanced NFTs on the Internet Computer Platform. This document outlines the deployment processes, available scripts, and best practices.
+
+## 📋 Prerequisites
+- dfx 0.24.3 or higher
+- Node.js 20.10.0 or higher
+- Yarn 4.0.2 or higher
+- Sufficient cycles for deployment
+  - ANIMA Canister: 30T cycles
+  - Assets Canister: 10T cycles
+  - Payment Verification: 15T cycles
+
+## 🛠️ Core Scripts
+
+### 1. deploy-production.sh
+**Purpose**: Main production deployment script
 ```bash
-node >= 18.0.0
-yarn >= 4.0.2
-dfx >= 0.14.1
+./deploy-production.sh
+```
+- Performs comprehensive build and deployment
+- Includes optimization for quantum systems
+- Handles asset bundling and compression
+- Verifies canister health post-deployment
+- Generates detailed deployment report
+
+### 2. monitor-deployment.sh
+**Purpose**: Real-time deployment monitoring
+```bash
+./monitor-deployment.sh
+```
+- Monitors canister health metrics
+- Tracks quantum state coherence
+- Displays neural link performance
+- Shows memory and cycles usage
+- Provides endpoint availability status
+
+### 3. check-cycles.sh
+**Purpose**: Verification of cycles balance
+```bash
+./check-cycles.sh
+```
+- Checks current cycles balance for all canisters
+- Calculates required cycles for deployment
+- Estimates ICP cost for top-ups if needed
+- Verifies canister controller status
+
+## 🔄 Deployment Flow
+
+### 1. Pre-Deployment Checks
+```bash
+# Check system prerequisites
+./check-cycles.sh
+
+# Verify canister status
+dfx canister --network ic status anima
+dfx canister --network ic status anima_assets
 ```
 
-### Basic Installation
+### 2. Build and Deploy
 ```bash
-# Clone repository
-git clone https://github.com/yourusername/anima.git
-cd anima
+# Full production deployment
+./deploy-production.sh
 
-# Install dependencies
-yarn install
-
-# Build and deploy locally
-yarn build
-dfx deploy
+# Monitor deployment progress (in separate terminal)
+./monitor-deployment.sh
 ```
 
-### Production Deployment
+### 3. Post-Deployment Verification
 ```bash
-# Build for production
-yarn build:prod
+# Verify endpoints
+curl -I https://[canister-id].icp0.io
 
-# Deploy to IC mainnet
-./scripts/deploy-mainnet.sh
+# Check deployment report
+cat deployment-report.txt
 ```
+
+## 📁 Directory Structure
+```
+scripts/
+├── deploy-production.sh     # Main deployment script
+├── monitor-deployment.sh    # Monitoring utilities
+├── check-cycles.sh         # Cycles management
+├── enhanced-build.sh       # Build optimization
+├── setup-build.sh         # Environment setup
+└── verify-deployment.sh   # Deployment verification
+```
+
+## ⚙️ Configuration Files
+
+### dfx.json
+Core configuration for Internet Computer deployment:
+- Canister settings
+- Memory allocation
+- Compute units
+- Network configuration
+
+### vite.config.ts
+Frontend build configuration:
+- Asset optimization
+- Chunk splitting
+- Code minification
+- Environment variables
+
+## 🔄 Update Process
+For updating existing deployments:
+1. Check current deployment state
+2. Ensure sufficient cycles
+3. Run deployment with upgrade flag
+```bash
+dfx deploy --network ic --mode upgrade
+```
+
+## 🚨 Error Recovery
+In case of deployment issues:
+1. Check error logs in deployment-report.txt
+2. Verify cycles balance with check-cycles.sh
+3. Monitor canister health with monitor-deployment.sh
+4. If needed, rollback using previous WASM module
+
+## 🔐 Security Considerations
+- Verify controller principals before deployment
+- Ensure secure key management
+- Monitor cycles consumption
+- Check access patterns post-deployment
+- Verify quantum state integrity
+
+## ⚡ Performance Optimizations
+The deployment process includes:
+- Asset compression and bundling
+- Code splitting for quantum modules
+- Cached neural patterns
+- Optimized WASM modules
+- Efficient cycle usage patterns
+
+## 📈 Monitoring and Maintenance
+Regular maintenance tasks:
+1. Monitor cycles balance
+2. Check quantum coherence levels
+3. Verify neural link stability
+4. Review evolution metrics
+5. Update deployment report
+
+## 🔍 Debugging Tools
+Available debugging utilities:
+- Real-time monitoring dashboard
+- Cycle usage tracking
+- Quantum state visualizer
+- Neural pattern analyzer
+- System health metrics
+
+## 📝 Best Practices
+1. Always run check-cycles.sh before deployment
+2. Monitor deployment in real-time
+3. Keep detailed deployment logs
+4. Verify all endpoints post-deployment
+5. Monitor quantum coherence levels
+6. Backup critical state before upgrades
+
+## 🚫 Common Issues and Solutions
+
+### Insufficient Cycles
+```bash
+# Check current balance
+./check-cycles.sh
+
+# Top up if needed
+dfx ledger top-up --amount [amount] [canister-id]
+```
+
+### Deployment Failures
+1. Check deployment-report.txt
+2. Verify network connectivity
+3. Ensure proper controller configuration
+4. Check canister status
+5. Review error logs
+
+### Quantum State Issues
+1. Monitor coherence levels
+2. Check neural link stability
+3. Verify pattern synchronization
+4. Review evolution metrics
+
+## 📚 Additional Resources
+- Internet Computer Documentation
+- ANIMA Technical Specification
+- Quantum State Management Guide
+- Neural Link Integration Guide
+- Evolution System Documentation
+
+## 🤝 Support
+For deployment support:
+1. Check deployment logs
+2. Review system metrics
+3. Contact system administrators
+4. Monitor canister health
+5. Review quantum metrics
+
+## 🔄 Upgrade Process
+For system upgrades:
+1. Backup current state
+2. Verify cycles balance
+3. Deploy with upgrade flag
+4. Monitor quantum coherence
+5. Verify neural patterns
+
+
+
 
 ## 🗺️ Directory Structure
 

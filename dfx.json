@@ -14,7 +14,7 @@
         "freezing_threshold": "5184000",
         "controllers": ["principal"],
         "build": {
-          "args": "--release --features quantum_optimization",
+          "args": "--release --features quantum_optimization,http_outcalls",
           "target": "wasm32-unknown-unknown"
         }
       }
@@ -28,6 +28,10 @@
         "compute_allocation": "0.5",
         "reserved_cycles": "10000000000000",
         "freezing_threshold": "5184000"
+      },
+      "headers": {
+        "access-control-allow-origin": "*",
+        "cache-control": "max-age=3600,public"
       }
     },
     "payment_verification": {
@@ -43,51 +47,25 @@
         "reserved_cycles": "15000000000000",
         "freezing_threshold": "5184000"
       }
-    },
-    "ledger": {
-      "type": "custom",
-      "candid": "candid/ledger.did",
-      "wasm": "local_ledger.wasm",
-      "declarations": {
-        "node_compatibility": true,
-        "output": "src/declarations/ledger"
-      },
-      "env": {
-        "LEDGER_ARCHIVE_NODE": "local",
-        "LEDGER_MINTER_ACCOUNT_ID": "test_minter",
-        "LEDGER_INIT_ARGS": "{ \"minting_account\": \"test_minter\", \"initial_values\": [], \"send_whitelist\": [], \"transfer_fee\": [200_000] }"
-      }
     }
   },
   "networks": {
-    "local": {
-      "bind": "127.0.0.1:8000",
-      "type": "ephemeral"
-    },
-    "staging": {
-      "providers": ["https://icp0.io"],
-      "type": "persistent"
-    },
     "ic": {
       "providers": ["https://icp0.io"],
-      "type": "persistent",
-      "canisters": {
-        "ledger": {
-          "id": "ryjl3-tyaaa-aaaaa-aaaba-cai"
-        }
-      }
+      "type": "persistent"
     }
   },
   "defaults": {
     "build": {
-      "packtool": "",
-      "args": ""
+      "args": "",
+      "optimize": "cycles"
     }
   },
   "debug": {
     "enable_profiling": true,
     "log_level": "info",
-    "logging_enabled": true
+    "logging_enabled": true,
+    "metrics_enabled": true
   },
   "version": 1
 }
