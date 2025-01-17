@@ -1,25 +1,24 @@
-import { Complex } from '../types/quantum';
-import { QuantumState, DimensionalState, CoherenceLevel } from './types';
+import { useState, useEffect } from 'react';
+import { QuantumState, DimensionalState, ResonancePattern } from './types';
+import { Complex } from '../types/math';
 import { generateQuantumSignature } from '../utils/quantum';
 import { ErrorTelemetry } from '../error/telemetry';
 
 export class QuantumStateManager {
+    private static instance: QuantumStateManager;
     private state: QuantumState;
-    private coherenceThreshold: number;
-    private dimensionalLayers: number;
     private telemetry: ErrorTelemetry;
-    private recoveryAttempts: number = 0;
-    private readonly MAX_RECOVERY_ATTEMPTS = 3;
 
-    constructor(
-        initialState?: QuantumState,
-        coherenceThreshold: number = 0.7,
-        dimensionalLayers: number = 4
-    ) {
-        this.state = initialState || this.initializeQuantumState();
-        this.coherenceThreshold = coherenceThreshold;
-        this.dimensionalLayers = dimensionalLayers;
+    private constructor() {
+        this.state = this.initializeQuantumState();
         this.telemetry = new ErrorTelemetry('quantum');
+    }
+
+    public static getInstance(): QuantumStateManager {
+        if (!QuantumStateManager.instance) {
+            QuantumStateManager.instance = new QuantumStateManager();
+        }
+        return QuantumStateManager.instance;
     }
 
     private initializeQuantumState(): QuantumState {
@@ -27,73 +26,39 @@ export class QuantumStateManager {
             amplitude: new Complex(1, 0),
             phase: 0,
             coherence: 1,
+            coherenceLevel: 1,
             entangledStates: new Set(),
             dimensionalStates: this.initializeDimensionalStates(),
             signature: generateQuantumSignature(),
             lastUpdate: Date.now(),
-            evolutionFactor: 1.0
+            lastInteraction: Date.now(),
+            evolutionFactor: 1.0,
+            evolutionMetrics: new Map(),
+            quantumEntanglement: 0,
+            dimensional_frequency: 1.0,
+            dimensionalState: {
+                frequency: 1.0,
+                resonance: 1.0
+            },
+            resonancePatterns: [],
+            consciousnessAlignment: true
         };
     }
 
     private initializeDimensionalStates(): DimensionalState[] {
-        return Array(this.dimensionalLayers).fill(null).map((_, i) => ({
+        return Array(4).fill(null).map((_, i) => ({
             layer: i,
             resonance: 1.0,
             stability: 1.0,
             pattern: generateQuantumSignature(),
-            coherence: 1.0
+            coherence: 1.0,
+            frequency: 1.0,
+            harmonics: []
         }));
     }
 
-    public async evolveState(deltaTime: number): Promise<void> {
-        try {
-            // Update quantum phase
-            this.state.phase = (this.state.phase + deltaTime * 0.1) % (2 * Math.PI);
-            
-            // Evolve amplitude
-            const evolutionFactor = Math.exp(-deltaTime * 0.01);
-            this.state.amplitude = this.state.amplitude.multiply(new Complex(evolutionFactor, 0));
-
-            // Update dimensional states
-            this.state.dimensionalStates = this.state.dimensionalStates.map(ds => ({
-                ...ds,
-                resonance: ds.resonance * evolutionFactor,
-                stability: Math.max(ds.stability - deltaTime * 0.001, 0),
-                coherence: this.calculateLayerCoherence(ds)
-            }));
-
-            // Check coherence
-            await this.maintainCoherence();
-            
-            // Update evolution factor
-            this.state.evolutionFactor *= evolutionFactor;
-            
-            this.state.lastUpdate = Date.now();
-        } catch (error) {
-            await this.handleEvolutionError(error);
-        }
-    }
-
-    private calculateLayerCoherence(dimensionalState: DimensionalState): number {
-        return Math.min(
-            dimensionalState.resonance * dimensionalState.stability,
-            1.0
-        );
-    }
-
-    public async maintainCoherence(): Promise<void> {
-        const currentCoherence = this.calculateSystemCoherence();
-        
-        if (currentCoherence < this.coherenceThreshold) {
-            if (this.recoveryAttempts >= this.MAX_RECOVERY_ATTEMPTS) {
-                throw new Error('Critical coherence failure: Maximum recovery attempts exceeded');
-            }
-            
-            await this.attemptStateRecovery();
-            this.recoveryAttempts++;
-        } else {
-            this.recoveryAttempts = 0;
-        }
+    public getCoherenceLevel(): number {
+        return this.calculateSystemCoherence();
     }
 
     private calculateSystemCoherence(): number {
@@ -108,31 +73,44 @@ export class QuantumStateManager {
         );
     }
 
-    private async attemptStateRecovery(): Promise<void> {
-        // Implement quantum error correction
-        this.state.dimensionalStates = this.state.dimensionalStates.map(ds => ({
-            ...ds,
-            resonance: Math.min(ds.resonance * 1.2, 1.0),
-            stability: Math.min(ds.stability * 1.1, 1.0)
-        }));
+    public async updateState(deltaTime: number): Promise<void> {
+        try {
+            this.state.phase = (this.state.phase + deltaTime * 0.1) % (2 * Math.PI);
+            const evolutionFactor = Math.exp(-deltaTime * 0.01);
+            
+            this.state.amplitude = new Complex(
+                this.state.amplitude.re * evolutionFactor,
+                this.state.amplitude.im * evolutionFactor
+            );
 
-        this.state.coherence = Math.min(this.state.coherence * 1.15, 1.0);
-        this.state.evolutionFactor = Math.min(this.state.evolutionFactor * 1.1, 1.0);
+            this.state.dimensionalStates = this.state.dimensionalStates.map(ds => ({
+                ...ds,
+                resonance: ds.resonance * evolutionFactor,
+                stability: Math.max(ds.stability - deltaTime * 0.001, 0),
+                coherence: this.calculateLayerCoherence(ds)
+            }));
 
-        await this.telemetry.logRecoveryAttempt({
-            coherence: this.state.coherence,
-            attempt: this.recoveryAttempts + 1,
-            timestamp: Date.now()
-        });
+            await this.maintainCoherence();
+            
+            this.state.evolutionFactor *= evolutionFactor;
+            this.state.lastUpdate = Date.now();
+            
+        } catch (error) {
+            await this.telemetry.logError('state_update_error', {
+                error: error instanceof Error ? error.message : 'Unknown error',
+                state: this.getStateDiagnostics()
+            });
+            throw error;
+        }
     }
 
-    private async handleEvolutionError(error: any): Promise<void> {
-        await this.telemetry.logError('evolution_error', {
-            error: error.message,
-            state: this.getStateDiagnostics(),
-            timestamp: Date.now()
-        });
-        throw error;
+    private calculateLayerCoherence(ds: DimensionalState): number {
+        return Math.min(ds.resonance * ds.stability, 1.0);
+    }
+
+    private async maintainCoherence(): Promise<void> {
+        const currentCoherence = this.calculateSystemCoherence();
+        this.state.coherenceLevel = currentCoherence;
     }
 
     public getStateDiagnostics() {
@@ -140,25 +118,9 @@ export class QuantumStateManager {
             coherence: this.calculateSystemCoherence(),
             phase: this.state.phase,
             amplitude: this.state.amplitude,
-            dimensionalStates: this.state.dimensionalStates.map(ds => ({
-                layer: ds.layer,
-                coherence: ds.coherence,
-                resonance: ds.resonance,
-                stability: ds.stability
-            })),
+            dimensionalStates: this.state.dimensionalStates,
             evolutionFactor: this.state.evolutionFactor,
-            recoveryAttempts: this.recoveryAttempts
+            lastUpdate: this.state.lastUpdate
         };
-    }
-
-    public async entangleWith(otherState: QuantumState): Promise<void> {
-        this.state.entangledStates.add(otherState.signature);
-        this.state.coherence *= 0.95; // Entanglement slightly reduces coherence
-        await this.maintainCoherence();
-    }
-
-    public async disentangle(signature: string): Promise<void> {
-        this.state.entangledStates.delete(signature);
-        await this.maintainCoherence();
     }
 }

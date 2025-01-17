@@ -1,185 +1,157 @@
-import { Task, TaskType, Skill, TaskValidation, ValidationResult } from '../../types/skills';
+import { Task, TaskType, Skill } from '../../types/skills';
 import { MediaValidation } from '../../types/media';
 import { InteractionResult } from '../../types/interaction';
 import { LearningMetrics } from '../../types/learning';
 import { CreationOutput } from '../../types/creation';
-import { QuantumStateManager } from '../quantum/StateManager';
+import { QuantumStateManager } from '../../quantum/StateManager';
+
+interface ValidationParameters {
+    minDuration?: number;
+    minQuality?: number;
+    minEngagement?: number;
+    minComprehension?: number;
+    minRetention?: number;
+    minApplication?: number;
+    minPattern?: number;
+    maxTime?: number;
+    minOriginality?: number;
+    minComplexity?: number;
+}
 
 export class CurriculumGenerator {
-    private tasks: Task[] = [];
-    private readonly quantumStateManager: QuantumStateManager;
-    private readonly complexityThreshold = 0.7;
-    private readonly learningThreshold = 0.6;
+    private quantumStateManager: QuantumStateManager;
 
-    constructor(quantumStateManager: QuantumStateManager) {
-        this.quantumStateManager = quantumStateManager;
+    constructor() {
+        this.quantumStateManager = QuantumStateManager.getInstance();
     }
 
-    private calculateTaskComplexity(
-        skills: Skill[],
-        parameters: any
-    ): number {
-        const baseComplexity = skills.reduce((sum, skill) => sum + skill.level, 0) / skills.length;
-        const parameterComplexity = Object.keys(parameters).length * 0.1;
+    public generateTask(type: TaskType, skills: Skill[]): Task {
         const coherenceBonus = this.quantumStateManager.getCoherenceLevel() * 0.2;
+        
+        let difficulty = this.calculateBaseDifficulty(skills);
+        difficulty = Math.min(difficulty * (1 + coherenceBonus), 1);
 
-        return Math.min((baseComplexity + parameterComplexity + coherenceBonus), 1.0);
-    }
-
-    public async generateTask(
-        type: TaskType,
-        skills: Skill[],
-        parameters: any = {}
-    ): Promise<Task> {
-        const complexity = this.calculateTaskComplexity(skills, parameters);
-        const validationFunction = this.createValidationFunction(type, parameters);
-
-        const task: Task = {
-            id: `task_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        return {
+            id: crypto.randomUUID(),
             type,
             skills,
-            parameters,
-            complexity,
-            createdAt: Date.now(),
+            difficulty,
             status: 'pending',
-            validationFunction
+            completionCriteria: this.generateCompletionCriteria(type, difficulty)
+        };
+    }
+
+    private calculateBaseDifficulty(skills: Skill[]): number {
+        const avgSkillLevel = skills.reduce((sum, skill) => sum + skill.level, 0) / skills.length;
+        return Math.min(Math.max(avgSkillLevel * 1.2, 0), 1);
+    }
+
+    private generateCompletionCriteria(type: TaskType, difficulty: number): ValidationParameters {
+        const baseCriteria = {
+            minQuality: 0.6 + (difficulty * 0.2),
+            minEngagement: 0.5 + (difficulty * 0.3),
+            minComprehension: 0.7 + (difficulty * 0.2),
+            minRetention: 0.6 + (difficulty * 0.2),
+            minApplication: 0.5 + (difficulty * 0.3),
+            minPattern: 0.7 + (difficulty * 0.2),
+            maxTime: 5000 - (difficulty * 1000),
+            minOriginality: 0.6 + (difficulty * 0.3),
+            minComplexity: 0.5 + (difficulty * 0.4)
         };
 
-        this.tasks.push(task);
-        return task;
+        return baseCriteria;
     }
 
-    private createValidationFunction(
-        taskType: string,
-        parameters: any
-    ): (result: any) => boolean {
-        switch (taskType) {
-            case 'media':
-                return (result: any) => this.validateMediaTask(result, parameters);
-            case 'interaction':
-                return (result: any) => this.validateInteractionTask(result, parameters);
-            case 'learning':
-                return (result: any) => this.validateLearningTask(result, parameters);
-            case 'creation':
-                return (result: any) => this.validateCreationTask(result, parameters);
+    public validateTaskResult(
+        task: Task,
+        result: MediaValidation | InteractionResult | LearningMetrics | CreationOutput
+    ): boolean {
+        const parameters = task.completionCriteria;
+        const coherenceBonus = this.quantumStateManager.getCoherenceLevel() > 0.8 ? 0.1 : 0;
+
+        switch (task.type) {
+            case TaskType.Learning:
+                return this.validateLearningResult(result as LearningMetrics, parameters, coherenceBonus);
+            case TaskType.Creation:
+                return this.validateCreationResult(result as CreationOutput, parameters, coherenceBonus);
+            case TaskType.Analysis:
+                return this.validateMediaResult(result as MediaValidation, parameters, coherenceBonus);
+            case TaskType.Integration:
+                return this.validateInteractionResult(result as InteractionResult, parameters, coherenceBonus);
             default:
-                return () => false;
+                return false;
         }
     }
 
-    private validateMediaTask(result: any, parameters: any): boolean {
-        const validation: MediaValidation = result;
-        
-        const durationValid = validation.duration >= (parameters.minDuration || 0);
-        const qualityValid = validation.quality >= (parameters.minQuality || 0.5);
-        const engagementValid = validation.engagement >= (parameters.minEngagement || 0.6);
-        
+    private validateMediaResult(
+        validation: MediaValidation,
+        parameters: ValidationParameters,
+        coherenceBonus: number
+    ): boolean {
         const coherenceLevel = this.quantumStateManager.getCoherenceLevel();
-        const coherenceBonus = coherenceLevel > 0.8 ? 0.1 : 0;
+        const adjustedThreshold = (threshold: number) => threshold - (coherenceLevel * 0.1) - coherenceBonus;
 
-        const overallScore = (
-            (durationValid ? 1 : 0) +
-            (qualityValid ? 1 : 0) +
-            (engagementValid ? 1 : 0)
-        ) / 3 + coherenceBonus;
+        const qualityResult = validation.quality >= adjustedThreshold(parameters.minQuality || 0.7);
+        const coherenceResult = validation.coherence >= adjustedThreshold(parameters.minQuality || 0.6);
+        const stabilityResult = validation.stability >= adjustedThreshold(parameters.minQuality || 0.5);
 
-        return overallScore >= 0.7;
+        return qualityResult && coherenceResult && stabilityResult;
     }
 
-    private validateInteractionTask(result: any, parameters: any): boolean {
-        const interaction: InteractionResult = result;
-        
-        const responseValid = interaction.responseQuality >= (parameters.minQuality || 0.6);
-        const timeValid = interaction.responseTime <= (parameters.maxTime || 5000);
-        const patternValid = interaction.patternMatch >= (parameters.minPattern || 0.7);
-        
-        const coherenceBonus = this.quantumStateManager.getCoherenceLevel() > 0.8 ? 0.1 : 0;
-
-        const score = (
-            (responseValid ? 1 : 0) +
-            (timeValid ? 1 : 0) +
-            (patternValid ? 1 : 0)
-        ) / 3 + coherenceBonus;
-
-        return score >= 0.7;
-    }
-
-    private validateLearningTask(result: any, parameters: any): boolean {
-        const metrics: LearningMetrics = result;
-        
-        const comprehensionValid = metrics.comprehension >= (parameters.minComprehension || 0.7);
-        const retentionValid = metrics.retention >= (parameters.minRetention || 0.6);
-        const applicationValid = metrics.application >= (parameters.minApplication || 0.5);
-        
+    private validateInteractionResult(
+        interaction: InteractionResult,
+        parameters: ValidationParameters,
+        coherenceBonus: number
+    ): boolean {
         const coherenceLevel = this.quantumStateManager.getCoherenceLevel();
-        const coherenceBonus = coherenceLevel > 0.8 ? 0.1 : 0;
+        const adjustedThreshold = (threshold: number) => threshold - (coherenceLevel * 0.1) - coherenceBonus;
 
-        const overallScore = (
-            metrics.comprehension * 0.4 +
-            metrics.retention * 0.3 +
-            metrics.application * 0.3
-        ) + coherenceBonus;
-
-        return overallScore >= this.learningThreshold;
+        return interaction.quality >= adjustedThreshold(parameters.minQuality || 0.7) &&
+               interaction.engagement >= adjustedThreshold(parameters.minEngagement || 0.6) &&
+               interaction.resonance >= adjustedThreshold(parameters.minPattern || 0.5);
     }
 
-    private validateCreationTask(result: any, parameters: any): boolean {
-        const output: CreationOutput = result;
-        
-        const qualityValid = output.quality >= (parameters.minQuality || 0.7);
-        const originalityValid = output.originality >= (parameters.minOriginality || 0.6);
-        const complexityValid = output.complexity >= (parameters.minComplexity || 0.5);
-        
-        const coherenceBonus = this.quantumStateManager.getCoherenceLevel() > 0.8 ? 0.1 : 0;
+    private validateLearningResult(
+        metrics: LearningMetrics,
+        parameters: ValidationParameters,
+        coherenceBonus: number
+    ): boolean {
+        const coherenceLevel = this.quantumStateManager.getCoherenceLevel();
+        const adjustedThreshold = (threshold: number) => threshold - (coherenceLevel * 0.1) - coherenceBonus;
 
-        const overallScore = (
-            output.quality * 0.4 +
-            output.originality * 0.3 +
-            output.complexity * 0.3
-        ) + coherenceBonus;
-
-        return overallScore >= this.complexityThreshold;
+        return metrics.comprehension >= adjustedThreshold(parameters.minComprehension || 0.7) &&
+               metrics.retention >= adjustedThreshold(parameters.minRetention || 0.6) &&
+               metrics.application >= adjustedThreshold(parameters.minApplication || 0.5);
     }
 
-    public getTaskHistory(): Task[] {
-        return [...this.tasks];
+    private validateCreationResult(
+        output: CreationOutput,
+        parameters: ValidationParameters,
+        coherenceBonus: number
+    ): boolean {
+        const coherenceLevel = this.quantumStateManager.getCoherenceLevel();
+        const adjustedThreshold = (threshold: number) => threshold - (coherenceLevel * 0.1) - coherenceBonus;
+
+        return output.quality >= adjustedThreshold(parameters.minQuality || 0.7) &&
+               output.originality >= adjustedThreshold(parameters.minOriginality || 0.6) &&
+               output.complexity >= adjustedThreshold(parameters.minComplexity || 0.5);
     }
 
-    public analyzeTaskSuccess(task: Task, result: any): {
-        success: boolean;
-        feedback: string[];
-        improvements: string[];
-    } {
-        const validationResult = task.validationFunction(result);
-        const feedback: string[] = [];
+    public getImprovementSuggestions(task: Task, result: any): string[] {
         const improvements: string[] = [];
-
         const coherenceLevel = this.quantumStateManager.getCoherenceLevel();
-        
-        if (validationResult) {
-            feedback.push('Task completed successfully');
-            if (coherenceLevel > 0.8) {
-                feedback.push('High quantum coherence enhanced performance');
-            }
-        } else {
-            feedback.push('Task completion needs improvement');
-            if (coherenceLevel < 0.6) {
-                improvements.push('Increase quantum coherence for better results');
-            }
-            improvements.push('Review task requirements and try again');
-        }
 
-        const skillGaps = task.skills.filter(skill => skill.level < 0.7);
+        // Add skill-based suggestions
+        const skillGaps = task.skills.filter(s => s.level < 0.7);
         if (skillGaps.length > 0) {
             improvements.push(`Focus on improving: ${skillGaps.map(s => s.name).join(', ')}`);
         }
 
-        return {
-            success: validationResult,
-            feedback,
-            improvements
-        };
+        // Add coherence-based suggestions
+        if (coherenceLevel < 0.7) {
+            improvements.push('Work on improving quantum coherence for better performance');
+        }
+
+        return improvements;
     }
 }
-
-export default CurriculumGenerator;
