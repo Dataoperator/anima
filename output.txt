@@ -4,6 +4,8 @@
 ├── LICENSE
 ├── README.md
 ├── anima@0.1.0
+├── babel.config.js
+├── backup_config_20240117
 ├── backup_old
 │   ├── hooks
 │   │   └── useICPLedger.ts
@@ -28,39 +30,6 @@
 ├── deploy-mainnet.sh
 ├── dfx
 ├── dfx.json
-├── dist
-│   ├── assets
-│   │   ├── AnimaPage-D47krTj9.js
-│   │   ├── AnimaPage-D47krTj9.js.map
-│   │   ├── GenesisPage-BFScFKUb.js
-│   │   ├── GenesisPage-BFScFKUb.js.map
-│   │   ├── LandingPage-C1j1659w.js
-│   │   ├── LandingPage-C1j1659w.js.map
-│   │   ├── LaughingMan-BddPto8f.js
-│   │   ├── LaughingMan-BddPto8f.js.map
-│   │   ├── QuantumField-TNtTmF_N.js
-│   │   ├── QuantumField-TNtTmF_N.js.map
-│   │   ├── Wallet-Cs7uYBth.js
-│   │   ├── Wallet-Cs7uYBth.js.map
-│   │   ├── consciousness-bCgzbESX.js
-│   │   ├── consciousness-bCgzbESX.js.map
-│   │   ├── index-B9um-hpS.css
-│   │   ├── index-CK-ApUH5.js
-│   │   ├── index-CK-ApUH5.js.map
-│   │   ├── media-BIbXOzKd.js
-│   │   ├── media-BIbXOzKd.js.map
-│   │   ├── neural-interface-Ccv7oDsD.js
-│   │   ├── neural-interface-Ccv7oDsD.js.map
-│   │   ├── quantum-core-DW8Yjz_b.js
-│   │   ├── quantum-core-DW8Yjz_b.js.map
-│   │   ├── quantum-vault-o2MgRmAb.js
-│   │   ├── quantum-vault-o2MgRmAb.js.map
-│   │   ├── quantum.worker-BMZTCHt-.js
-│   │   ├── quantum.worker-BMZTCHt-.js.map
-│   │   ├── usePayment-BsF1Q6BL.js
-│   │   └── usePayment-BsF1Q6BL.js.map
-│   ├── index.html
-│   └── web.config
 ├── index.html
 ├── init-canisters.sh
 ├── local_ledger.wasm
@@ -75,6 +44,10 @@
 │   └── web.config
 ├── quick-deploy.sh
 ├── reset-deploy.sh
+├── scripts
+│   ├── enhanced-build.sh
+│   ├── setup-build.sh
+│   └── verify-deployment.sh
 ├── setup-local.sh
 ├── setup.sh
 ├── src
@@ -155,6 +128,7 @@
 │   │   ├── autonomous
 │   │   │   ├── AnimaCore.rs
 │   │   │   ├── MediaActions.ts
+│   │   │   ├── MediaSources.ts
 │   │   │   ├── designation.rs
 │   │   │   ├── evolution.rs
 │   │   │   └── network.rs
@@ -202,6 +176,7 @@
 │   │   │   ├── EnhancedAdminDashboard.tsx
 │   │   │   ├── ErrorDashboard.tsx
 │   │   │   ├── PaymentAnalyticsDashboard.tsx
+│   │   │   ├── QADashboard.tsx
 │   │   │   └── dashboard
 │   │   ├── anima
 │   │   │   ├── AnimaConnector.tsx
@@ -487,6 +462,7 @@
 │   │   ├── index.ts.main
 │   │   ├── payment-context.tsx
 │   │   ├── quantum-context.tsx
+│   │   ├── wallet-context.tsx
 │   │   └── web3-context.tsx
 │   ├── debug
 │   │   ├── auto-recovery.ts
@@ -855,6 +831,7 @@
 │   │   ├── date.ts
 │   │   ├── deviceDetection.js
 │   │   ├── error-recovery.ts
+│   │   ├── error-tracker.ts
 │   │   ├── errorReporting.js
 │   │   ├── fetch-interceptor.js
 │   │   ├── format.ts
@@ -1230,4 +1207,4 @@
 ├── vite.config.ts
 └── yarn.lock
 
-210 directories, 1020 files
+210 directories, 997 files

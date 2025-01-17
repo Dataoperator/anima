@@ -8,10 +8,15 @@
         "node_compatibility": true
       },
       "settings": {
-        "memory_allocation": "8GB",
+        "memory_allocation": "4GB",
         "compute_allocation": "1",
-        "reserved_cycles": "40000000000000",
-        "freezing_threshold": "2592000"
+        "reserved_cycles": "30000000000000",
+        "freezing_threshold": "5184000",
+        "controllers": ["principal"],
+        "build": {
+          "args": "--release --features quantum_optimization",
+          "target": "wasm32-unknown-unknown"
+        }
       }
     },
     "anima_assets": {
@@ -19,10 +24,10 @@
       "source": ["dist"],
       "dependencies": ["anima"],
       "settings": {
-        "memory_allocation": "4GB",
+        "memory_allocation": "2GB",
         "compute_allocation": "0.5",
-        "reserved_cycles": "15000000000000",
-        "freezing_threshold": "2592000"
+        "reserved_cycles": "10000000000000",
+        "freezing_threshold": "5184000"
       }
     },
     "payment_verification": {
@@ -35,8 +40,8 @@
       "settings": {
         "memory_allocation": "2GB",
         "compute_allocation": "0.5",
-        "reserved_cycles": "20000000000000",
-        "freezing_threshold": "2592000"
+        "reserved_cycles": "15000000000000",
+        "freezing_threshold": "5184000"
       }
     },
     "ledger": {
@@ -59,6 +64,10 @@
       "bind": "127.0.0.1:8000",
       "type": "ephemeral"
     },
+    "staging": {
+      "providers": ["https://icp0.io"],
+      "type": "persistent"
+    },
     "ic": {
       "providers": ["https://icp0.io"],
       "type": "persistent",
@@ -68,6 +77,17 @@
         }
       }
     }
+  },
+  "defaults": {
+    "build": {
+      "packtool": "",
+      "args": ""
+    }
+  },
+  "debug": {
+    "enable_profiling": true,
+    "log_level": "info",
+    "logging_enabled": true
   },
   "version": 1
 }

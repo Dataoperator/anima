@@ -1,43 +1,86 @@
-export interface QuantumMetrics {
-  coherence: number;
-  dimensional_frequency: number;
-  entanglement_count: number;
-  superposition_count: number;
-  quantum_memory_depth: number;
-}
-
-export interface QuantumMemory {
-  timestamp: bigint;
-  state_vector: number[];
-  coherence_at_time: number;
-  dimensional_echo: boolean;
-}
-
 export interface QuantumState {
-  coherence: number;
-  dimensional_frequency: number;
-  current_dimension: string;
-  quantum_memory: QuantumMemory[];
-  entanglement_pairs: Array<[string, number]>;
+  coherenceLevel: number;
+  dimensionalAlignment: number;
+  entanglementIndex: number;
+  stabilityFactor: number;
+  resonancePatterns: ResonancePattern[];
+  quantumSignature: string;
+  lastUpdate: number;
+  stateHistory: StateHistoryEntry[];
 }
 
-export interface DimensionData {
+export interface ResonancePattern {
   id: string;
-  name: string;
-  description: string;
-  stability: number;
-  resonance: number;
+  frequency: number;
+  amplitude: number;
+  phase: number;
+  coherence: number;
+  timestamp: number;
+  entropyLevel: number;
+  stabilityIndex: number;
+  quantumSignature: string;
+  evolutionPotential: number;
+  coherenceQuality: number;
+  temporalStability: number;
+  dimensionalAlignment: number;
 }
 
-export interface QuantumStreamData {
+export interface StateHistoryEntry {
+  timestamp: number;
+  coherenceLevel: number;
+  resonance: number;
+  shiftType: QuantumShiftType;
+  metrics: QuantumMetrics;
+}
+
+export enum QuantumShiftType {
+  HARMONIC = 'harmonic',
+  QUANTUM = 'quantum',
+  DIMENSIONAL = 'dimensional',
+  NEURAL = 'neural'
+}
+
+export interface QuantumMetrics {
+  coherenceQuality: number;
+  entanglementStrength: number;
+  dimensionalStability: number;
+  resonanceHarmony: number;
+  evolutionPotential: number;
+  complexityIndex: number;
+}
+
+export interface DimensionalShift {
+  fromFrequency: number;
+  toFrequency: number;
+  magnitude: number;
+  timestamp: number;
+  affectedPatterns: string[];
+  stabilityImpact: number;
+}
+
+export interface QuantumTransition {
+  fromState: Partial<QuantumState>;
+  toState: Partial<QuantumState>;
+  transitionType: QuantumShiftType;
+  duration: number;
+  energyCost: number;
+  stabilityImpact: number;
+}
+
+export interface QuantumEvolutionMetrics {
+  coherenceGrowth: number;
+  stabilityTrend: number;
+  dimensionalHarmony: number;
+  evolutionVelocity: number;
+  consciousnessDepth: number;
+  patternDiversity: number;
+}
+
+export interface QuantumSnapshot {
+  state: QuantumState;
   timestamp: number;
   metrics: QuantumMetrics;
-  state?: QuantumState;
+  patterns: ResonancePattern[];
+  transitions: QuantumTransition[];
+  evolutionMetrics: QuantumEvolutionMetrics;
 }
-
-export type QuantumEvent = 
-  | { type: 'ENTANGLEMENT'; targetId: string }
-  | { type: 'DECOHERENCE' }
-  | { type: 'DIMENSIONAL_SHIFT'; dimension: DimensionData }
-  | { type: 'SUPERPOSITION_COLLAPSE'; state: QuantumState }
-  | { type: 'QUANTUM_LEAP'; destination: DimensionData }

@@ -1,62 +1,98 @@
 #!/bin/bash
+set -e
 
-echo "🔍 Verifying ANIMA deployment..."
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
 
-# Check canister status
-check_canister() {
-    local canister_name=$1
-    echo "Checking $canister_name..."
-    dfx canister --network ic status $canister_name || {
-        echo "❌ $canister_name check failed"
+echo "🔍 Starting pre-deployment verification..."
+
+DFX_VERSION=$(dfx --version)
+MIN_DFX_VERSION="0.14.1"
+if [[ "$(printf '%s\n' "$MIN_DFX_VERSION" "$DFX_VERSION" | sort -V | head -n1)" != "$MIN_DFX_VERSION" ]]; then
+    echo -e "${RED}❌ DFX version must be at least $MIN_DFX_VERSION${NC}"
+    exit 1
+fi
+
+required_files=(
+    "dfx.json"
+    "src/lib.did"
+    "candid/ledger.did"
+    "candid/payment_verification.did"
+    "local_ledger.wasm"
+)
+
+for file in "${required_files[@]}"; do
+    if [[ ! -f "$file" ]]; then
+        echo -e "${RED}❌ Missing required file: $file${NC}"
         exit 1
-    }
-    echo "✅ $canister_name status verified"
-}
-
-# Verify cycles
-check_cycles() {
-    local canister_name=$1
-    local min_cycles=20000000000000  # 20T cycles minimum
-    
-    local cycles=$(dfx canister --network ic status $canister_name | grep "Balance:" | awk '{print $2}')
-    if [ "$cycles" -lt "$min_cycles" ]; then
-        echo "⚠️ Warning: $canister_name cycles low: $cycles"
-        return 1
     fi
-    echo "✅ $canister_name cycles sufficient"
-}
+done
 
-# Test endpoints
-test_endpoint() {
-    local endpoint=$1
-    local expected_status=$2
-    curl -s -o /dev/null -w "%{http_code}" "$endpoint" | grep -q "$expected_status" || {
-        echo "❌ Endpoint check failed: $endpoint"
-        return 1
-    }
-    echo "✅ Endpoint verified: $endpoint"
-}
+echo "📋 Verifying canister configurations..."
+if ! jq -e '.canisters.anima' dfx.json > /dev/null; then
+    echo -e "${RED}❌ Invalid anima canister configuration${NC}"
+    exit 1
+fi
 
-# Main verification flow
-main() {
-    # 1. Check canister status
-    check_canister "anima"
-    check_canister "anima_assets"
-    check_canister "payment_verification"
+if ! jq -e '.canisters.anima_assets' dfx.json > /dev/null; then
+    echo -e "${RED}❌ Invalid assets canister configuration${NC}"
+    exit 1
+fi
 
-    # 2. Verify cycles
-    check_cycles "anima"
-    check_cycles "anima_assets"
-    check_cycles "payment_verification"
+echo "🔐 Checking environment variables..."
+required_env=(
+    "DFX_NETWORK"
+    "II_URL"
+)
 
-    # 3. Test endpoints
-    local canister_id=$(dfx canister --network ic id anima_assets)
-    test_endpoint "https://$canister_id.icp0.io" "200"
-    test_endpoint "https://$canister_id.icp0.io/neural-link" "200"
+for env_var in "${required_env[@]}"; do
+    if [[ -z "${!env_var}" ]]; then
+        echo -e "${RED}❌ Missing required environment variable: $env_var${NC}"
+        exit 1
+    fi
+done
 
-    # 4. Check error rates
-    echo "Checking error rates..."
-    dfx canister --network ic call anima getErrorStats
-}
+echo "🏗️ Verifying frontend build..."
+if [[ ! -d "dist" ]]; then
+    echo -e "${YELLOW}⚠️ Frontend not built. Building now...${NC}"
+    if ! npm run build; then
+        echo -e "${RED}❌ Frontend build failed${NC}"
+        exit 1
+    fi
+fi
 
-main
+if [[ "$DFX_NETWORK" = "ic" ]]; then
+    echo "💰 Checking cycle balance..."
+    CYCLE_BALANCE=$(dfx wallet --network ic balance)
+    MIN_CYCLES=100000000000000
+    if (( CYCLE_BALANCE < MIN_CYCLES )); then
+        echo -e "${RED}❌ Insufficient cycles. Required: $MIN_CYCLES, Available: $CYCLE_BALANCE${NC}"
+        exit 1
+    fi
+fi
+
+echo "🦀 Checking Rust toolchain..."
+if ! rustup target list | grep -q "wasm32-unknown-unknown"; then
+    echo -e "${RED}❌ wasm32-unknown-unknown target not installed${NC}"
+    echo "Run: rustup target add wasm32-unknown-unknown"
+    exit 1
+fi
+
+echo "📦 Checking node modules..."
+if [[ ! -d "node_modules" ]]; then
+    echo -e "${YELLOW}⚠️ Node modules not installed. Installing now...${NC}"
+    if ! npm install; then
+        echo -e "${RED}❌ Dependency installation failed${NC}"
+        exit 1
+    fi
+fi
+
+echo "🧪 Running critical tests..."
+if ! npm run test:critical; then
+    echo -e "${RED}❌ Critical tests failed${NC}"
+    exit 1
+fi
+
+echo -e "${GREEN}✅ All pre-deployment checks passed!${NC}"

@@ -1,8 +1,16 @@
 import { QuantumState } from '@/types/quantum';
 import { EmotionalState } from '@/types/emotional';
+import { Skill, SkillCategory, SkillExecutionResult } from '@/types/skill';
 import { v4 as uuidv4 } from 'uuid';
 
-[Previous code...]
+export class SkillSystem {
+    private skills: Map<string, Skill>;
+    private skillDependencies: Map<string, Set<string>>;
+
+    constructor() {
+        this.skills = new Map();
+        this.skillDependencies = new Map();
+    }
 
     private async executeLearningSkill(
         skill: Skill,
@@ -13,10 +21,8 @@ import { v4 as uuidv4 } from 'uuid';
         let output = null;
 
         try {
-            // Example learning pattern types
             switch (patternType) {
                 case 'user_preference':
-                    // Learn from user interactions
                     success = true;
                     output = {
                         pattern: `preference_${input.category}`,
@@ -25,7 +31,6 @@ import { v4 as uuidv4 } from 'uuid';
                     break;
                     
                 case 'content_pattern':
-                    // Learn from content interactions
                     success = true;
                     output = {
                         pattern: `content_pattern_${input.type}`,
@@ -34,7 +39,6 @@ import { v4 as uuidv4 } from 'uuid';
                     break;
 
                 case 'interaction_flow':
-                    // Learn conversation patterns
                     success = true;
                     output = {
                         pattern: `flow_${input.context}`,
@@ -74,7 +78,6 @@ import { v4 as uuidv4 } from 'uuid';
         try {
             switch (creationType) {
                 case 'playlist':
-                    // Create custom playlists
                     success = true;
                     output = {
                         playlistId: uuidv4(),
@@ -84,7 +87,6 @@ import { v4 as uuidv4 } from 'uuid';
                     break;
 
                 case 'media_mix':
-                    // Create mixed media experiences
                     success = true;
                     output = {
                         mixId: uuidv4(),
@@ -94,7 +96,6 @@ import { v4 as uuidv4 } from 'uuid';
                     break;
 
                 case 'interactive_sequence':
-                    // Create interactive content sequences
                     success = true;
                     output = {
                         sequenceId: uuidv4(),
@@ -132,18 +133,16 @@ import { v4 as uuidv4 } from 'uuid';
 
     private async levelUpSkill(skill: Skill): Promise<void> {
         skill.level++;
-        // Generate new capabilities or unlock related skills
         this.generateRelatedSkills(skill);
     }
 
     private async generateRelatedSkills(baseSkill: Skill): Promise<void> {
-        // Generate new skills based on current skill level and category
         const newSkillData = {
             name: `Advanced ${baseSkill.name}`,
             description: `Enhanced version of ${baseSkill.name}`,
             category: baseSkill.category,
             level: baseSkill.level + 1,
-            requirements: [baseSkill.id],
+            requirements: [baseSkill.id]
         };
 
         const newSkill: Skill = {
@@ -174,14 +173,11 @@ import { v4 as uuidv4 } from 'uuid';
         quantum: QuantumState,
         emotional: EmotionalState
     ): Skill[] {
-        // Filter skills based on current states and requirements
         return Array.from(this.skills.values()).filter(skill => {
-            // Check if all required skills are learned
             const hasRequirements = skill.requirements.every(reqId => 
                 this.skills.has(reqId)
             );
 
-            // Check quantum state compatibility
             const hasQuantumReq = quantum.coherenceLevel >= 0.5;
 
             return hasRequirements && hasQuantumReq;
@@ -192,7 +188,7 @@ import { v4 as uuidv4 } from 'uuid';
         return this.skills.get(skillId);
     }
 
-    public getSkillsByCategory(category: Skill['category']): Skill[] {
+    public getSkillsByCategory(category: SkillCategory): Skill[] {
         return Array.from(this.skills.values()).filter(
             skill => skill.category === category
         );
@@ -220,12 +216,10 @@ import { v4 as uuidv4 } from 'uuid';
             currentState.emotional
         );
 
-        // Filter out recently used skills
         const unusedSkills = availableSkills.filter(skill => 
             !currentState.recentActivities.includes(skill.id)
         );
 
-        // Sort by potential impact and relevance
         return unusedSkills.sort((a, b) => {
             const aScore = this.calculateSkillRelevance(a, currentState);
             const bScore = this.calculateSkillRelevance(b, currentState);
@@ -243,13 +237,11 @@ import { v4 as uuidv4 } from 'uuid';
     ): number {
         let score = 0;
 
-        // Base score from success rate
         const totalAttempts = skill.successCount + skill.failureCount;
         if (totalAttempts > 0) {
             score += (skill.successCount / totalAttempts) * 0.4;
         }
 
-        // Quantum state alignment
         if (skill.context.quantum.coherenceLevel) {
             const coherenceDiff = Math.abs(
                 (skill.context.quantum.coherenceLevel || 0) - 
@@ -258,7 +250,6 @@ import { v4 as uuidv4 } from 'uuid';
             score += (1 - coherenceDiff) * 0.3;
         }
 
-        // Time since last use (favor less recently used skills)
         const hoursSinceUse = (Date.now() - skill.lastUsed.getTime()) / (1000 * 60 * 60);
         score += Math.min(hoursSinceUse / 24, 1) * 0.3;
 
