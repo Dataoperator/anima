@@ -1,72 +1,70 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
+import dts from 'vite-plugin-dts';
 
 // https://vitejs.dev/config/
-export default defineConfig(({ mode }) => ({
-  plugins: [react()],
+export default defineConfig({
+  plugins: [
+    react(),
+    dts({
+      insertTypesEntry: true,
+    }),
+  ],
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src')
-    }
+      '@': path.resolve(__dirname, './src'),
+    },
   },
   build: {
-    target: 'esnext',
     outDir: 'dist',
-    sourcemap: mode === 'development',
-    minify: 'terser',
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          'vendor': [
-            'react', 
-            'react-dom', 
-            'react-router-dom',
-            'framer-motion'
-          ],
-          'dfinity': [
-            '@dfinity/agent',
-            '@dfinity/auth-client',
-            '@dfinity/candid',
-            '@dfinity/identity',
-            '@dfinity/principal'
-          ],
-          'quantum': ['/quantum/'],
-          'neural': ['/neural/']
-        }
-      }
+    sourcemap: true,
+    lib: {
+      entry: path.resolve(__dirname, 'src/main.tsx'),
+      name: 'anima',
+      formats: ['es', 'umd'],
+      fileName: (format) => `anima.${format}.js`,
     },
+    rollupOptions: {
+      external: ['react', 'react-dom'],
+      output: {
+        globals: {
+          react: 'React',
+          'react-dom': 'ReactDOM',
+        },
+      },
+    },
+    chunkSizeWarningLimit: 1600,
+    cssCodeSplit: true,
+    minify: 'terser',
     terserOptions: {
       compress: {
         drop_console: true,
-      }
+      },
     },
-    cssCodeSplit: true,
-    assetsInlineLimit: 4096
-  },
-  server: {
-    port: 5173,
-    strictPort: true
-  },
-  preview: {
-    port: 5173
-  },
-  define: {
-    'process.env.DFX_NETWORK': JSON.stringify(process.env.DFX_NETWORK || 'ic'),
-    'process.env.NODE_ENV': JSON.stringify(mode),
-    global: 'globalThis'
   },
   optimizeDeps: {
     include: [
-      'react',
-      'react-dom',
-      'react-router-dom',
-      'framer-motion'
-    ],
-    exclude: [
       '@dfinity/agent',
-      '@dfinity/candid',
-      '@dfinity/principal'
-    ]
-  }
-}));
+      '@dfinity/auth-client',
+      '@dfinity/principal',
+      'buffer',
+    ],
+    exclude: ['@dfinity/candid'],
+  },
+  define: {
+    global: 'globalThis',
+    'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV),
+  },
+  server: {
+    host: '0.0.0.0',
+    port: 3000,
+    strictPort: true,
+    proxy: {
+      '/api': {
+        target: 'http://127.0.0.1:4943',
+        changeOrigin: true,
+      },
+    },
+  },
+});

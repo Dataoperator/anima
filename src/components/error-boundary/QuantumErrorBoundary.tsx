@@ -1,86 +1,140 @@
-import React, { Component, ErrorInfo, ReactNode } from 'react';
-import { motion } from 'framer-motion';
+import React, { Component, ErrorInfo } from 'react';
+import { ErrorDisplay } from '../error/ErrorDisplay';
+import { ErrorTracker } from '@/error/quantum_error';
+import { SystemMonitor } from '@/analytics/SystemHealthMonitor';
 
 interface Props {
-    children: ReactNode;
-    fallbackComponent?: ReactNode;
+  children: React.ReactNode;
+  fallback?: React.ReactNode;
+  errorTracker?: ErrorTracker;
+  systemMonitor?: SystemMonitor;
 }
 
 interface State {
-    hasError: boolean;
-    error: Error | null;
-    quantumState: 'collapsed' | 'superposition' | 'entangled' | null;
+  hasError: boolean;
+  error: Error | null;
+  errorInfo: ErrorInfo | null;
+  isRecovering: boolean;
 }
 
 export class QuantumErrorBoundary extends Component<Props, State> {
-    public state: State = {
+  constructor(props: Props) {
+    super(props);
+    this.state = {
+      hasError: false,
+      error: null,
+      errorInfo: null,
+      isRecovering: false
+    };
+  }
+
+  static getDerivedStateFromError(error: Error): Partial<State> {
+    return {
+      hasError: true,
+      error,
+      isRecovering: false
+    };
+  }
+
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    this.setState({ errorInfo });
+
+    // Track error
+    if (this.props.errorTracker) {
+      this.props.errorTracker.recordError({
+        context: 'QUANTUM_BOUNDARY',
+        error,
+        timestamp: Date.now(),
+        severity: 'high'
+      });
+    }
+
+    // Monitor system health
+    if (this.props.systemMonitor) {
+      this.props.systemMonitor.recordMetric({
+        type: 'error_boundary_triggered',
+        value: 1,
+        context: {
+          error: error.message,
+          component: errorInfo.componentStack
+        }
+      });
+    }
+  }
+
+  handleRecoveryAttempt = async () => {
+    this.setState({ isRecovering: true });
+
+    try {
+      // Wait for any pending quantum operations to settle
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Reset error state
+      this.setState({
         hasError: false,
         error: null,
-        quantumState: null
-    };
+        errorInfo: null,
+        isRecovering: false
+      });
 
-    public static getDerivedStateFromError(error: Error): State {
-        // Analyze error type and set quantum state
-        const quantumState = error.message.includes('quantum')
-            ? 'superposition'
-            : error.message.includes('entangle')
-                ? 'entangled'
-                : 'collapsed';
+      if (this.props.systemMonitor) {
+        this.props.systemMonitor.recordMetric({
+          type: 'error_recovery_success',
+          value: 1,
+          context: {
+            timestamp: Date.now()
+          }
+        });
+      }
+    } catch (recoveryError) {
+      this.setState({
+        isRecovering: false,
+        error: recoveryError as Error
+      });
 
-        return {
-            hasError: true,
-            error,
-            quantumState
-        };
+      if (this.props.errorTracker) {
+        this.props.errorTracker.recordError({
+          context: 'RECOVERY_FAILED',
+          error: recoveryError as Error,
+          timestamp: Date.now(),
+          severity: 'critical'
+        });
+      }
+    }
+  };
+
+  render() {
+    const { hasError, error, isRecovering } = this.state;
+    const { children, fallback } = this.props;
+
+    if (hasError) {
+      if (isRecovering) {
+        return (
+          <div className="flex items-center justify-center min-h-screen bg-black text-cyan-500">
+            <div className="text-center">
+              <div className="mb-4">
+                <div className="w-16 h-16 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mx-auto" />
+              </div>
+              <h2 className="text-xl font-semibold mb-2">Quantum Recovery in Progress</h2>
+              <p className="text-cyan-400">Stabilizing quantum state...</p>
+            </div>
+          </div>
+        );
+      }
+
+      if (fallback) {
+        return fallback;
+      }
+
+      return (
+        <ErrorDisplay
+          error={error}
+          onRetry={this.handleRecoveryAttempt}
+          message="A quantum state error occurred"
+        />
+      );
     }
 
-    public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-        console.error('Quantum error:', error);
-        console.error('Error info:', errorInfo);
-    }
-
-    public render() {
-        if (this.state.hasError) {
-            return this.props.fallbackComponent || (
-                <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900"
-                >
-                    <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 max-w-md w-full">
-                        <div className="text-center space-y-4">
-                            <div className="text-4xl mb-4">
-                                {this.state.quantumState === 'superposition' && '⚛️'}
-                                {this.state.quantumState === 'entangled' && '🔮'}
-                                {this.state.quantumState === 'collapsed' && '💫'}
-                            </div>
-                            <h2 className="text-2xl font-bold text-white">Quantum State Disruption</h2>
-                            <p className="text-white/80">
-                                {this.state.quantumState === 'superposition' 
-                                    ? 'Reality is currently in superposition. Please wait for wavefunction collapse.'
-                                    : this.state.quantumState === 'entangled'
-                                        ? 'System is entangled with a parallel instance. Attempting to stabilize.'
-                                        : 'Quantum state collapsed. Initiating reality reconstruction.'}
-                            </p>
-                            <motion.button
-                                whileHover={{ scale: 1.05 }}
-                                whileTap={{ scale: 0.95 }}
-                                onClick={() => window.location.reload()}
-                                className="px-6 py-2 bg-purple-500 text-white rounded-lg mt-4 hover:bg-purple-600 transition-colors"
-                            >
-                                Recalibrate Quantum Field
-                            </motion.button>
-                            {process.env.NODE_ENV === 'development' && (
-                                <pre className="mt-4 p-4 bg-black/50 rounded text-left text-xs text-white/60 overflow-auto">
-                                    {this.state.error?.stack}
-                                </pre>
-                            )}
-                        </div>
-                    </div>
-                </motion.div>
-            );
-        }
-
-        return this.props.children;
-    }
+    return children;
+  }
 }

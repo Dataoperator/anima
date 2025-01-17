@@ -1,68 +1,122 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
-import { useWallet } from '@/hooks/useWallet';
-import { useQuantumState } from '@/hooks/useQuantumState';
-import { WalletTransaction } from '@/services/wallet.service';
+import React, { createContext, useContext, useReducer, useCallback } from 'react';
+import { QuantumState, ResonancePattern } from '@/types/quantum';
+import { ErrorTracker } from '@/error/quantum_error';
+import { quantumStateService } from '@/services/quantum-state.service';
+import { useToast } from '@/components/ui/use-toast';
 
-interface QuantumTransactionContextType {
-  executeQuantumTransaction: (
-    amount: bigint,
-    operation: 'mint' | 'transfer' | 'burn'
-  ) => Promise<WalletTransaction>;
+interface QuantumTransactionState {
+  quantumState: QuantumState | null;
   isProcessing: boolean;
-  error: string | null;
+  lastError: Error | null;
+  activeTransactions: string[];
 }
 
-const QuantumTransactionContext = createContext<QuantumTransactionContextType | null>(null);
+type QuantumAction =
+  | { type: 'START_TRANSACTION'; payload: string }
+  | { type: 'END_TRANSACTION'; payload: string }
+  | { type: 'UPDATE_STATE'; payload: QuantumState }
+  | { type: 'SET_ERROR'; payload: Error }
+  | { type: 'CLEAR_ERROR' };
+
+const initialState: QuantumTransactionState = {
+  quantumState: null,
+  isProcessing: false,
+  lastError: null,
+  activeTransactions: []
+};
+
+const QuantumTransactionContext = createContext<{
+  state: QuantumTransactionState;
+  updateQuantumState: (newState: Partial<QuantumState>) => Promise<void>;
+  startTransaction: (id: string) => void;
+  endTransaction: (id: string) => void;
+  handleError: (error: Error) => void;
+} | null>(null);
+
+const quantumReducer = (state: QuantumTransactionState, action: QuantumAction): QuantumTransactionState => {
+  switch (action.type) {
+    case 'START_TRANSACTION':
+      return {
+        ...state,
+        isProcessing: true,
+        activeTransactions: [...state.activeTransactions, action.payload]
+      };
+    case 'END_TRANSACTION':
+      return {
+        ...state,
+        isProcessing: state.activeTransactions.length <= 1,
+        activeTransactions: state.activeTransactions.filter(id => id !== action.payload)
+      };
+    case 'UPDATE_STATE':
+      return {
+        ...state,
+        quantumState: action.payload,
+        lastError: null
+      };
+    case 'SET_ERROR':
+      return {
+        ...state,
+        lastError: action.payload,
+        isProcessing: false
+      };
+    case 'CLEAR_ERROR':
+      return {
+        ...state,
+        lastError: null
+      };
+    default:
+      return state;
+  }
+};
 
 export const QuantumTransactionProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { executeTransaction } = useWallet();
-  const { quantumState, checkStability, generateNeuralPatterns } = useQuantumState();
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [state, dispatch] = useReducer(quantumReducer, initialState);
+  const { toast } = useToast();
 
-  const executeQuantumTransaction = useCallback(async (
-    amount: bigint,
-    operation: 'mint' | 'transfer' | 'burn'
-  ): Promise<WalletTransaction> => {
-    setIsProcessing(true);
-    setError(null);
-
+  const updateQuantumState = useCallback(async (newState: Partial<QuantumState>) => {
     try {
-      // Verify quantum stability
-      const isStable = await checkStability();
-      if (!isStable) {
-        throw new Error('Quantum state unstable - transaction blocked');
-      }
+      const currentState = state.quantumState;
+      if (!currentState) throw new Error('No quantum state initialized');
 
-      // Verify coherence level
-      if (quantumState.coherenceLevel < 0.7) {
-        throw new Error('Insufficient quantum coherence');
-      }
+      const updatedState = await quantumStateService.updateState({
+        ...currentState,
+        ...newState
+      });
 
-      // Generate new neural patterns for transaction security
-      await generateNeuralPatterns();
-
-      // Execute the transaction
-      const transaction = await executeTransaction(amount, operation);
-
-      return transaction;
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Transaction failed';
-      setError(errorMessage);
-      throw new Error(errorMessage);
-    } finally {
-      setIsProcessing(false);
+      dispatch({ type: 'UPDATE_STATE', payload: updatedState });
+    } catch (error) {
+      handleError(error as Error);
     }
-  }, [quantumState, checkStability, generateNeuralPatterns, executeTransaction]);
+  }, [state.quantumState]);
 
-  const value = {
-    executeQuantumTransaction,
-    isProcessing,
-    error
-  };
+  const startTransaction = useCallback((id: string) => {
+    dispatch({ type: 'START_TRANSACTION', payload: id });
+  }, []);
+
+  const endTransaction = useCallback((id: string) => {
+    dispatch({ type: 'END_TRANSACTION', payload: id });
+  }, []);
+
+  const handleError = useCallback((error: Error) => {
+    dispatch({ type: 'SET_ERROR', payload: error });
+    toast({
+      title: 'Quantum Error',
+      description: error.message,
+      variant: 'destructive',
+      duration: 5000
+    });
+  }, [toast]);
 
   return (
-    <QuantumTransactionContext.Provider value={value}>
+    <QuantumTransactionContext.Provider
+      value={{
+        state,
+        updateQuantumState,
+        startTransaction,
+        endTransaction,
+        handleError
+      }}
+    >
       {children}
     </QuantumTransactionContext.Provider>
   );

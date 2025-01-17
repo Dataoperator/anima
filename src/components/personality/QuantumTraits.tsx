@@ -1,3 +1,30 @@
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { QuantumState, Trait } from '@/types/quantum';
+import { QuantumParticles } from '../effects/QuantumParticles';
+import { TraitDetail } from './TraitDetail';
+
+interface QuantumTraitsProps {
+    traits: Record<string, Trait>;
+    onTraitSelect?: (traitName: string) => void;
+}
+
+export const QuantumTraits: React.FC<QuantumTraitsProps> = ({ traits, onTraitSelect }) => {
+    const [selectedTrait, setSelectedTrait] = useState<string | null>(null);
+
+    const sortedTraits = React.useMemo(() => {
+        return Object.entries(traits).sort((a, b) => b[1].value - a[1].value);
+    }, [traits]);
+
+    const handleTraitClick = (name: string) => {
+        setSelectedTrait(selectedTrait === name ? null : name);
+        if (onTraitSelect) {
+            onTraitSelect(name);
+        }
+    };
+
+    return (
+        <div className="space-y-4 p-4">
             {sortedTraits.map(([name, trait], index) => (
                 <motion.div
                     key={name}
@@ -9,7 +36,7 @@
                     <motion.div
                         whileHover={{ scale: 1.02 }}
                         className="relative cursor-pointer"
-                        onClick={() => setSelectedTrait(selectedTrait === name ? null : name)}
+                        onClick={() => handleTraitClick(name)}
                     >
                         <div className="flex justify-between items-center mb-1">
                             <span className="text-sm font-medium text-gray-200">
@@ -49,6 +76,8 @@ function getTraitColor(state: QuantumState['type']): string {
             return 'bg-gradient-to-r from-orange-500 to-red-500';
         case 'Entangled':
             return 'bg-gradient-to-r from-green-500 to-teal-500';
+        default:
+            return 'bg-gradient-to-r from-gray-500 to-gray-600';
     }
 }
 
@@ -60,6 +89,8 @@ function getParticleColor(state: QuantumState['type']): string {
             return 'bg-orange-500';
         case 'Entangled':
             return 'bg-green-500';
+        default:
+            return 'bg-gray-500';
     }
 }
 

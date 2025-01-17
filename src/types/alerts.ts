@@ -1,42 +1,38 @@
-export type AlertLevel = 'info' | 'warning' | 'error' | 'critical';
-
-export type AlertType = 
-    | 'system'
-    | 'security'
-    | 'performance'
-    | 'network'
-    | 'user'
-    | 'payment'
-    | 'anima';
-
-export interface AlertFilter {
-    level?: AlertLevel;
-    type?: AlertType;
-    since?: number;
-    resolved?: boolean;
+export enum AlertLevel {
+    CRITICAL = 'CRITICAL',
+    WARNING = 'WARNING',
+    INFO = 'INFO'
 }
 
-export interface AlertFilters extends AlertFilter {
-    category?: string;
-    severity?: string;
-    showResolved?: boolean;
+export enum AlertStatus {
+    NEW = 'NEW',
+    ACKNOWLEDGED = 'ACKNOWLEDGED',
+    RESOLVED = 'RESOLVED',
+    IGNORED = 'IGNORED'
+}
+
+export interface Alert {
+    id: string;
+    type: string;
+    level: AlertLevel;
+    message: string;
+    timestamp: number;
+    status: AlertStatus;
+    meta?: Record<string, any>;
+}
+
+export interface AlertHistory {
+    alerts: Alert[];
+    stats: {
+        total: number;
+        critical: number;
+        warning: number;
+        info: number;
+        resolved: number;
+    };
 }
 
 export interface AlertAction {
     type: string;
     payload?: any;
-    metadata?: Record<string, any>;
-}
-
-export interface Alert {
-    id: string;
-    level: AlertLevel;
-    type: AlertType;
-    message: string;
-    timestamp: number;
-    resolved?: boolean;
-    resolvedBy?: string;
-    category?: string;
-    severity?: string;
-    metadata?: Record<string, any>;
 }

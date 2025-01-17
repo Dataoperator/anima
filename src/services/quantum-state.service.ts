@@ -1,7 +1,45 @@
-      baseEntanglement * 0.5 +
-      syncInfluence +
-      harmonicInfluence
-    ));
+import { EventEmitter } from 'events';
+import { Identity } from '@dfinity/agent';
+import { ResonancePattern, QuantumState } from '../types/quantum';
+import { analyzeResonancePatterns, generateEnhancedResonancePattern } from '../utils/analysis/quantum-cognitive';
+import { generateQuantumSignature } from '../utils/quantum-signature';
+import { neuralNetworkService } from './neural-network.service';
+import { stabilityCheck } from '../utils/quantum-stability';
+
+export class QuantumStateService extends EventEmitter {
+  private state: QuantumState | null = null;
+  private stabilityCheckInterval: NodeJS.Timeout | null = null;
+  private neuralSyncInterval: NodeJS.Timeout | null = null;
+  private resonanceMemory: Map<string, ResonancePattern[]> = new Map();
+
+  constructor() {
+    super();
+    this.initializeIntervals();
+  }
+
+  private initializeIntervals(): void {
+    this.stabilityCheckInterval = setInterval(
+      () => this.checkStability({} as Identity).catch(console.error),
+      30000
+    );
+    
+    this.neuralSyncInterval = setInterval(
+      () => this.syncNeuralPatterns().catch(console.error),
+      60000
+    );
+  }
+
+  private async syncNeuralPatterns(): Promise<void> {
+    if (!this.state) return;
+
+    try {
+      const patterns = await neuralNetworkService.getPatterns(this.state.quantumSignature);
+      if (patterns && patterns.length > 0) {
+        this.resonanceMemory.set(this.state.quantumSignature, patterns);
+      }
+    } catch (error) {
+      console.error('Neural sync failed:', error);
+    }
   }
 
   public async checkStability(identity: Identity): Promise<number> {
@@ -11,7 +49,6 @@
       const stability = await stabilityCheck(this.state);
       const { harmony, complexity } = analyzeResonancePatterns(this.state.resonancePatterns);
       
-      // Factor in harmonic resonance and complexity
       const adjustedStability = stability * 0.6 + harmony * 0.2 + complexity * 0.2;
       
       await this.updateState({
@@ -27,18 +64,23 @@
     }
   }
 
+  private async updateState(partialState: Partial<QuantumState>): Promise<void> {
+    if (!this.state) {
+      this.state = partialState as QuantumState;
+    } else {
+      this.state = { ...this.state, ...partialState };
+    }
+    this.emit('stateUpdated', this.state);
+  }
+
   public async handleQuantumError(error: Error, identity: Identity): Promise<void> {
     console.error('Quantum error occurred:', error);
 
     try {
-      // Store current state for recovery
       const previousState = { ...this.state! };
       const historicalPatterns = [...(this.resonanceMemory.get(this.state?.quantumSignature || '') || [])];
-
-      // Generate new quantum signature
       const signature = await generateQuantumSignature(identity);
       
-      // Initialize recovery state
       await this.updateState({
         quantumSignature: signature,
         coherenceLevel: Math.max(0.2, previousState.coherenceLevel),
@@ -46,11 +88,8 @@
         stabilityStatus: 'recovering'
       });
 
-      // Attempt to restore stable patterns
       const recoveryPatterns = this.generateRecoveryPatterns(historicalPatterns);
       await this.updateState({ resonancePatterns: recoveryPatterns });
-
-      // Notify neural network of recovery
       await neuralNetworkService.notifyRecovery(this.state);
 
     } catch (recoveryError) {
@@ -61,10 +100,8 @@
   }
 
   private generateRecoveryPatterns(historicalPatterns: ResonancePattern[]): ResonancePattern[] {
-    // Start with conservative base patterns
     const basePatterns = generateEnhancedResonancePattern(432, [1, 2]);
     
-    // If we have historical patterns, gradually incorporate them
     if (historicalPatterns.length > 0) {
       return basePatterns.map((pattern, index) => {
         const historicalPattern = historicalPatterns[index];
@@ -97,7 +134,7 @@
     };
   }
 
-  public dispose() {
+  public dispose(): void {
     if (this.stabilityCheckInterval) {
       clearInterval(this.stabilityCheckInterval);
     }

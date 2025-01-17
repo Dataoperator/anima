@@ -1,116 +1,160 @@
 import React from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { LaughingMan } from './LaughingMan';
+import { motion } from 'framer-motion';
+import { useQuantumTransaction } from '@/providers/QuantumTransactionProvider';
 
-interface LoadingProps {
+interface LoadingStatesProps {
   message?: string;
+  type?: 'default' | 'quantum' | 'neural' | 'genesis';
 }
 
-export const QuantumLoadingState: React.FC<LoadingProps> = ({ 
-  message = "Initializing Quantum State..." 
+export const LoadingStates: React.FC<LoadingStatesProps> = ({
+  message = 'Loading...',
+  type = 'default'
 }) => {
-  return (
-    <AnimatePresence mode="wait">
+  const { state } = useQuantumTransaction();
+
+  const renderQuantumLoader = () => (
+    <div className="relative">
       <motion.div
-        className="fixed inset-0 flex items-center justify-center bg-black/90"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-      >
-        {/* Quantum grid effect */}
-        <div className="absolute inset-0">
-          {[...Array(20)].map((_, i) => (
-            <motion.div
-              key={i}
-              className="absolute w-px bg-blue-500/20"
-              style={{
-                left: `${i * 5}%`,
-                height: '100%'
-              }}
-              animate={{
-                opacity: [0.2, 0.5, 0.2],
-                height: ['0%', '100%', '0%']
-              }}
-              transition={{
-                duration: 2 + Math.random() * 2,
-                repeat: Infinity,
-                delay: Math.random() * 2
-              }}
-            />
-          ))}
-        </div>
+        className="w-24 h-24 rounded-full border-4 border-cyan-500"
+        animate={{
+          scale: [1, 1.2, 1],
+          opacity: [0.5, 1, 0.5],
+          rotate: 360
+        }}
+        transition={{
+          duration: 3,
+          ease: "easeInOut",
+          repeat: Infinity,
+        }}
+      />
+      <motion.div
+        className="absolute top-0 left-0 w-24 h-24 rounded-full border-4 border-violet-500"
+        animate={{
+          scale: [1.2, 1, 1.2],
+          opacity: [1, 0.5, 1],
+          rotate: -360
+        }}
+        transition={{
+          duration: 3,
+          ease: "easeInOut",
+          repeat: Infinity,
+        }}
+      />
+    </div>
+  );
 
-        <div className="relative z-10 space-y-8 text-center">
-          <LaughingMan className="w-24 h-24 mx-auto" />
-          
-          <motion.div 
-            className="space-y-4"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-          >
-            <h2 className="text-2xl font-bold text-blue-400">{message}</h2>
-            
-            <div className="flex justify-center space-x-2">
-              {[...Array(3)].map((_, i) => (
-                <motion.div
-                  key={i}
-                  className="w-3 h-3 rounded-full bg-blue-500"
-                  animate={{
-                    scale: [1, 1.5, 1],
-                    opacity: [0.5, 1, 0.5]
-                  }}
-                  transition={{
-                    duration: 1,
-                    repeat: Infinity,
-                    delay: i * 0.2
-                  }}
-                />
-              ))}
-            </div>
-          </motion.div>
-
-          {/* Quantum waves */}
-          <motion.div
-            className="w-64 h-16 mx-auto relative overflow-hidden"
-            style={{
-              background: 'linear-gradient(180deg, rgba(59,130,246,0.1) 0%, rgba(59,130,246,0) 100%)'
-            }}
-          >
-            {[...Array(3)].map((_, i) => (
-              <motion.div
-                key={i}
-                className="absolute inset-0 border-t border-blue-500/30"
-                animate={{
-                  y: [0, 16, 0],
-                }}
-                transition={{
-                  duration: 2,
-                  repeat: Infinity,
-                  delay: i * 0.3,
-                  ease: "easeInOut"
-                }}
-              />
-            ))}
-          </motion.div>
-        </div>
-
-        {/* Quantum flicker effect */}
+  const renderNeuralLoader = () => (
+    <div className="grid grid-cols-3 gap-1">
+      {Array.from({ length: 9 }).map((_, i) => (
         <motion.div
-          className="absolute inset-0 bg-blue-500/5"
+          key={i}
+          className="w-3 h-3 bg-cyan-500 rounded-full"
           animate={{
-            opacity: [0, 0.2, 0],
+            scale: [1, 1.5, 1],
+            opacity: [0.3, 1, 0.3]
           }}
           transition={{
-            duration: 0.5,
+            duration: 1,
+            ease: "easeInOut",
             repeat: Infinity,
-            repeatType: "reverse"
+            delay: i * 0.1
           }}
         />
-      </motion.div>
-    </AnimatePresence>
+      ))}
+    </div>
+  );
+
+  const renderGenesisLoader = () => (
+    <motion.div
+      className="w-32 h-32 relative"
+      animate={{ rotate: 360 }}
+      transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+    >
+      {Array.from({ length: 6 }).map((_, i) => (
+        <motion.div
+          key={i}
+          className="absolute w-3 h-3 bg-violet-500 rounded-full"
+          style={{
+            top: '50%',
+            left: '50%',
+            transform: `rotate(${i * 60}deg) translate(40px, 0)`
+          }}
+          animate={{
+            scale: [1, 1.5, 1],
+            opacity: [0.3, 1, 0.3]
+          }}
+          transition={{
+            duration: 2,
+            delay: i * 0.2,
+            repeat: Infinity
+          }}
+        />
+      ))}
+    </motion.div>
+  );
+
+  const renderLoader = () => {
+    switch (type) {
+      case 'quantum':
+        return renderQuantumLoader();
+      case 'neural':
+        return renderNeuralLoader();
+      case 'genesis':
+        return renderGenesisLoader();
+      default:
+        return (
+          <div className="w-12 h-12 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin" />
+        );
+    }
+  };
+
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[200px] p-8">
+      <div className="mb-6">
+        {renderLoader()}
+      </div>
+      
+      <div className="text-center space-y-2">
+        <p className="text-lg font-medium text-cyan-400">
+          {message}
+        </p>
+        
+        {state.isProcessing && state.activeTransactions.length > 0 && (
+          <p className="text-sm text-cyan-500/60">
+            {state.activeTransactions.length} quantum operations in progress
+          </p>
+        )}
+        
+        {type === 'quantum' && (
+          <div className="mt-4 flex items-center justify-center space-x-2">
+            <div className="w-2 h-2 bg-cyan-500 rounded-full animate-ping" />
+            <span className="text-sm text-cyan-400">
+              Maintaining quantum coherence
+            </span>
+          </div>
+        )}
+        
+        {type === 'neural' && (
+          <div className="mt-4 flex items-center justify-center space-x-2">
+            <div className="w-2 h-2 bg-violet-500 rounded-full animate-pulse" />
+            <span className="text-sm text-violet-400">
+              Synchronizing neural patterns
+            </span>
+          </div>
+        )}
+        
+        {type === 'genesis' && (
+          <div className="mt-4 flex items-center justify-center space-x-2">
+            <div className="w-2 h-2 bg-violet-500 rounded-full animate-pulse" />
+            <span className="text-sm text-violet-400">
+              Initializing quantum field
+            </span>
+          </div>
+        )}
+      </div>
+    </div>
   );
 };
 
-// Re-export the base Loading component if needed elsewhere
-export { Loading } from '../layout/Loading';
+export default LoadingStates;

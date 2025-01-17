@@ -1,181 +1,148 @@
-import { SkillSystem, Skill } from './SkillSystem';
-import { QuantumState } from '@/types/quantum';
-import { EmotionalState } from '@/types/emotional';
+import { Task, TaskType, Skill, TaskValidation, ValidationResult } from '../../types/skills';
+import { MediaValidation } from '../../types/media';
+import { InteractionResult } from '../../types/interaction';
+import { LearningMetrics } from '../../types/learning';
+import { CreationOutput } from '../../types/creation';
+import { QuantumStateManager } from '../quantum/StateManager';
 
-[Previous code...]
+export class CurriculumGenerator {
+    private tasks: Task[] = [];
+    private readonly quantumStateManager: QuantumStateManager;
+    private readonly complexityThreshold = 0.7;
+    private readonly learningThreshold = 0.6;
+
+    constructor(quantumStateManager: QuantumStateManager) {
+        this.quantumStateManager = quantumStateManager;
+    }
 
     private calculateTaskComplexity(
         skills: Skill[],
         parameters: any
     ): number {
-        // Base complexity from skill levels
-        const skillComplexity = skills.reduce((sum, skill) => sum + skill.level, 0) / skills.length;
+        const baseComplexity = skills.reduce((sum, skill) => sum + skill.level, 0) / skills.length;
+        const parameterComplexity = Object.keys(parameters).length * 0.1;
+        const coherenceBonus = this.quantumStateManager.getCoherenceLevel() * 0.2;
 
-        // Parameter-based complexity
-        let parameterComplexity = 0;
-        switch(parameters.mediaType) {
-            case 'youtube':
-                parameterComplexity += 0.3;
-                break;
-            case 'interactive':
-                parameterComplexity += 0.5;
-                break;
-            case 'mixed':
-                parameterComplexity += 0.7;
-                break;
-        }
+        return Math.min((baseComplexity + parameterComplexity + coherenceBonus), 1.0);
+    }
 
-        if (parameters.duration) {
-            const minutes = parseInt(parameters.duration);
-            parameterComplexity += Math.min(minutes / 30, 0.5); // Max 0.5 from duration
-        }
+    public async generateTask(
+        type: TaskType,
+        skills: Skill[],
+        parameters: any = {}
+    ): Promise<Task> {
+        const complexity = this.calculateTaskComplexity(skills, parameters);
+        const validationFunction = this.createValidationFunction(type, parameters);
 
-        if (parameters.elements?.length > 1) {
-            parameterComplexity += 0.2 * (parameters.elements.length - 1);
-        }
+        const task: Task = {
+            id: `task_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            type,
+            skills,
+            parameters,
+            complexity,
+            createdAt: Date.now(),
+            status: 'pending',
+            validationFunction
+        };
 
-        // Normalize to 0-1 range
-        return Math.min(Math.max((skillComplexity + parameterComplexity) / 5, 0), 1);
+        this.tasks.push(task);
+        return task;
     }
 
     private createValidationFunction(
         taskType: string,
         parameters: any
     ): (result: any) => boolean {
-        return (result: any): boolean => {
-            switch(taskType) {
-                case 'media':
-                    return this.validateMediaTask(result, parameters);
-                case 'interaction':
-                    return this.validateInteractionTask(result, parameters);
-                case 'learning':
-                    return this.validateLearningTask(result, parameters);
-                case 'creation':
-                    return this.validateCreationTask(result, parameters);
-                default:
-                    return false;
-            }
-        };
+        switch (taskType) {
+            case 'media':
+                return (result: any) => this.validateMediaTask(result, parameters);
+            case 'interaction':
+                return (result: any) => this.validateInteractionTask(result, parameters);
+            case 'learning':
+                return (result: any) => this.validateLearningTask(result, parameters);
+            case 'creation':
+                return (result: any) => this.validateCreationTask(result, parameters);
+            default:
+                return () => false;
+        }
     }
 
     private validateMediaTask(result: any, parameters: any): boolean {
-        if (!result.mediaId || !result.duration || !result.interactions) {
-            return false;
-        }
+        const validation: MediaValidation = result;
+        
+        const durationValid = validation.duration >= (parameters.minDuration || 0);
+        const qualityValid = validation.quality >= (parameters.minQuality || 0.5);
+        const engagementValid = validation.engagement >= (parameters.minEngagement || 0.6);
+        
+        const coherenceLevel = this.quantumStateManager.getCoherenceLevel();
+        const coherenceBonus = coherenceLevel > 0.8 ? 0.1 : 0;
 
-        // Check if media type matches
-        if (parameters.mediaType && result.type !== parameters.mediaType) {
-            return false;
-        }
+        const overallScore = (
+            (durationValid ? 1 : 0) +
+            (qualityValid ? 1 : 0) +
+            (engagementValid ? 1 : 0)
+        ) / 3 + coherenceBonus;
 
-        // Check duration requirements
-        if (parameters.duration) {
-            const [min, max] = parameters.duration.split('-').map(n => parseInt(n));
-            if (result.duration < min || result.duration > max) {
-                return false;
-            }
-        }
-
-        // Check interaction quality
-        if (result.interactions.length === 0) {
-            return false;
-        }
-
-        return true;
+        return overallScore >= 0.7;
     }
 
     private validateInteractionTask(result: any, parameters: any): boolean {
-        if (!result.conversation || !result.duration || !result.engagementMetrics) {
-            return false;
-        }
+        const interaction: InteractionResult = result;
+        
+        const responseValid = interaction.responseQuality >= (parameters.minQuality || 0.6);
+        const timeValid = interaction.responseTime <= (parameters.maxTime || 5000);
+        const patternValid = interaction.patternMatch >= (parameters.minPattern || 0.7);
+        
+        const coherenceBonus = this.quantumStateManager.getCoherenceLevel() > 0.8 ? 0.1 : 0;
 
-        // Check conversation type
-        if (parameters.conversationType && 
-            result.conversation.type !== parameters.conversationType) {
-            return false;
-        }
+        const score = (
+            (responseValid ? 1 : 0) +
+            (timeValid ? 1 : 0) +
+            (patternValid ? 1 : 0)
+        ) / 3 + coherenceBonus;
 
-        // Check duration
-        const minDuration = parseInt(parameters.duration) - 1;
-        if (result.duration < minDuration) {
-            return false;
-        }
-
-        // Check engagement quality
-        const minEngagement = 0.6; // 60% engagement threshold
-        if (result.engagementMetrics.average < minEngagement) {
-            return false;
-        }
-
-        return true;
+        return score >= 0.7;
     }
 
     private validateLearningTask(result: any, parameters: any): boolean {
-        if (!result.patterns || !result.observationTime || !result.confidence) {
-            return false;
-        }
+        const metrics: LearningMetrics = result;
+        
+        const comprehensionValid = metrics.comprehension >= (parameters.minComprehension || 0.7);
+        const retentionValid = metrics.retention >= (parameters.minRetention || 0.6);
+        const applicationValid = metrics.application >= (parameters.minApplication || 0.5);
+        
+        const coherenceLevel = this.quantumStateManager.getCoherenceLevel();
+        const coherenceBonus = coherenceLevel > 0.8 ? 0.1 : 0;
 
-        // Check pattern type
-        if (parameters.patternType && 
-            !result.patterns.some(p => p.type === parameters.patternType)) {
-            return false;
-        }
+        const overallScore = (
+            metrics.comprehension * 0.4 +
+            metrics.retention * 0.3 +
+            metrics.application * 0.3
+        ) + coherenceBonus;
 
-        // Check observation period
-        const requiredTime = parseInt(parameters.observationPeriod);
-        if (result.observationTime < requiredTime) {
-            return false;
-        }
-
-        // Check minimum samples
-        if (result.patterns.length < parameters.minimumSamples) {
-            return false;
-        }
-
-        // Check confidence level
-        const minConfidence = 0.7; // 70% confidence threshold
-        if (result.confidence < minConfidence) {
-            return false;
-        }
-
-        return true;
+        return overallScore >= this.learningThreshold;
     }
 
     private validateCreationTask(result: any, parameters: any): boolean {
-        if (!result.content || !result.elements || !result.metrics) {
-            return false;
-        }
+        const output: CreationOutput = result;
+        
+        const qualityValid = output.quality >= (parameters.minQuality || 0.7);
+        const originalityValid = output.originality >= (parameters.minOriginality || 0.6);
+        const complexityValid = output.complexity >= (parameters.minComplexity || 0.5);
+        
+        const coherenceBonus = this.quantumStateManager.getCoherenceLevel() > 0.8 ? 0.1 : 0;
 
-        // Check creation type
-        if (parameters.creationType && 
-            result.content.type !== parameters.creationType) {
-            return false;
-        }
+        const overallScore = (
+            output.quality * 0.4 +
+            output.originality * 0.3 +
+            output.complexity * 0.3
+        ) + coherenceBonus;
 
-        // Check required elements
-        const hasAllElements = parameters.elements.every(
-            element => result.elements.includes(element)
-        );
-        if (!hasAllElements) {
-            return false;
-        }
-
-        // Check quality metrics
-        const minQuality = 0.65; // 65% quality threshold
-        if (result.metrics.quality < minQuality) {
-            return false;
-        }
-
-        // Check theme adherence if specified
-        if (parameters.theme && result.metrics.themeAlignment < 0.7) {
-            return false;
-        }
-
-        return true;
+        return overallScore >= this.complexityThreshold;
     }
 
     public getTaskHistory(): Task[] {
-        return this.taskHistory;
+        return [...this.tasks];
     }
 
     public analyzeTaskSuccess(task: Task, result: any): {
@@ -183,45 +150,36 @@ import { EmotionalState } from '@/types/emotional';
         feedback: string[];
         improvements: string[];
     } {
-        const success = task.validation(result);
+        const validationResult = task.validationFunction(result);
         const feedback: string[] = [];
         const improvements: string[] = [];
 
-        // Analyze results and generate feedback
-        switch(task.category) {
-            case 'media':
-                if (!result.mediaId) {
-                    feedback.push('Media selection not completed');
-                    improvements.push('Practice media search and selection');
-                }
-                if (result.interactions?.length === 0) {
-                    feedback.push('No user interactions recorded');
-                    improvements.push('Focus on engagement with media');
-                }
-                break;
-
-            case 'interaction':
-                if (result.engagementMetrics?.average < 0.6) {
-                    feedback.push('Low engagement level');
-                    improvements.push('Work on maintaining user interest');
-                }
-                break;
-
-            case 'learning':
-                if (result.confidence < 0.7) {
-                    feedback.push('Low confidence in learned patterns');
-                    improvements.push('Need more observation samples');
-                }
-                break;
-
-            case 'creation':
-                if (result.metrics?.quality < 0.65) {
-                    feedback.push('Content quality below threshold');
-                    improvements.push('Focus on content refinement');
-                }
-                break;
+        const coherenceLevel = this.quantumStateManager.getCoherenceLevel();
+        
+        if (validationResult) {
+            feedback.push('Task completed successfully');
+            if (coherenceLevel > 0.8) {
+                feedback.push('High quantum coherence enhanced performance');
+            }
+        } else {
+            feedback.push('Task completion needs improvement');
+            if (coherenceLevel < 0.6) {
+                improvements.push('Increase quantum coherence for better results');
+            }
+            improvements.push('Review task requirements and try again');
         }
 
-        return { success, feedback, improvements };
+        const skillGaps = task.skills.filter(skill => skill.level < 0.7);
+        if (skillGaps.length > 0) {
+            improvements.push(`Focus on improving: ${skillGaps.map(s => s.name).join(', ')}`);
+        }
+
+        return {
+            success: validationResult,
+            feedback,
+            improvements
+        };
     }
 }
+
+export default CurriculumGenerator;

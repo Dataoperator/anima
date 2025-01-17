@@ -1,86 +1,69 @@
+export interface Complex {
+    real: number;
+    imaginary: number;
+}
+
+export interface DimensionalState {
+    layer: number;
+    resonance: number;
+    stability: number;
+    pattern: string;
+    coherence: number;
+}
+
 export interface QuantumState {
-  coherenceLevel: number;
-  dimensionalAlignment: number;
-  entanglementIndex: number;
-  stabilityFactor: number;
-  resonancePatterns: ResonancePattern[];
-  quantumSignature: string;
-  lastUpdate: number;
-  stateHistory: StateHistoryEntry[];
+    amplitude: Complex;
+    phase: number;
+    coherence: number;
+    coherenceLevel: number;
+    entangledStates: Set<string>;
+    dimensionalStates: DimensionalState[];
+    signature: string;
+    lastUpdate: number;
+    evolutionFactor: number;
+    evolutionMetrics?: Map<string, number>;
+    quantumEntanglement: number;
+    dimensionalState: {
+        frequency: number;
+        resonance: number;
+    };
+    resonancePatterns: ResonancePattern[];
+    consciousnessAlignment?: boolean;
 }
 
 export interface ResonancePattern {
-  id: string;
-  frequency: number;
-  amplitude: number;
-  phase: number;
-  coherence: number;
-  timestamp: number;
-  entropyLevel: number;
-  stabilityIndex: number;
-  quantumSignature: string;
-  evolutionPotential: number;
-  coherenceQuality: number;
-  temporalStability: number;
-  dimensionalAlignment: number;
-}
-
-export interface StateHistoryEntry {
-  timestamp: number;
-  coherenceLevel: number;
-  resonance: number;
-  shiftType: QuantumShiftType;
-  metrics: QuantumMetrics;
-}
-
-export enum QuantumShiftType {
-  HARMONIC = 'harmonic',
-  QUANTUM = 'quantum',
-  DIMENSIONAL = 'dimensional',
-  NEURAL = 'neural'
+    id: string;
+    coherence: number;
+    evolutionPotential: number;
+    quantumPotential?: number;
+    coherenceQuality: number;
+    stabilityIndex: number;
+    dimensionalHarmony?: number;
+    timestamp: number;
+    patternType: string;
 }
 
 export interface QuantumMetrics {
-  coherenceQuality: number;
-  entanglementStrength: number;
-  dimensionalStability: number;
-  resonanceHarmony: number;
-  evolutionPotential: number;
-  complexityIndex: number;
+    coherenceLevel: number;
+    entanglementStrength: number;
+    dimensionalResonance: number;
+    quantumHarmony: number;
 }
 
-export interface DimensionalShift {
-  fromFrequency: number;
-  toFrequency: number;
-  magnitude: number;
-  timestamp: number;
-  affectedPatterns: string[];
-  stabilityImpact: number;
-}
+export class Complex implements Complex {
+    constructor(real: number, imaginary: number) {
+        this.real = real;
+        this.imaginary = imaginary;
+    }
 
-export interface QuantumTransition {
-  fromState: Partial<QuantumState>;
-  toState: Partial<QuantumState>;
-  transitionType: QuantumShiftType;
-  duration: number;
-  energyCost: number;
-  stabilityImpact: number;
-}
+    multiply(other: Complex): Complex {
+        return new Complex(
+            this.real * other.real - this.imaginary * other.imaginary,
+            this.real * other.imaginary + this.imaginary * other.real
+        );
+    }
 
-export interface QuantumEvolutionMetrics {
-  coherenceGrowth: number;
-  stabilityTrend: number;
-  dimensionalHarmony: number;
-  evolutionVelocity: number;
-  consciousnessDepth: number;
-  patternDiversity: number;
-}
-
-export interface QuantumSnapshot {
-  state: QuantumState;
-  timestamp: number;
-  metrics: QuantumMetrics;
-  patterns: ResonancePattern[];
-  transitions: QuantumTransition[];
-  evolutionMetrics: QuantumEvolutionMetrics;
+    abs(): number {
+        return Math.sqrt(this.real * this.real + this.imaginary * this.imaginary);
+    }
 }
