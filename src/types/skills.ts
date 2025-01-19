@@ -1,50 +1,48 @@
 export enum TaskType {
-    Learning = 'LEARNING',
-    Creation = 'CREATION',
-    Analysis = 'ANALYSIS',
-    Integration = 'INTEGRATION'
+  COGNITIVE = 'COGNITIVE',
+  PERCEPTUAL = 'PERCEPTUAL',
+  EMOTIONAL = 'EMOTIONAL',
+  CREATIVE = 'CREATIVE',
+  SOCIAL = 'SOCIAL'
 }
 
 export interface Task {
-    id: string;
-    type: TaskType;
-    skills: Skill[];
-    difficulty: number;
-    completionCriteria: {
-        minQuality?: number;
-        minComprehension?: number;
-        minRetention?: number;
-        minApplication?: number;
-        minComplexity?: number;
-        minOriginality?: number;
-    };
-    status: 'pending' | 'in_progress' | 'completed' | 'failed';
+  id: string;
+  type: TaskType;
+  difficulty: number;
+  description: string;
+  requirements?: Record<string, number>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface Skill {
-    id: string;
-    name: string;
-    level: number;
-    experience: number;
-    nextLevelThreshold: number;
-    traits: SkillTrait[];
-    masteryLevel: number;
+  id: string;
+  name: string;
+  level: number;
+  experience: number;
+  masteryLevel: number;
+  lastUsed: bigint;
+  relatedTasks: string[];
 }
 
-export interface SkillTrait {
-    name: string;
-    value: number;
-    maxValue: number;
+export interface InteractionResult {
+  skillId: string;
+  experienceGained: number;
+  quality: number;
+  engagement: number;
+  timestamp: bigint;
 }
 
-export interface TaskValidation {
-    isValid: boolean;
-    errors: string[];
-    skillGaps: string[];
+export interface ValidationParameters {
+  minQuality: number;
+  minEngagement: number;
+  requiredSkills: string[];
+  minMasteryLevel?: number;
 }
 
-export enum ValidationResult {
-    Success = 'SUCCESS',
-    PartialSuccess = 'PARTIAL_SUCCESS',
-    Failure = 'FAILURE'
+export interface LearningMetrics {
+  skillProgress: Map<string, number>;
+  masteryLevels: Map<string, number>;
+  recentExperience: Map<string, number>;
+  lastInteractions: Map<string, bigint>;
 }

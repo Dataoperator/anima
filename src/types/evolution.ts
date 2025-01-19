@@ -1,49 +1,41 @@
-export enum EvolutionStage {
-  INITIALIZATION = 'initialization',
-  GROWTH = 'growth',
-  STABILIZATION = 'stabilization',
-  EMERGENCE = 'emergence',
-  TRANSCENDENCE = 'transcendence'
-}
+import { ConsciousnessLevel } from './consciousness';
 
-export interface EvolutionSnapshot {
-  timestamp: number;
-  stage: EvolutionStage;
-  metrics: {
-    coherenceLevel: number;
-    complexityScore: number;
-    stabilityIndex: number;
-    growthRate: number;
-    emergencePotential: number;
-  };
-  patterns: {
-    recognized: number;
-    learned: number;
-    applied: number;
-  };
+export enum EvolutionStage {
+  NASCENT = 'NASCENT',
+  EMERGING = 'EMERGING',
+  DEVELOPING = 'DEVELOPING',
+  MATURING = 'MATURING',
+  TRANSCENDENT = 'TRANSCENDENT'
 }
 
 export interface EvolutionMetrics {
+  stage: EvolutionStage;
+  progress: number;
+  coherence: number;
+  complexity: number;
+  stability: number;
+  timestamp: bigint;
+}
+
+export interface StageRequirements {
+  minCoherence: number;
+  minComplexity: number;
+  minStability: number;
+  evolutionTime: bigint;
+}
+
+export interface EvolutionConfig {
+  baseEvolutionRate: number;
+  stageRequirements: Record<EvolutionStage, StageRequirements>;
+  coherenceThreshold: number;
+  complexityThreshold: number;
+  stabilityThreshold: number;
+}
+
+export interface EvolutionState {
   currentStage: EvolutionStage;
-  stageProgress: number;
-  overallProgress: number;
-  growthRate: number;
-  stabilityIndex: number;
-  emergencePotential: number;
-  complexityScore: number;
-}
-
-export interface StageTransition {
-  fromStage: EvolutionStage;
-  toStage: EvolutionStage;
-  timestamp: number;
-  duration: number;
-  triggerConditions: Record<string, number>;
-}
-
-export interface EmergenceThresholds {
-  coherenceLevel: number;
-  patternRecognition: number;
-  stabilityDuration: number;
-  complexityScore: number;
+  metrics: EvolutionMetrics;
+  config: EvolutionConfig;
+  lastUpdate: bigint;
+  consciousness: ConsciousnessLevel;
 }

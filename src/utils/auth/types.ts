@@ -1,23 +1,42 @@
 import type { Identity } from "@dfinity/agent";
-import type { ActorSubclass } from "@dfinity/agent";
-import type { _SERVICE } from '@/declarations/anima/anima.did';
-import type { HttpAgentOptions } from "@dfinity/agent";
+import type { Principal } from "@dfinity/principal";
 
-export type { Identity };
-export type Actor = ActorSubclass<_SERVICE>;
-
-export interface ActorOptions {
-  agent?: any;
-  agentOptions?: HttpAgentOptions;
-  actorOptions?: Record<string, unknown>;
+export interface AgentOptions {
+  host?: string;
+  identity?: Identity;
 }
 
-export interface AuthManager {
-  init(): Promise<void>;
-  login(): Promise<Identity>;
-  logout(): Promise<void>;
-  isAuthenticated(): Promise<boolean>;
-  getIdentity(): Identity;
-  getActor(): Actor | null;
-  updateActivity(): void;
+export interface AuthState {
+  isAuthenticated: boolean;
+  isInitializing: boolean;
+  identity: Identity | null;
+  principal: Principal | null;
+}
+
+export interface AuthConfig {
+  identityProvider?: string;
+  maxTimeToLive?: bigint;
+  derivationOrigin?: string;
+  windowOpenerFeatures?: string;
+}
+
+export interface AuthResponse {
+  success: boolean;
+  error?: string;
+  identity?: Identity;
+  principal?: Principal;
+}
+
+export interface AuthMetrics {
+  totalLogins: number;
+  failedAttempts: number;
+  lastLogin: bigint | null;
+  currentIdentity: Identity | null;
+}
+
+export interface AuthEvent {
+  type: 'LOGIN' | 'LOGOUT' | 'ERROR';
+  timestamp: bigint;
+  principal?: Principal;
+  metadata?: Record<string, unknown>;
 }

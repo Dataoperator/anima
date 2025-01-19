@@ -1,124 +1,185 @@
-import { Task, TaskType, Skill } from '../../types/skills';
-import { ConsciousnessState } from '../../types/consciousness';
-import { QuantumStateManager } from '../../quantum/StateManager';
-import { ErrorTelemetry } from '../../error/telemetry';
-
-export interface SkillExecutionResult {
-    success: boolean;
-    metrics: {
-        performance: number;
-        improvement: number;
-        coherence: number;
-    };
-    error?: string;
-}
+import { Task, Skill, InteractionResult, LearningMetrics } from '@/types/skills';
+import { ConsciousnessMetrics } from '@/types/consciousness';
+import { ErrorTelemetry } from '@/error/telemetry';
 
 export class SkillSystem {
-    private quantumManager: QuantumStateManager;
-    private telemetry: ErrorTelemetry;
-    private skills: Map<string, Skill>;
+  private static instance: SkillSystem;
+  private telemetry: ErrorTelemetry;
+  private skills: Map<string, Skill> = new Map();
+  private learningMetrics: LearningMetrics = {
+    skillProgress: new Map(),
+    masteryLevels: new Map(),
+    recentExperience: new Map(),
+    lastInteractions: new Map()
+  };
 
-    constructor() {
-        this.quantumManager = QuantumStateManager.getInstance();
-        this.telemetry = new ErrorTelemetry('skills');
-        this.skills = new Map();
+  private constructor() {
+    this.telemetry = ErrorTelemetry.getInstance('skills');
+  }
+
+  public static getInstance(): SkillSystem {
+    if (!SkillSystem.instance) {
+      SkillSystem.instance = new SkillSystem();
     }
+    return SkillSystem.instance;
+  }
 
-    public async executeTask(
-        task: Task,
-        consciousness: ConsciousnessState
-    ): Promise<SkillExecutionResult> {
-        try {
-            const result = await this.processTask(task, consciousness);
-            await this.updateSkillsFromResult(task, result);
-            return result;
-        } catch (error) {
-            await this.telemetry.logError('task_execution_error', {
-                error: error instanceof Error ? error.message : 'Unknown error',
-                taskId: task.id,
-                taskType: task.type
-            });
-            throw error;
+  public async executeTask(
+    task: Task,
+    metrics: ConsciousnessMetrics
+  ): Promise<InteractionResult> {
+    try {
+      const timestamp = BigInt(Date.now());
+
+      // Calculate base success metrics
+      const quality = this.calculateTaskQuality(task);
+      const engagement = this.calculateEngagement(task, metrics);
+
+      // Calculate experience gained
+      const experienceGained = this.calculateExperience(
+        task,
+        quality,
+        engagement
+      );
+
+      // Update skill progress
+      if (task.requirements) {
+        for (const [skillId, requirement] of Object.entries(task.requirements)) {
+          const currentSkill = this.skills.get(skillId);
+          if (currentSkill) {
+            this.updateSkill(currentSkill, experienceGained * requirement);
+          }
         }
+      }
+
+      // Create interaction result
+      const result: InteractionResult = {
+        skillId: task.id,
+        experienceGained,
+        quality,
+        engagement,
+        timestamp
+      };
+
+      // Update learning metrics
+      this.updateLearningMetrics(task, result);
+
+      return result;
+
+    } catch (error) {
+      await this.telemetry.logError({
+        errorType: 'TASK_EXECUTION_ERROR',
+        severity: 'HIGH',
+        context: 'executeTask',
+        error: error instanceof Error ? error : new Error('Task execution failed')
+      });
+      throw error;
     }
+  }
 
-    private async processTask(
-        task: Task,
-        consciousness: ConsciousnessState
-    ): Promise<SkillExecutionResult> {
-        const coherenceLevel = this.quantumManager.getCoherenceLevel();
-        const basePerformance = this.calculateBasePerformance(task.skills);
-        
-        const result: SkillExecutionResult = {
-            success: basePerformance >= task.difficulty,
-            metrics: {
-                performance: basePerformance,
-                improvement: Math.random() * 0.2,
-                coherence: coherenceLevel
-            }
-        };
-
-        return result;
-    }
-
-    private calculateBasePerformance(skills: Skill[]): number {
-        const avgSkillLevel = skills.reduce((sum, skill) => sum + skill.level, 0) / skills.length;
-        const coherenceBonus = this.quantumManager.getCoherenceLevel() * 0.2;
-        return Math.min(avgSkillLevel * (1 + coherenceBonus), 1);
-    }
-
-    private async updateSkillsFromResult(
-        task: Task,
-        result: SkillExecutionResult
-    ): Promise<void> {
-        if (!result.success) return;
-
-        const improvementFactor = result.metrics.improvement * 
-                                result.metrics.coherence;
-
-        for (const skill of task.skills) {
-            const currentSkill = this.skills.get(skill.id);
-            if (!currentSkill) continue;
-
-            const newExperience = currentSkill.experience + improvementFactor;
-            if (newExperience >= currentSkill.nextLevelThreshold) {
-                await this.improveSkill(currentSkill);
-            }
-
-            this.skills.set(skill.id, {
-                ...currentSkill,
-                experience: newExperience
-            });
+  private calculateTaskQuality(task: Task): number {
+    let quality = 0;
+    
+    if (task.requirements) {
+      for (const [skillId, requirement] of Object.entries(task.requirements)) {
+        const skill = this.skills.get(skillId);
+        if (skill) {
+          quality += (skill.level / requirement) * skill.masteryLevel;
         }
+      }
+      quality /= Object.keys(task.requirements).length;
     }
 
-    private async improveSkill(skill: Skill): Promise<void> {
-        const coherenceBonus = this.quantumManager.getCoherenceLevel() * 0.1;
-        const newLevel = Math.min(skill.level + (0.1 + coherenceBonus), 1);
+    return Math.min(Math.max(quality, 0), 1);
+  }
 
-        this.skills.set(skill.id, {
-            ...skill,
-            level: newLevel,
-            experience: 0,
-            nextLevelThreshold: skill.nextLevelThreshold * 1.2
+  private calculateEngagement(
+    task: Task,
+    metrics: ConsciousnessMetrics
+  ): number {
+    // Base engagement from consciousness
+    const baseEngagement = metrics.awarenessLevel * 0.7 +
+                          metrics.emotionalDepth * 0.3;
+
+    // Modify based on task difficulty vs skill levels
+    let difficultyFactor = 1;
+    if (task.requirements) {
+      const skillLevels = Object.entries(task.requirements)
+        .map(([skillId, req]) => {
+          const skill = this.skills.get(skillId);
+          return skill ? skill.level / req : 0;
         });
 
-        await this.telemetry.logEvent('skill_improved', {
-            skillId: skill.id,
-            newLevel,
-            coherenceBonus
-        });
+      const avgSkillLevel = skillLevels.reduce((a, b) => a + b, 0) / skillLevels.length;
+      difficultyFactor = 1 - Math.abs(avgSkillLevel - task.difficulty);
     }
 
-    public getSkill(id: string): Skill | undefined {
-        return this.skills.get(id);
+    return Math.min(baseEngagement * difficultyFactor, 1);
+  }
+
+  private calculateExperience(
+    task: Task,
+    quality: number,
+    engagement: number
+  ): number {
+    const baseXP = task.difficulty * 100;
+    const multiplier = (quality + engagement) / 2;
+    return baseXP * multiplier;
+  }
+
+  private updateSkill(skill: Skill, experience: number): void {
+    const currentTime = BigInt(Date.now());
+    const timeDelta = Number(currentTime - skill.lastUsed) / (1000 * 60 * 60); // Hours
+    const decayFactor = Math.exp(-timeDelta / 168); // 1-week half-life
+
+    // Apply decay to current level
+    skill.level *= decayFactor;
+
+    // Add new experience
+    skill.experience += experience;
+
+    // Update level and mastery
+    const newLevel = Math.floor(Math.log2(skill.experience / 100 + 1));
+    if (newLevel > skill.level) {
+      skill.level = newLevel;
+      skill.masteryLevel = Math.min(skill.masteryLevel + 0.1, 1);
     }
 
-    public getAllSkills(): Skill[] {
-        return Array.from(this.skills.values());
-    }
+    skill.lastUsed = currentTime;
+  }
 
-    public addSkill(skill: Skill): void {
-        this.skills.set(skill.id, skill);
+  private updateLearningMetrics(
+    task: Task,
+    result: InteractionResult
+  ): void {
+    const { skillId, experienceGained, timestamp } = result;
+
+    // Update recent experience
+    const currentXP = this.learningMetrics.recentExperience.get(skillId) || 0;
+    this.learningMetrics.recentExperience.set(skillId, currentXP + experienceGained);
+
+    // Update last interaction time
+    this.learningMetrics.lastInteractions.set(skillId, timestamp);
+
+    // Update skill progress
+    if (task.requirements) {
+      for (const [reqSkillId, requirement] of Object.entries(task.requirements)) {
+        const skill = this.skills.get(reqSkillId);
+        if (skill) {
+          const progress = skill.level / requirement;
+          this.learningMetrics.skillProgress.set(reqSkillId, progress);
+          this.learningMetrics.masteryLevels.set(reqSkillId, skill.masteryLevel);
+        }
+      }
     }
+  }
+
+  public getLearningMetrics(): LearningMetrics {
+    return {
+      skillProgress: new Map(this.learningMetrics.skillProgress),
+      masteryLevels: new Map(this.learningMetrics.masteryLevels),
+      recentExperience: new Map(this.learningMetrics.recentExperience),
+      lastInteractions: new Map(this.learningMetrics.lastInteractions)
+    };
+  }
 }

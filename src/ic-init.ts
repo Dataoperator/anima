@@ -7,6 +7,7 @@ import { _SERVICE as LedgerService } from './declarations/ledger/ledger.did.d';
 import { ErrorTracker } from './error/quantum_error';
 import { Principal } from '@dfinity/principal';
 import { Actor, ActorSubclass } from '@dfinity/agent';
+import { QuantumStateManager } from './quantum/StateManager';
 
 const CANISTER_ID = {
   anima: process.env.CANISTER_ID_ANIMA?.toString() || 'l2ilz-iqaaa-aaaaj-qngjq-cai',
@@ -17,6 +18,7 @@ const CANISTER_ID = {
 const HOST = 'https://icp0.io';
 
 type StageChangeCallback = (stage: string) => void;
+type SystemStatus = 'initializing' | 'ready' | 'error' | 'quantum_ready';
 
 export async function createICPLedgerActor(identity: Identity): Promise<ActorSubclass<LedgerService>> {
   const agent = new HttpAgent({
@@ -42,16 +44,21 @@ class ICManager {
   private identity: Identity | null = null;
   private initialized = false;
   private initializing = false;
+  private quantumInitialized = false;
   private stageChangeCallbacks: StageChangeCallback[] = [];
   private errorTracker: ErrorTracker;
+  private quantumStateManager: QuantumStateManager;
+  private systemStatus: SystemStatus = 'initializing';
 
   private constructor() {
     this.errorTracker = ErrorTracker.getInstance();
+    this.quantumStateManager = QuantumStateManager.getInstance();
+    
     if (typeof window !== 'undefined') {
       window.ic = {
         ...(window.ic || {}),
         agent: null,
-        HttpAgent
+        HttpAgent,
       };
     }
   }
@@ -85,6 +92,7 @@ class ICManager {
 
     try {
       this.initializing = true;
+      this.systemStatus = 'initializing';
       console.log('Starting IC initialization...');
 
       this.updateStage('Creating AuthClient...');
@@ -142,15 +150,62 @@ class ICManager {
       
       this.initialized = true;
       this.initializing = false;
+
+      // Initialize quantum systems
+      await this.initializeQuantumSystems();
+      
+      this.systemStatus = 'ready';
       this.updateStage('Initialization complete!');
 
     } catch (error) {
       this.initializing = false;
+      this.systemStatus = 'error';
       await this.errorTracker.trackError({
         errorType: 'IC_INIT_ERROR',
         severity: 'HIGH',
         context: 'IC Initialization',
         error: error instanceof Error ? error : new Error('Unknown error')
+      });
+      throw error;
+    }
+  }
+
+  async initializeQuantumSystems(): Promise<void> {
+    if (this.quantumInitialized) return;
+
+    try {
+      this.updateStage('Initializing quantum systems...');
+      if (!this.actor) throw new Error('Actor not initialized');
+
+      // Initialize quantum systems on the canister
+      const initResult = await this.actor.initialize_quantum_systems();
+      if ('Err' in initResult) {
+        throw new Error(`Quantum initialization failed: ${initResult.Err}`);
+      }
+
+      // Verify quantum readiness
+      const status = await this.actor.check_initialization();
+      if ('Err' in status) {
+        throw new Error(`Failed to check initialization: ${status.Err}`);
+      }
+
+      if (!status.Ok.config_status.quantum_ready) {
+        throw new Error('Quantum systems failed to initialize');
+      }
+
+      // Initialize local quantum state manager
+      await this.quantumStateManager.initialize();
+
+      this.quantumInitialized = true;
+      this.systemStatus = 'quantum_ready';
+      this.updateStage('Quantum systems initialized');
+
+    } catch (error) {
+      await this.errorTracker.trackError({
+        errorType: 'QUANTUM_INIT_ERROR',
+        severity: 'HIGH',
+        context: 'Quantum System Initialization',
+        error: error instanceof Error ? error : new Error('Quantum initialization failed')
       });
       throw error;
     }
@@ -172,8 +227,20 @@ class ICManager {
     return this.authClient;
   }
 
+  getQuantumStateManager(): QuantumStateManager {
+    return this.quantumStateManager;
+  }
+
   isInitialized(): boolean {
     return this.initialized;
+  }
+
+  isQuantumReady(): boolean {
+    return this.quantumInitialized;
+  }
+
+  getSystemStatus(): SystemStatus {
+    return this.systemStatus;
   }
 }
 

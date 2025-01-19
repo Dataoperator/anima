@@ -1,16 +1,43 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Sparkles, Star, Trophy } from 'lucide-react';
-import { AnimaNFT } from '@/types';
-import { useAnima } from '@/hooks/useAnima';
+import { useQuantumSystems } from '@/hooks/useQuantumSystems';
+import { Principal } from '@dfinity/principal';
+import { AnimaNFT } from '@/types/nft';
 
 interface AnimaPreviewCardProps {
   anima: AnimaNFT;
   onClick: () => void;
 }
 
+interface PreviewData {
+  coherenceLevel: number;
+  evolutionFactor: number;
+  dimensionalStates: number;
+  resonancePatterns: number;
+}
+
 const AnimaPreviewCard: React.FC<AnimaPreviewCardProps> = ({ anima, onClick }) => {
+  const { quantumState } = useQuantumSystems(anima.id);
+  const [previewData, setPreviewData] = useState<PreviewData>({
+    coherenceLevel: 0,
+    evolutionFactor: 0,
+    dimensionalStates: 0,
+    resonancePatterns: 0
+  });
+
+  useEffect(() => {
+    if (quantumState) {
+      setPreviewData({
+        coherenceLevel: quantumState.coherenceLevel,
+        evolutionFactor: quantumState.evolutionFactor,
+        dimensionalStates: quantumState.dimensionalStates.length,
+        resonancePatterns: quantumState.resonancePatterns.length
+      });
+    }
+  }, [quantumState]);
+
   return (
     <motion.div
       whileHover={{ scale: 1.02 }}
@@ -31,15 +58,15 @@ const AnimaPreviewCard: React.FC<AnimaPreviewCardProps> = ({ anima, onClick }) =
               {anima.name}
             </h3>
             <p className="text-sm text-violet-400/60">
-              #{anima.token_id.toString().padStart(4, '0')}
+              #{anima.tokenId.toString().padStart(4, '0')}
             </p>
           </div>
           
           {/* Edition Badge */}
-          {anima.metadata.edition_type && (
+          {anima.edition && (
             <div className="px-3 py-1 rounded-full bg-violet-500/20 
                          text-violet-300 text-xs font-medium">
-              {anima.metadata.edition_type}
+              {anima.edition}
             </div>
           )}
         </div>
@@ -49,66 +76,71 @@ const AnimaPreviewCard: React.FC<AnimaPreviewCardProps> = ({ anima, onClick }) =
           <div className="p-2 rounded bg-black/20">
             <div className="text-xs text-violet-400/60">Coherence</div>
             <div className="text-lg font-medium text-violet-300">
-              {(anima.quantum_state.coherence * 100).toFixed(1)}%
+              {(previewData.coherenceLevel * 100).toFixed(1)}%
             </div>
           </div>
           <div className="p-2 rounded bg-black/20">
             <div className="text-xs text-violet-400/60">Evolution</div>
             <div className="text-lg font-medium text-violet-300">
-              Level {anima.metadata.evolution_level}
+              {(previewData.evolutionFactor * 100).toFixed(1)}%
             </div>
           </div>
         </div>
 
-        {/* Genesis Traits */}
-        {anima.metadata.genesis_traits && (
-          <div className="space-y-2">
-            <div className="text-xs text-violet-400/60">Genesis Traits</div>
-            <div className="flex flex-wrap gap-2">
-              {anima.metadata.genesis_traits.map((trait, i) => (
-                <div
-                  key={i}
-                  className="px-2 py-1 rounded-full bg-violet-500/10 
-                           text-violet-300 text-xs font-medium
-                           flex items-center space-x-1"
-                >
-                  <Star className="w-3 h-3" />
-                  <span>{trait}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Rare Achievements */}
-        {anima.metadata.achievements?.length > 0 && (
-          <div className="mt-4 flex flex-wrap gap-2">
-            {anima.metadata.achievements.map((achievement, i) => (
+        {/* Dimensional States */}
+        <div className="space-y-2 mb-4">
+          <div className="text-xs text-violet-400/60">Dimensional States</div>
+          <div className="flex gap-1">
+            {Array(previewData.dimensionalStates).fill(0).map((_, i) => (
               <div
                 key={i}
-                className="px-2 py-1 rounded-full bg-cyan-500/10 
-                         text-cyan-300 text-xs font-medium
-                         flex items-center space-x-1"
-              >
-                <Trophy className="w-3 h-3" />
-                <span>{achievement}</span>
-              </div>
+                className="w-2 h-8 rounded bg-violet-500/20"
+                style={{
+                  opacity: (i + 1) / previewData.dimensionalStates
+                }}
+              />
             ))}
           </div>
-        )}
-      </div>
+        </div>
 
-      {/* Hover Effect */}
-      <div className="absolute inset-0 bg-gradient-to-t from-violet-500/20 
-                    to-transparent opacity-0 group-hover:opacity-100 
-                    transition-opacity pointer-events-none" />
+        {/* Resonance Patterns */}
+        <div className="flex flex-wrap gap-2">
+          {Array(previewData.resonancePatterns).fill(0).map((_, i) => (
+            <div
+              key={i}
+              className="w-2 h-2 rounded-full bg-violet-500/40"
+              style={{
+                animation: `pulse ${1 + i * 0.5}s infinite`
+              }}
+            />
+          ))}
+        </div>
+      </div>
     </motion.div>
   );
 };
 
 export const QuantumVaultGrid: React.FC = () => {
-  const { animas } = useAnima();
   const navigate = useNavigate();
+  const [animas, setAnimas] = useState<AnimaNFT[]>([]);
+
+  useEffect(() => {
+    const fetchAnimas = async () => {
+      try {
+        const actor = window.canister;
+        if (!actor) throw new Error('Canister not initialized');
+
+        const result = await actor.get_user_animas();
+        if ('Ok' in result) {
+          setAnimas(result.Ok);
+        }
+      } catch (error) {
+        console.error('Failed to fetch ANIMAs:', error);
+      }
+    };
+
+    fetchAnimas();
+  }, []);
 
   return (
     <div className="p-8">
@@ -122,7 +154,7 @@ export const QuantumVaultGrid: React.FC = () => {
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            onClick={() => navigate('/mint')}
+            onClick={() => navigate('/genesis')}
             className="px-6 py-3 bg-violet-600 hover:bg-violet-700 
                      rounded-lg text-white font-medium
                      flex items-center space-x-2"
@@ -136,9 +168,9 @@ export const QuantumVaultGrid: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {animas.map((anima) => (
             <AnimaPreviewCard
-              key={anima.token_id}
+              key={anima.tokenId.toString()}
               anima={anima}
-              onClick={() => navigate(`/anima/${anima.token_id}`)}
+              onClick={() => navigate(`/anima/${anima.tokenId}`)}
             />
           ))}
           

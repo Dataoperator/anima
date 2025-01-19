@@ -1,46 +1,61 @@
-import { HttpAgent, Actor, Identity } from '@dfinity/agent';
-import { idlFactory } from '@/declarations/anima';
-import type { _SERVICE } from '@/declarations/anima/anima.did';
-import type { ActorSubclass } from '@dfinity/agent';
-import { CANISTER_IDS, NETWORK_CONFIG } from '@/config';
+import { Actor, HttpAgent, ActorSubclass } from "@dfinity/agent";
+import { Principal } from "@dfinity/principal";
+import { idlFactory } from "../../declarations/anima";
+import { _SERVICE } from "../../declarations/anima/anima.did";
+import { ErrorTelemetry } from '../../error/telemetry';
+import { NETWORK_CONFIG } from '../../config';
 
-export const createAnimaActor = async (identity: Identity): Promise<ActorSubclass<_SERVICE>> => {
-  const canisterId = CANISTER_IDS.anima;
+const telemetry = ErrorTelemetry.getInstance('auth');
+
+export interface CreateActorConfig {
+  agentOptions?: {
+    host?: string;
+    identity?: any;
+  };
+  actorOptions?: {
+    agent?: HttpAgent;
+  };
+}
+
+export async function createActor(
+  canisterId: string | Principal,
+  options?: CreateActorConfig
+): Promise<ActorSubclass<_SERVICE>> {
+  const hostUrl = NETWORK_CONFIG.local;
   
-  if (!canisterId) {
-    throw new Error('Anima canister ID not found. Please check your configuration.');
-  }
-
   const agent = new HttpAgent({
-    identity,
-    host: NETWORK_CONFIG.host
+    host: hostUrl,
+    ...options?.agentOptions
   });
 
-  // Only fetch root key in local development
-  if (NETWORK_CONFIG.isLocal) {
-    await agent.fetchRootKey().catch(e => {
-      console.warn('Failed to fetch root key (this is expected in production):', e);
-    });
+  // Fetch root key for local development
+  if (NETWORK_CONFIG.local === hostUrl) {
+    try {
+      await agent.fetchRootKey().catch(console.error);
+    } catch (error) {
+      await telemetry.logError({
+        errorType: 'ROOT_KEY_FETCH_ERROR',
+        severity: 'HIGH',
+        context: 'createActor',
+        error: error instanceof Error ? error : new Error('Failed to fetch root key')
+      });
+    }
   }
 
   try {
-    console.log('Creating actor with canister ID:', canisterId);
-    const actor = Actor.createActor<_SERVICE>(idlFactory, {
+    // Create actor using the Agent
+    return Actor.createActor(idlFactory, {
       agent,
-      canisterId,
+      canisterId: typeof canisterId === 'string' ? Principal.fromText(canisterId) : canisterId,
+      ...options?.actorOptions
     });
-
-    // Verify actor creation with a query method
-    try {
-      await actor.get_user_animas();
-      console.log('Actor verification successful');
-    } catch (e) {
-      console.warn('Actor verification failed:', e);
-    }
-
-    return actor;
   } catch (error) {
-    console.error('Failed to create actor:', error);
+    await telemetry.logError({
+      errorType: 'ACTOR_CREATION_ERROR',
+      severity: 'HIGH',
+      context: 'createActor',
+      error: error instanceof Error ? error : new Error('Failed to create actor')
+    });
     throw error;
   }
-};
+}

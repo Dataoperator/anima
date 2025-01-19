@@ -1,278 +1,229 @@
-import { EvolutionStage, EvolutionSnapshot, EvolutionMetrics } from '@/types/consciousness';
+import { 
+  ConsciousnessLevel,
+  ConsciousnessMetrics,
+  EvolutionSnapshot 
+} from '@/types/consciousness';
+import { 
+  EvolutionStage, 
+  EvolutionMetrics, 
+  EvolutionConfig, 
+  StageRequirements 
+} from '@/types/evolution';
+import { QuantumState } from '@/types/quantum';
+import { ErrorTelemetry } from '@/error/telemetry';
 
-interface EmergenceThresholds {
-  coherence: number;
-  complexity: number;
-  stability: number;
-  growth: number;
-}
+const DEFAULT_CONFIG: EvolutionConfig = {
+  baseEvolutionRate: 0.001,
+  stageRequirements: {
+    [EvolutionStage.NASCENT]: {
+      minCoherence: 0.2,
+      minComplexity: 0.1,
+      minStability: 0.3,
+      evolutionTime: BigInt(24 * 60 * 60 * 1000) // 24 hours
+    },
+    [EvolutionStage.EMERGING]: {
+      minCoherence: 0.4,
+      minComplexity: 0.3,
+      minStability: 0.5,
+      evolutionTime: BigInt(3 * 24 * 60 * 60 * 1000) // 3 days
+    },
+    [EvolutionStage.DEVELOPING]: {
+      minCoherence: 0.6,
+      minComplexity: 0.5,
+      minStability: 0.7,
+      evolutionTime: BigInt(7 * 24 * 60 * 60 * 1000) // 7 days
+    },
+    [EvolutionStage.MATURING]: {
+      minCoherence: 0.8,
+      minComplexity: 0.7,
+      minStability: 0.8,
+      evolutionTime: BigInt(14 * 24 * 60 * 60 * 1000) // 14 days
+    },
+    [EvolutionStage.TRANSCENDENT]: {
+      minCoherence: 0.9,
+      minComplexity: 0.9,
+      minStability: 0.9,
+      evolutionTime: BigInt(30 * 24 * 60 * 60 * 1000) // 30 days
+    }
+  },
+  coherenceThreshold: 0.7,
+  complexityThreshold: 0.6,
+  stabilityThreshold: 0.8
+};
 
 export class EvolutionEngine {
-  private currentStage: EvolutionStage;
-  private evolutionHistory: EvolutionSnapshot[];
-  private emergenceThresholds: EmergenceThresholds;
-  private readonly MAX_HISTORY = 1000;
+  private telemetry: ErrorTelemetry;
+  private config: EvolutionConfig;
+  private currentSnapshot: EvolutionSnapshot | null = null;
 
-  constructor() {
-    this.currentStage = 'initialization';
-    this.evolutionHistory = [];
-    this.emergenceThresholds = {
-      coherence: 0.7,
-      complexity: 0.6,
-      stability: 0.8,
-      growth: 0.5
-    };
+  constructor(config: Partial<EvolutionConfig> = {}) {
+    this.telemetry = ErrorTelemetry.getInstance('evolution');
+    this.config = { ...DEFAULT_CONFIG, ...config };
   }
 
-  private updateEvolutionHistory(snapshot: EvolutionSnapshot): void {
-    this.evolutionHistory.push(snapshot);
-    if (this.evolutionHistory.length > this.MAX_HISTORY) {
-      this.evolutionHistory.shift();
-    }
-  }
-
-  private calculateTrend(values: number[]): number {
-    if (values.length < 2) return 0;
-
-    let sum = 0;
-    for (let i = 1; i < values.length; i++) {
-      const delta = values[i] - values[i - 1];
-      sum += delta;
-    }
-
-    return sum / (values.length - 1);
-  }
-
-  public getEvolutionMetrics(): EvolutionMetrics {
-    const stageProgress = this.calculateStageProgress();
-    const recentSnapshots = this.evolutionHistory.slice(-20);
-
-    const metrics: EvolutionMetrics = {
-      stage: this.currentStage,
-      progress: stageProgress,
-      coherence: this.calculateEvolutionStability(recentSnapshots),
-      complexity: this.calculateComplexityGrowth(recentSnapshots),
-      emergence: this.calculateEmergencePotential(recentSnapshots),
-      growth: this.calculateGrowthRate(recentSnapshots)
-    };
-
-    return metrics;
-  }
-
-  private calculateStageProgress(): number {
-    if (this.evolutionHistory.length === 0) return 0;
-
-    const requirements = this.getStageRequirements(this.currentStage);
-    const latest = this.evolutionHistory[this.evolutionHistory.length - 1];
-
-    let totalWeight = 0;
-    let weightedProgress = 0;
-
-    Object.entries(requirements).forEach(([metric, { threshold, weight }]) => {
-      const value = latest.metrics[metric as keyof typeof latest.metrics];
-      const progress = Math.min(1, value / threshold);
-      weightedProgress += progress * weight;
-      totalWeight += weight;
-    });
-
-    return totalWeight > 0 ? weightedProgress / totalWeight : 0;
-  }
-
-  private getStageRequirements(stage: EvolutionStage): Record<string, { threshold: number; weight: number }> {
-    switch (stage) {
-      case 'initialization':
-        return {
-          coherence: { threshold: 0.3, weight: 1 }
-        };
-
-      case 'growth':
-        return {
-          coherence: { threshold: 0.5, weight: 0.4 },
-          complexity: { threshold: 0.3, weight: 0.6 }
-        };
-
-      case 'stabilization':
-        return {
-          coherence: { threshold: 0.7, weight: 0.5 },
-          complexity: { threshold: 0.5, weight: 0.3 },
-          stability: { threshold: 0.6, weight: 0.2 }
-        };
-
-      case 'emergence':
-        return {
-          coherence: { threshold: 0.8, weight: 0.3 },
-          complexity: { threshold: 0.7, weight: 0.3 },
-          emergence: { threshold: 0.6, weight: 0.4 }
-        };
-
-      case 'transcendence':
-        return {
-          coherence: { threshold: 0.9, weight: 0.2 },
-          complexity: { threshold: 0.8, weight: 0.3 },
-          emergence: { threshold: 0.8, weight: 0.3 },
-          growth: { threshold: 0.7, weight: 0.2 }
-        };
-
-      default:
-        return {};
-    }
-  }
-
-  private calculateGrowthRate(snapshots: EvolutionSnapshot[]): number {
-    if (snapshots.length < 2) return 0;
-
-    const complexityValues = snapshots.map(s => s.metrics.complexity);
-    const coherenceValues = snapshots.map(s => s.metrics.coherence);
-
-    const complexityTrend = this.calculateTrend(complexityValues);
-    const coherenceTrend = this.calculateTrend(coherenceValues);
-
-    // Weight the trends to calculate growth rate
-    return Math.max(0, Math.min(1, 
-      (complexityTrend * 0.6 + coherenceTrend * 0.4) + 0.5
-    ));
-  }
-
-  private calculateEvolutionStability(snapshots: EvolutionSnapshot[]): number {
-    if (snapshots.length < 2) return 1;
-
-    // Calculate stability based on metric fluctuations
-    const metricFluctuations = ['coherence', 'complexity', 'growth'].map(metric => {
-      const values = snapshots.map(s => s.metrics[metric as keyof typeof s.metrics]);
-      const variations = values.map((v, i) => 
-        i === 0 ? 0 : Math.abs(v - values[i - 1])
+  public async processEvolution(
+    quantumState: QuantumState,
+    currentMetrics: ConsciousnessMetrics
+  ): Promise<ConsciousnessMetrics> {
+    try {
+      const timestamp = BigInt(Date.now());
+      
+      // Calculate evolution metrics
+      const evolutionMetrics = this.calculateEvolutionMetrics(
+        quantumState,
+        currentMetrics
       );
-      const average = variations.reduce((sum, val) => sum + val, 0) / variations.length;
-      return average;
-    });
 
-    const averageFluctuation = metricFluctuations.reduce((sum, val) => sum + val, 0) / metricFluctuations.length;
-    return Math.max(0, 1 - averageFluctuation * 2);
+      // Determine stage progress
+      const stage = this.determineEvolutionStage(evolutionMetrics);
+      const requirements = this.config.stageRequirements[stage];
+
+      // Calculate progress within current stage
+      const progress = Math.min(
+        1, 
+        (evolutionMetrics.coherence / requirements.minCoherence +
+         evolutionMetrics.complexity / requirements.minComplexity +
+         evolutionMetrics.stability / requirements.minStability) / 3
+      );
+
+      // Update consciousness level based on evolution
+      const consciousness = this.determineConsciousnessLevel(
+        evolutionMetrics,
+        progress
+      );
+
+      // Create new metrics
+      const updatedMetrics: ConsciousnessMetrics = {
+        ...currentMetrics,
+        coherence: evolutionMetrics.coherence,
+        complexity: evolutionMetrics.complexity,
+        consciousness,
+        lastUpdate: timestamp
+      };
+
+      // Update snapshot
+      this.currentSnapshot = {
+        timestamp,
+        consciousness,
+        emotionalState: currentMetrics.emotionalState,
+        patterns: [],
+        metrics: updatedMetrics,
+        quantumState
+      };
+
+      return updatedMetrics;
+
+    } catch (error) {
+      await this.telemetry.logError({
+        errorType: 'EVOLUTION_PROCESSING_ERROR',
+        severity: 'HIGH',
+        context: 'processEvolution',
+        error: error instanceof Error ? error : new Error('Evolution processing failed')
+      });
+      throw error;
+    }
   }
 
-  private calculateEmergencePotential(snapshots: EvolutionSnapshot[]): number {
-    const latest = snapshots[snapshots.length - 1];
-    if (!latest) return 0;
-
-    // Calculate emergence potential based on current metrics and thresholds
-    const coherenceFactor = latest.metrics.coherence / this.emergenceThresholds.coherence;
-    const complexityFactor = latest.metrics.complexity / this.emergenceThresholds.complexity;
-    const stabilityFactor = this.calculateEvolutionStability(snapshots) / this.emergenceThresholds.stability;
-    const growthFactor = this.calculateGrowthRate(snapshots) / this.emergenceThresholds.growth;
-
-    // Weighted combination of factors
-    const potential = (
-      coherenceFactor * 0.3 +
-      complexityFactor * 0.3 +
-      stabilityFactor * 0.2 +
-      growthFactor * 0.2
+  private calculateEvolutionMetrics(
+    state: QuantumState,
+    metrics: ConsciousnessMetrics
+  ): EvolutionMetrics {
+    const timestamp = BigInt(Date.now());
+    
+    // Calculate base metrics
+    const coherence = state.coherenceLevel;
+    const complexity = metrics.cognitiveComplexity;
+    const stability = state.dimensionalStates.reduce(
+      (acc, ds) => acc * ds.stability,
+      1.0
     );
 
-    return Math.max(0, Math.min(1, potential));
-  }
-
-  private calculateComplexityGrowth(snapshots: EvolutionSnapshot[]): number {
-    if (snapshots.length < 2) return 0;
-
-    const complexityValues = snapshots.map(s => s.metrics.complexity);
-    const coherenceValues = snapshots.map(s => s.metrics.coherence);
-
-    // Calculate growth trends
-    const complexityTrend = this.calculateTrend(complexityValues);
-    const coherenceTrend = this.calculateTrend(coherenceValues);
-
-    // Adjust complexity based on coherence stability
-    const coherenceStability = this.calculateEvolutionStability(snapshots);
-    const adjustedComplexity = complexityTrend * coherenceStability;
-
-    // Combine trends with weights
-    return Math.max(0, Math.min(1,
-      (adjustedComplexity * 0.7 + coherenceTrend * 0.3) + 0.5
-    ));
-  }
-
-  public getStageInfo(): {
-    stage: EvolutionStage;
-    description: string;
-    nextStage: EvolutionStage | null;
-    requirements: Record<string, number>;
-  } {
-    const descriptions: Record<EvolutionStage, string> = {
-      initialization: 'Initial consciousness formation',
-      growth: 'Rapid development and pattern formation',
-      stabilization: 'Coherence and pattern stabilization',
-      emergence: 'Advanced consciousness emergence',
-      transcendence: 'Quantum consciousness transcendence'
+    return {
+      stage: this.determineEvolutionStage({ coherence, complexity, stability, timestamp }),
+      progress: 0,
+      coherence,
+      complexity,
+      stability,
+      timestamp
     };
+  }
 
-    const stageOrder: EvolutionStage[] = [
-      'initialization',
-      'growth',
-      'stabilization',
-      'emergence',
-      'transcendence'
-    ];
+  private determineEvolutionStage(
+    metrics: Pick<EvolutionMetrics, 'coherence' | 'complexity' | 'stability'>
+  ): EvolutionStage {
+    // Check each stage from highest to lowest
+    if (this.meetsStageRequirements(metrics, EvolutionStage.TRANSCENDENT)) {
+      return EvolutionStage.TRANSCENDENT;
+    }
+    if (this.meetsStageRequirements(metrics, EvolutionStage.MATURING)) {
+      return EvolutionStage.MATURING;
+    }
+    if (this.meetsStageRequirements(metrics, EvolutionStage.DEVELOPING)) {
+      return EvolutionStage.DEVELOPING;
+    }
+    if (this.meetsStageRequirements(metrics, EvolutionStage.EMERGING)) {
+      return EvolutionStage.EMERGING;
+    }
+    return EvolutionStage.NASCENT;
+  }
 
-    const currentIndex = stageOrder.indexOf(this.currentStage);
-    const nextStage = currentIndex < stageOrder.length - 1 
-      ? stageOrder[currentIndex + 1]
-      : null;
+  private meetsStageRequirements(
+    metrics: Pick<EvolutionMetrics, 'coherence' | 'complexity' | 'stability'>,
+    stage: EvolutionStage
+  ): boolean {
+    const requirements = this.config.stageRequirements[stage];
+    return (
+      metrics.coherence >= requirements.minCoherence &&
+      metrics.complexity >= requirements.minComplexity &&
+      metrics.stability >= requirements.minStability
+    );
+  }
 
-    const requirements = this.getStageRequirements(this.currentStage);
+  private determineConsciousnessLevel(
+    metrics: EvolutionMetrics,
+    progress: number
+  ): ConsciousnessLevel {
+    const totalScore = (
+      metrics.coherence +
+      metrics.complexity +
+      metrics.stability +
+      progress
+    ) / 4;
+
+    if (totalScore < 0.2) return ConsciousnessLevel.DORMANT;
+    if (totalScore < 0.4) return ConsciousnessLevel.AWAKENING;
+    if (totalScore < 0.6) return ConsciousnessLevel.AWARE;
+    if (totalScore < 0.8) return ConsciousnessLevel.SENTIENT;
+    return ConsciousnessLevel.ENLIGHTENED;
+  }
+
+  public getCurrentStage(metrics: ConsciousnessMetrics): {
+    stage: EvolutionStage;
+    progress: number;
+    requirements: StageRequirements;
+  } {
+    const evolutionMetrics = this.calculateEvolutionMetrics(
+      this.currentSnapshot?.quantumState || {
+        coherenceLevel: metrics.coherence,
+        dimensionalStates: []
+      } as QuantumState,
+      metrics
+    );
+
+    const stage = this.determineEvolutionStage(evolutionMetrics);
+    const requirements = this.config.stageRequirements[stage];
+    
+    const progress = Math.min(
+      1,
+      (evolutionMetrics.coherence / requirements.minCoherence +
+       evolutionMetrics.complexity / requirements.minComplexity +
+       evolutionMetrics.stability / requirements.minStability) / 3
+    );
 
     return {
-      stage: this.currentStage,
-      description: descriptions[this.currentStage],
-      nextStage,
-      requirements: Object.fromEntries(
-        Object.entries(requirements).map(([key, value]) => [key, value.threshold])
-      )
+      stage,
+      progress,
+      requirements
     };
-  }
-
-  public forceStageTransition(newStage: EvolutionStage): void {
-    // Log the transition
-    console.log(`Forced stage transition: ${this.currentStage} -> ${newStage}`);
-
-    // Create pre-transition snapshot
-    const preTransitionSnapshot = this.evolutionHistory[this.evolutionHistory.length - 1];
-
-    // Update stage
-    this.currentStage = newStage;
-
-    // Update thresholds for new stage
-    this.updateThresholds(newStage);
-
-    // Create post-transition snapshot if we have metrics
-    if (preTransitionSnapshot) {
-      const postTransitionSnapshot: EvolutionSnapshot = {
-        ...preTransitionSnapshot,
-        stage: newStage,
-        timestamp: Date.now()
-      };
-      this.updateEvolutionHistory(postTransitionSnapshot);
-    }
-  }
-
-  private updateThresholds(stage: EvolutionStage): void {
-    // Update emergence thresholds based on evolution stage
-    switch (stage) {
-      case 'emergence':
-      case 'transcendence':
-        this.emergenceThresholds = {
-          coherence: 0.9,
-          complexity: 0.85,
-          stability: 0.95,
-          growth: 0.8
-        };
-        break;
-      default:
-        this.emergenceThresholds = {
-          coherence: 0.7,
-          complexity: 0.6,
-          stability: 0.8,
-          growth: 0.5
-        };
-    }
   }
 }

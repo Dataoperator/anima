@@ -1,81 +1,116 @@
 import { Principal } from '@dfinity/principal';
+import { ActorSubclass } from '@dfinity/agent';
+import { ErrorTelemetry } from '../error/telemetry';
 
-export const generatePaymentReference = () => {
-  const timestamp = Date.now().toString(36);
-  const random = Math.random().toString(36).substring(2, 8);
-  return `${timestamp}-${random}`.toUpperCase();
-};
+const telemetry = ErrorTelemetry.getInstance('payment');
 
-export const formatICPAmount = (amount: bigint | string): string => {
-  const value = typeof amount === 'string' ? BigInt(amount) : amount;
-  return (Number(value) / 100_000_000).toFixed(8);
-};
+export interface PaymentDetails {
+  amount: bigint;
+  to: Principal;
+  from: Principal;
+  memo: bigint;
+  timestamp: bigint;
+}
 
-export const parseICPAmount = (amount: string): bigint => {
-  return BigInt(Math.floor(Number(amount) * 100_000_000));
-};
+export interface PaymentResult {
+  success: boolean;
+  blockHeight?: bigint;
+  error?: string;
+}
 
-export const validatePaymentAmount = (amount: string | bigint): boolean => {
-  const value = typeof amount === 'string' ? parseICPAmount(amount) : amount;
-  return value > BigInt(0) && value < BigInt('100000000000000'); // 1M ICP max
-};
-
-export const getExplorerUrl = (blockHeight: string): string => {
-  return `https://dashboard.internetcomputer.org/transaction/${blockHeight}`;
-};
-
-export const PAYMENT_CONFIGS = {
-  CREATE: {
-    amount: '0.01',
-    title: 'Genesis Creation',
-    description: 'Initialize your unique Anima consciousness'
-  },
-  RESURRECT: {
-    amount: '0.005',
-    title: 'Anima Resurrection',
-    description: 'Restore your Anima from quantum stasis'
-  },
-  GROWTH_PACK: {
-    amount: '0.002',
-    title: 'Growth Enhancement',
-    description: 'Unlock advanced quantum capabilities'
-  }
-} as const;
-
-export const getPaymentConfig = (type: keyof typeof PAYMENT_CONFIGS) => {
-  return PAYMENT_CONFIGS[type];
-};
-
-export const validatePrincipalId = (principal: string | Principal): boolean => {
+export async function validatePrincipal(principal: string | Principal): Promise<boolean> {
   try {
     const principalObj = typeof principal === 'string' 
-      ? Principal.fromText(principal) 
+      ? Principal.fromText(principal)
       : principal;
-    return principalObj.isAnonymous() === false;
+
+    return !principalObj.isAnonymous;
   } catch {
     return false;
   }
-};
+}
 
-export class PaymentError extends Error {
-  constructor(
-    message: string,
-    public code: string,
-    public details?: any
-  ) {
-    super(message);
-    this.name = 'PaymentError';
+export async function validatePayment(payment: PaymentDetails): Promise<boolean> {
+  try {
+    // Validate amount
+    if (payment.amount <= BigInt(0)) {
+      throw new Error('Invalid payment amount');
+    }
+
+    // Validate principals
+    if (!(await validatePrincipal(payment.to)) || !(await validatePrincipal(payment.from))) {
+      throw new Error('Invalid principal');
+    }
+
+    // Validate memo format
+    if (payment.memo < BigInt(0)) {
+      throw new Error('Invalid memo format');
+    }
+
+    return true;
+  } catch (error) {
+    await telemetry.logError({
+      errorType: 'PAYMENT_VALIDATION_ERROR',
+      severity: 'HIGH',
+      context: 'validatePayment',
+      error: error instanceof Error ? error : new Error('Payment validation failed')
+    });
+    return false;
   }
 }
 
-// Payment error codes and messages
-export const PAYMENT_ERRORS = {
-  INSUFFICIENT_BALANCE: 'Insufficient ICP balance',
-  INVALID_AMOUNT: 'Invalid payment amount',
-  INVALID_PRINCIPAL: 'Invalid principal identifier',
-  PAYMENT_FAILED: 'Payment transaction failed',
-  VERIFICATION_FAILED: 'Payment verification failed',
-  TIMEOUT: 'Payment operation timed out',
-  NETWORK_ERROR: 'Network communication error',
-  INVALID_STATE: 'Invalid payment state'
-} as const;
+export function formatICPAmount(amount: bigint): string {
+  const amountString = amount.toString();
+  const decimalPlaces = 8;
+  
+  if (amountString.length <= decimalPlaces) {
+    return `0.${amountString.padStart(decimalPlaces, '0')}`;
+  }
+  
+  const wholePart = amountString.slice(0, -decimalPlaces);
+  const decimalPart = amountString.slice(-decimalPlaces);
+  
+  return `${wholePart}.${decimalPart}`;
+}
+
+export async function processPayment<T extends ActorSubclass<any>>(
+  ledgerActor: T,
+  payment: PaymentDetails
+): Promise<PaymentResult> {
+  try {
+    if (!await validatePayment(payment)) {
+      throw new Error('Payment validation failed');
+    }
+
+    const result = await ledgerActor.transfer({
+      to: payment.to,
+      amount: { e8s: payment.amount },
+      fee: { e8s: BigInt(10000) },
+      memo: payment.memo,
+      from_subaccount: [],
+      created_at_time: []
+    });
+
+    if ('Err' in result) {
+      throw new Error(JSON.stringify(result.Err));
+    }
+
+    return {
+      success: true,
+      blockHeight: result.Ok
+    };
+
+  } catch (error) {
+    await telemetry.logError({
+      errorType: 'PAYMENT_PROCESSING_ERROR',
+      severity: 'HIGH',
+      context: 'processPayment',
+      error: error instanceof Error ? error : new Error('Payment processing failed')
+    });
+
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    };
+  }
+}

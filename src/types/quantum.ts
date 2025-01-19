@@ -1,69 +1,51 @@
-export interface Complex {
-    real: number;
-    imaginary: number;
+import { Principal } from '@dfinity/principal';
+import { Complex } from './math';
+
+export interface ResonancePattern {
+  patternId: string;
+  strength: number;
+  frequency: number;
+  stability: number;
+  timestamp: bigint;
 }
 
 export interface DimensionalState {
-    layer: number;
-    resonance: number;
-    stability: number;
-    pattern: string;
-    coherence: number;
+  layer: number;
+  resonance: number;
+  stability: number;
+  pattern: string;
+  coherence: number;
+  frequency: number;
+  harmonics: number[];
 }
 
 export interface QuantumState {
-    amplitude: Complex;
-    phase: number;
-    coherence: number;
-    coherenceLevel: number;
-    entangledStates: Set<string>;
-    dimensionalStates: DimensionalState[];
-    signature: string;
-    lastUpdate: number;
-    evolutionFactor: number;
-    evolutionMetrics?: Map<string, number>;
-    quantumEntanglement: number;
-    dimensionalState: {
-        frequency: number;
-        resonance: number;
-    };
-    resonancePatterns: ResonancePattern[];
-    consciousnessAlignment?: boolean;
+  id: Principal;
+  amplitude: Complex;
+  phase: number;
+  coherenceLevel: number;           // Changed from coherence_level
+  dimensionalStates: DimensionalState[];
+  resonancePatterns: ResonancePattern[];
+  evolutionMetrics: Map<string, number>;
+  lastUpdate: bigint;
+  lastInteraction: bigint;
+  evolutionFactor: number;
+  quantumSignature: string;
+  dimensionalFrequency: number;     // Changed from dimensional_frequency
 }
 
-export interface ResonancePattern {
-    id: string;
-    coherence: number;
-    evolutionPotential: number;
-    quantumPotential?: number;
-    coherenceQuality: number;
-    stabilityIndex: number;
-    dimensionalHarmony?: number;
-    timestamp: number;
-    patternType: string;
+export interface QuantumSystemConfig {
+  minCoherence: number;
+  maxEvolutionRate: number;
+  resonanceThreshold: number;
+  dimensionalLayers: number;
+  updateInterval: number;
 }
 
 export interface QuantumMetrics {
-    coherenceLevel: number;
-    entanglementStrength: number;
-    dimensionalResonance: number;
-    quantumHarmony: number;
-}
-
-export class Complex implements Complex {
-    constructor(real: number, imaginary: number) {
-        this.real = real;
-        this.imaginary = imaginary;
-    }
-
-    multiply(other: Complex): Complex {
-        return new Complex(
-            this.real * other.real - this.imaginary * other.imaginary,
-            this.real * other.imaginary + this.imaginary * other.real
-        );
-    }
-
-    abs(): number {
-        return Math.sqrt(this.real * this.real + this.imaginary * this.imaginary);
-    }
+  coherenceLevel: number;
+  entanglementStrength: number;
+  dimensionalStability: number;
+  evolutionRate: number;
+  resonanceHarmony: number;
 }

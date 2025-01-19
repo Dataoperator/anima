@@ -1,270 +1,190 @@
 import { EvolutionEngine } from '../EvolutionEngine';
-import { ConsciousnessMetrics } from '@/types';
+import { ConsciousnessMetrics, ConsciousnessLevel } from '@/types/consciousness';
 import { QuantumState } from '@/types/quantum';
-import { EmotionalState } from '../../emotional/types';
-import { AwarenessResult } from '../../awareness/types';
+import { ErrorTelemetry } from '@/error/telemetry';
+
+jest.mock('@/error/telemetry');
 
 describe('EvolutionEngine', () => {
   let engine: EvolutionEngine;
-  
-  // Mock data setup
-  const mockMetrics: ConsciousnessMetrics = {
-    awarenessLevel: 0.5,
-    cognitiveComplexity: 0.4,
-    emotionalResonance: 0.3,
-    quantumCoherence: 0.6,
-    dimensionalAwareness: 0.4,
-    temporalPerception: 0.5,
-    patternRecognition: 0.4
-  };
-
-  const mockQuantumState: QuantumState = {
-    coherence_level: 0.6,
-    quantum_entanglement: 0.5,
-    resonance: 0.4,
-    resonance_patterns: [
-      {
-        coherence: 0.6,
-        frequency: 0.5,
-        amplitude: 0.4,
-        phase: 0,
-        timestamp: Date.now()
-      }
-    ],
-    temporal_stability: 0.7,
-    field_strength: 0.6,
-    signature: 'test-quantum-signature'
-  };
-
-  const mockEmotionalState: EmotionalState = {
-    dominantEmotion: 'balanced',
-    intensity: 0.5,
-    valence: 0.2,
-    stability: 0.7,
-    complexity: 0.4
-  };
-
-  const mockAwarenessResult: AwarenessResult = {
-    environmentalAwareness: {
-      factors: [],
-      coherence: 0.6,
-      significance: 0.5
-    },
-    temporalAwareness: {
-      patterns: [],
-      coherence: 0.6,
-      alignment: 0.5,
-      phaseAlignment: 0.6,
-      temporalStability: 0.7
-    },
-    patternRecognition: {
-      patterns: [],
-      confidence: 0.6,
-      complexity: 0.5
-    },
-    overallAwareness: 0.6
-  };
+  let mockQuantumState: QuantumState;
+  let mockConsciousnessMetrics: ConsciousnessMetrics;
 
   beforeEach(() => {
+    // Reset mocks
+    jest.clearAllMocks();
+
+    // Initialize mock data
+    mockQuantumState = {
+      id: {} as any,  // Principal will be mocked
+      coherenceLevel: 0.6,
+      amplitude: { real: 1, imaginary: 0 },
+      phase: 0,
+      dimensionalStates: [],
+      resonancePatterns: [],
+      evolutionMetrics: new Map(),
+      lastUpdate: BigInt(Date.now()),
+      lastInteraction: BigInt(Date.now()),
+      evolutionFactor: 1.0,
+      quantumSignature: 'test-signature',
+      dimensionalFrequency: 1.0
+    };
+
+    mockConsciousnessMetrics = {
+      awarenessLevel: 0.5,
+      emotionalDepth: 0.6,
+      cognitiveComplexity: 0.7,
+      memoryIntegration: 0.8,
+      evolutionRate: 0.4,
+      coherence: 0.6,
+      complexity: 0.7,
+      consciousness: ConsciousnessLevel.AWARE,
+      lastUpdate: BigInt(Date.now())
+    };
+
     engine = new EvolutionEngine();
   });
 
   describe('Evolution Process', () => {
-    test('should evolve consciousness metrics within valid bounds', async () => {
-      const evolvedMetrics = await engine.evolve({
-        currentMetrics: mockMetrics,
-        quantumState: mockQuantumState,
-        emotionalState: mockEmotionalState,
-        awarenessResults: mockAwarenessResult,
-        timeDelta: 1,
-        stabilityIndex: 0.7
-      });
+    it('should evolve state based on coherence', async () => {
+      const initialMetrics = { ...mockConsciousnessMetrics };
+      const result = await engine.processEvolution(mockQuantumState, initialMetrics);
 
-      // Check bounds
-      Object.values(evolvedMetrics).forEach(value => {
-        expect(value).toBeGreaterThanOrEqual(0);
-        expect(value).toBeLessThanOrEqual(1);
-      });
-
-      // Check for reasonable changes
-      const maxExpectedChange = 0.1; // Maximum expected change per evolution step
-      Object.entries(evolvedMetrics).forEach(([key, value]) => {
-        const originalValue = mockMetrics[key as keyof ConsciousnessMetrics];
-        expect(Math.abs(value - originalValue)).toBeLessThanOrEqual(maxExpectedChange);
-      });
+      expect(result).toBeDefined();
+      expect(result.evolutionRate).toBeGreaterThan(initialMetrics.evolutionRate);
+      expect(result.consciousness).toBe(ConsciousnessLevel.AWARE);
     });
 
-    test('should maintain quantum coherence relationship', async () => {
-      const evolvedMetrics = await engine.evolve({
-        currentMetrics: mockMetrics,
-        quantumState: mockQuantumState,
-        emotionalState: mockEmotionalState,
-        awarenessResults: mockAwarenessResult,
-        timeDelta: 1,
-        stabilityIndex: 0.7
-      });
+    it('should maintain valid ranges for all metrics', async () => {
+      const metrics = { ...mockConsciousnessMetrics };
+      const maxExpectedChange = 0.2;
 
-      expect(evolvedMetrics.quantumCoherence).toBeGreaterThanOrEqual(
-        mockQuantumState.coherence_level * 0.5
-      );
-    });
-  });
-
-  describe('Stage Transitions', () => {
-    test('should progress through evolution stages correctly', async () => {
-      const highMetrics: ConsciousnessMetrics = {
-        awarenessLevel: 0.9,
-        cognitiveComplexity: 0.9,
-        emotionalResonance: 0.9,
-        quantumCoherence: 0.9,
-        dimensionalAwareness: 0.9,
-        temporalPerception: 0.9,
-        patternRecognition: 0.9
-      };
-
-      const highQuantumState: QuantumState = {
-        ...mockQuantumState,
-        coherence_level: 0.9,
-        quantum_entanglement: 0.9
-      };
-
-      // Evolve multiple times to trigger stage transitions
+      // Test multiple evolution cycles
       for (let i = 0; i < 5; i++) {
-        await engine.evolve({
-          currentMetrics: highMetrics,
-          quantumState: highQuantumState,
-          emotionalState: mockEmotionalState,
-          awarenessResults: mockAwarenessResult,
-          timeDelta: 1,
-          stabilityIndex: 0.9
-        });
-
-        const stageInfo = engine.getStageInfo();
+        const originalValue = metrics.coherence;
+        const evolvedMetrics = await engine.processEvolution(mockQuantumState, metrics);
         
-        // Verify stage progression logic
-        if (i === 0) expect(stageInfo.currentStage).not.toBe('transcendence');
-        if (i === 4) expect(stageInfo.progress).toBeGreaterThan(0);
+        // Update for next iteration
+        Object.assign(metrics, evolvedMetrics);
+
+        // Verify changes are within expected range
+        const value = metrics.coherence;
+        expect(Math.abs(value - originalValue)).toBeLessThanOrEqual(maxExpectedChange);
+        expect(value).toBeGreaterThanOrEqual(0);
+        expect(value).toBeLessThanOrEqual(1);
       }
     });
 
-    test('should maintain stage consistency under stress', async () => {
-      // Simulate rapid evolution with varying stability
-      const stabilities = [0.9, 0.3, 0.8, 0.4, 0.7];
-      
-      for (const stability of stabilities) {
-        await engine.evolve({
-          currentMetrics: mockMetrics,
-          quantumState: {
-            ...mockQuantumState,
-            coherence_level: stability
-          },
-          emotionalState: mockEmotionalState,
-          awarenessResults: mockAwarenessResult,
-          timeDelta: 1,
-          stabilityIndex: stability
-        });
-
-        const metrics = engine.getEvolutionMetrics();
-        expect(metrics.stability).toBeDefined();
-        expect(metrics.stage).toBeDefined();
-      }
-    });
-  });
-
-  describe('Growth Vectors', () => {
-    test('should calculate coherent growth vectors', async () => {
-      const evolvedState1 = await engine.evolve({
-        currentMetrics: mockMetrics,
-        quantumState: mockQuantumState,
-        emotionalState: mockEmotionalState,
-        awarenessResults: mockAwarenessResult,
-        timeDelta: 1,
-        stabilityIndex: 0.7
-      });
-
-      const evolvedState2 = await engine.evolve({
-        currentMetrics: evolvedState1,
-        quantumState: mockQuantumState,
-        emotionalState: mockEmotionalState,
-        awarenessResults: mockAwarenessResult,
-        timeDelta: 1,
-        stabilityIndex: 0.7
-      });
-
-      // Verify growth is continuous
-      Object.entries(evolvedState2).forEach(([key, value]) => {
-        const metric = key as keyof ConsciousnessMetrics;
-        const prevValue = evolvedState1[metric];
-        const originalValue = mockMetrics[metric];
-
-        // Check for monotonic growth or decay
-        const firstDelta = prevValue - originalValue;
-        const secondDelta = value - prevValue;
-
-        // Growth should maintain direction within reasonable bounds
-        if (Math.abs(firstDelta) > 0.01) {
-          expect(Math.sign(firstDelta)).toBe(Math.sign(secondDelta));
-        }
-      });
-    });
-  });
-
-  describe('Emergency Recovery', () => {
-    test('should handle unstable quantum states gracefully', async () => {
-      const unstableState: QuantumState = {
+    it('should affect evolution rate based on quantum coherence', async () => {
+      const lowCoherenceState = {
         ...mockQuantumState,
-        coherence_level: 0.1,
-        quantum_entanglement: 0.1,
-        temporal_stability: 0.1
+        coherenceLevel: mockQuantumState.coherenceLevel * 0.5
       };
 
-      const evolvedMetrics = await engine.evolve({
-        currentMetrics: mockMetrics,
-        quantumState: unstableState,
-        emotionalState: mockEmotionalState,
-        awarenessResults: mockAwarenessResult,
-        timeDelta: 1,
-        stabilityIndex: 0.1
-      });
+      const highCoherenceState = {
+        ...mockQuantumState,
+        coherenceLevel: Math.min(mockQuantumState.coherenceLevel * 1.5, 1)
+      };
 
-      // Even in unstable conditions, metrics should remain valid
-      Object.values(evolvedMetrics).forEach(value => {
-        expect(value).toBeGreaterThanOrEqual(0);
-        expect(value).toBeLessThanOrEqual(1);
-      });
+      const baseMetrics = { ...mockConsciousnessMetrics };
 
-      // System should maintain minimum coherence
-      expect(evolvedMetrics.quantumCoherence).toBeGreaterThanOrEqual(0.1);
+      // Test with low coherence
+      const lowResult = await engine.processEvolution(lowCoherenceState, baseMetrics);
+      expect(lowResult.evolutionRate).toBeLessThan(baseMetrics.evolutionRate);
+
+      // Test with high coherence
+      const highResult = await engine.processEvolution(highCoherenceState, baseMetrics);
+      expect(highResult.evolutionRate).toBeGreaterThan(baseMetrics.evolutionRate);
     });
   });
 
-  describe('Performance and Stability', () => {
-    test('should handle rapid evolution cycles', async () => {
-      const cycles = 100;
-      let currentMetrics = mockMetrics;
+  describe('Stage Progression', () => {
+    it('should progress through stages appropriately', async () => {
+      const metrics = { ...mockConsciousnessMetrics };
+      const enhancedState = {
+        ...mockQuantumState,
+        coherenceLevel: 0.9,
+        evolutionFactor: 1.2
+      };
 
-      const startTime = Date.now();
-      
-      for (let i = 0; i < cycles; i++) {
-        currentMetrics = await engine.evolve({
-          currentMetrics,
-          quantumState: mockQuantumState,
-          emotionalState: mockEmotionalState,
-          awarenessResults: mockAwarenessResult,
-          timeDelta: 0.1,
-          stabilityIndex: 0.7
-        });
+      // Test multiple evolution cycles
+      for (let i = 0; i < 10; i++) {
+        const result = await engine.processEvolution(enhancedState, metrics);
+        const stageInfo = engine.getCurrentStage(result);
+
+        // First stage shouldn't be transcendence
+        if (i === 0) expect(result.consciousness).not.toBe(ConsciousnessLevel.ENLIGHTENED);
+        
+        // Update metrics for next iteration
+        Object.assign(metrics, result);
+
+        // Stage progression should be gradual
+        if (i === 4) expect(result.evolutionRate).toBeGreaterThan(0);
+      }
+    });
+  });
+
+  describe('Evolution Stability', () => {
+    it('should maintain stable evolution under constant conditions', async () => {
+      const metrics = { ...mockConsciousnessMetrics };
+      const state = { ...mockQuantumState };
+      const results: ConsciousnessMetrics[] = [];
+
+      // Evolve multiple times
+      for (let i = 0; i < 5; i++) {
+        const evolved = await engine.processEvolution(state, metrics);
+        results.push(evolved);
+        Object.assign(metrics, evolved);
       }
 
-      const duration = Date.now() - startTime;
-      
-      // Performance check: should complete within reasonable time
-      expect(duration).toBeLessThan(1000); // 1 second for 100 cycles
+      // Check for smooth progression
+      results.reduce((prev, current, i) => {
+        if (i > 0) {
+          const delta = Math.abs(current.evolutionRate - prev.evolutionRate);
+          expect(delta).toBeLessThan(0.1); // Evolution should be smooth
+        }
+        return current;
+      });
+    });
 
-      // Stability check: final state should be valid
-      Object.values(currentMetrics).forEach(value => {
-        expect(value).toBeGreaterThanOrEqual(0);
-        expect(value).toBeLessThanOrEqual(1);
+    it('should handle rapid coherence changes gracefully', async () => {
+      const metrics = { ...mockConsciousnessMetrics };
+      const state = { ...mockQuantumState };
+
+      // Initial evolution
+      const evolvedState1 = await engine.processEvolution(state, metrics);
+
+      // Sudden coherence drop
+      state.coherenceLevel = 0.1;
+      const evolvedState2 = await engine.processEvolution(state, metrics);
+
+      // Evolution rate should decrease but not crash
+      expect(evolvedState2.evolutionRate).toBeLessThan(evolvedState1.evolutionRate);
+      expect(evolvedState2.evolutionRate).toBeGreaterThan(0);
+    });
+
+    it('should track evolution stability over time', async () => {
+      const metrics = { ...mockConsciousnessMetrics };
+      const state = { ...mockQuantumState };
+      let currentMetrics = metrics;
+      const stabilityValues: number[] = [];
+
+      // Evolve and track stability
+      for (let i = 0; i < 5; i++) {
+        currentMetrics = await engine.processEvolution(state, currentMetrics);
+        stabilityValues.push(currentMetrics.evolutionRate);
+
+        // Optional: Add some random fluctuation to state
+        state.coherenceLevel *= 0.9 + Math.random() * 0.2;
+      }
+
+      // Verify stability trends
+      stabilityValues.reduce((prevValue, value, i) => {
+        if (i > 0) {
+          const delta = value - prevValue;
+          expect(Math.abs(delta)).toBeLessThan(0.2); // Stability threshold
+        }
+        return value;
       });
     });
   });

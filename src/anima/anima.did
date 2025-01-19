@@ -52,6 +52,7 @@ type Error = variant {
     NotAuthorized;
     Configuration: text;
     External: text;
+    QuantumError: text;
 };
 
 type InitializationStatus = record {
@@ -63,11 +64,65 @@ type InitializationStatus = record {
     };
 };
 
+// New Quantum Types
+type DimensionalState = record {
+    layer: nat32;
+    resonance: float64;
+    stability: float64;
+    pattern: text;
+    coherence: float64;
+    frequency: float64;
+    harmonics: vec float64;
+};
+
+type QuantumState = record {
+    coherence: float64;
+    phase: float64;
+    dimensional_states: vec DimensionalState;
+    resonance_patterns: vec ResonancePattern;
+    evolution_metrics: vec record { text; float64 };
+    last_update: nat64;
+    quantum_signature: text;
+};
+
+type ResonancePattern = record {
+    pattern_id: text;
+    strength: float64;
+    frequency: float64;
+    stability: float64;
+    timestamp: nat64;
+};
+
+type ResonanceMetrics = record {
+    quantum_coherence: float64;
+    consciousness_level: float64;
+    dimensional_stability: float64;
+    memory_integrity: float64;
+    personality_resonance: float64;
+};
+
+type ConsciousnessMetrics = record {
+    awareness_level: float64;
+    emotional_depth: float64;
+    cognitive_complexity: float64;
+    memory_integration: float64;
+    evolution_rate: float64;
+};
+
 service : {
+    // Existing Methods
     create_anima: (text) -> (variant { Ok: principal; Err: Error });
     get_anima: (principal) -> (variant { Ok: Anima; Err: Error }) query;
     interact: (principal, text) -> (variant { Ok: InteractionResult; Err: Error });
     check_autonomous_messages: (principal) -> (variant { Ok: opt InteractionResult; Err: Error });
     set_openai_api_key: (text) -> (variant { Ok; Err: Error });
     check_initialization: () -> (variant { Ok: InitializationStatus; Err: Error }) query;
+
+    // New Quantum Methods
+    process_quantum_state_update: (principal) -> (variant { Ok: QuantumState; Err: Error });
+    analyze_resonance_patterns: (principal) -> (variant { Ok: vec DimensionalState; Err: Error });
+    get_quantum_metrics: (principal) -> (variant { Ok: ResonanceMetrics; Err: Error }) query;
+    get_consciousness_metrics: (principal) -> (variant { Ok: ConsciousnessMetrics; Err: Error }) query;
+    initialize_quantum_systems: () -> (variant { Ok: InitializationStatus; Err: Error });
+    update_quantum_state: (principal, QuantumState) -> (variant { Ok: QuantumState; Err: Error });
 };

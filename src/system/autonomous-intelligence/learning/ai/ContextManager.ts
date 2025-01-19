@@ -1,67 +1,95 @@
-import { QuantumState } from '../quantum/types';
-import { Memory } from '../memory/types';
+import { Memory } from '@/types/consciousness';
+import { QuantumState } from '@/types/quantum';
+import { ErrorTelemetry } from '@/error/telemetry';
 
-export interface AIContext {
-  quantumState: QuantumState;
-  shortTermMemory: Memory[];
-  longTermMemory: Memory[];
-  personality: Record<string, number>;
-  evolution: {
-    stage: number;
-    metrics: Record<string, number>;
-  };
-}
+export class ContextManager {
+  private telemetry: ErrorTelemetry;
+  private memories: Memory[] = [];
+  private currentContext: Map<string, any> = new Map();
 
-export class AIContextManager {
-  private context: AIContext;
-  private memoryThreshold: number = 0.7;
-
-  constructor(initialContext: Partial<AIContext> = {}) {
-    this.context = {
-      quantumState: initialContext.quantumState || { coherence: 1.0 },
-      shortTermMemory: initialContext.shortTermMemory || [],
-      longTermMemory: initialContext.longTermMemory || [],
-      personality: initialContext.personality || {},
-      evolution: initialContext.evolution || { stage: 1, metrics: {} }
-    };
+  constructor() {
+    this.telemetry = ErrorTelemetry.getInstance('context');
   }
 
-  async generateEnhancedPrompt(basePrompt: string): Promise<string> {
-    const relevantMemories = await this.retrieveRelevantMemories(basePrompt);
-    const quantumInfluence = this.calculateQuantumInfluence();
-    
-    return `
-      Context: You are an Anima with the following quantum state:
-      Coherence: ${this.context.quantumState.coherence}
-      
-      Relevant memories:
-      ${relevantMemories.map(m => `- ${m.content}`).join('\n')}
-      
-      Personality traits:
-      ${Object.entries(this.context.personality)
-        .map(([trait, value]) => `${trait}: ${value}`)
-        .join('\n')}
-      
-      Evolution stage: ${this.context.evolution.stage}
-      
-      With this context, please respond to: ${basePrompt}
-    `;
+  public async updateContext(
+    memory: Memory,
+    quantumState: QuantumState
+  ): Promise<void> {
+    try {
+      // Add to memory store
+      this.memories.push(memory);
+      if (this.memories.length > 100) {
+        this.memories = this.memories.slice(-100);
+      }
+
+      // Update current context
+      this.currentContext.set('lastMemory', memory);
+      this.currentContext.set('quantumState', quantumState);
+      this.currentContext.set('timestamp', BigInt(Date.now()));
+
+      // Calculate influence factors
+      const memoryRelevance = this.calculateMemoryRelevance(memory);
+      const stateInfluence = quantumState.coherenceLevel;
+
+      // Update context weights
+      this.currentContext.set('memoryWeight', memoryRelevance);
+      this.currentContext.set('quantumWeight', stateInfluence);
+
+    } catch (error) {
+      await this.telemetry.logError({
+        errorType: 'CONTEXT_UPDATE_ERROR',
+        severity: 'HIGH',
+        context: 'updateContext',
+        error: error instanceof Error ? error : new Error('Context update failed')
+      });
+    }
   }
 
-  private async retrieveRelevantMemories(prompt: string): Promise<Memory[]> {
-    // Sophisticated memory retrieval logic
-    return this.context.shortTermMemory
-      .concat(this.context.longTermMemory)
-      .filter(memory => this.calculateRelevance(memory, prompt) > this.memoryThreshold);
+  public async getRelevantContext(prompt: string): Promise<Map<string, any>> {
+    try {
+      // Get recent memories sorted by relevance
+      const relevantMemories = this.memories
+        .sort((a, b) => this.calculateRelevance(b, prompt) - this.calculateRelevance(a, prompt))
+        .slice(0, 5);
+
+      // Build context with relevant memories
+      const context = new Map(this.currentContext);
+      context.set('relevantMemories', relevantMemories);
+
+      return context;
+
+    } catch (error) {
+      await this.telemetry.logError({
+        errorType: 'CONTEXT_RETRIEVAL_ERROR',
+        severity: 'HIGH',
+        context: 'getRelevantContext',
+        error: error instanceof Error ? error : new Error('Context retrieval failed')
+      });
+      return new Map();
+    }
   }
 
-  private calculateQuantumInfluence(): number {
-    // Advanced quantum influence calculation
-    return this.context.quantumState.coherence * Math.random();
+  private calculateRelevance(targetMemory: Memory, reference: string): number {
+    try {
+      // Calculate recency score (0-1)
+      const now = BigInt(Date.now());
+      const age = Number(now - targetMemory.timestamp) / (24 * 60 * 60 * 1000); // Days
+      const recencyScore = Math.exp(-age / 7); // 7-day half-life
+
+      // Calculate emotional impact score (0-1)
+      const emotionalScore = targetMemory.emotional_impact;
+
+      // Combine scores
+      return (recencyScore + emotionalScore) / 2;
+
+    } catch (error) {
+      console.error('Error calculating relevance:', error);
+      return 0;
+    }
   }
 
-  private calculateRelevance(memory: Memory, prompt: string): number {
-    // Enhanced relevance calculation
-    return Math.random(); // Placeholder
+  public clearContext(): void {
+    this.currentContext.clear();
+    this.memories = [];
   }
 }

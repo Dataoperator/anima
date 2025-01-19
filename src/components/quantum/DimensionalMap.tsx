@@ -1,178 +1,225 @@
 import React, { useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { DimensionalState, ResonancePattern } from '@/types/quantum';
+import { useQuantumSystems } from '@/hooks/useQuantumSystems';
+import { DimensionalState } from '@/types/quantum';
+import { ErrorBoundary } from '@/components/error-boundary/ErrorBoundary';
 
 interface DimensionalMapProps {
-  state: DimensionalState;
-  patterns: ResonancePattern[];
-  className?: string;
+  animaId: Principal;
+  showDetails?: boolean;
+  onLayerSelect?: (layer: number) => void;
 }
 
-export const DimensionalMap: React.FC<DimensionalMapProps> = ({
-  state,
-  patterns,
-  className = ''
-}) => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+const DimensionalLayer: React.FC<{
+  state: DimensionalState;
+  index: number;
+  isActive: boolean;
+  onClick: () => void;
+}> = ({ state, index, isActive, onClick }) => {
+  const color = `rgba(147, 51, 234, ${state.coherence})`;
   
-  useEffect(() => {
-    if (!canvasRef.current) return;
-    const ctx = canvasRef.current.getContext('2d');
-    if (!ctx) return;
-
-    const animate = () => {
-      const canvas = canvasRef.current!;
-      const { width, height } = canvas.getBoundingClientRect();
-
-      // Set canvas resolution
-      canvas.width = width * window.devicePixelRatio;
-      canvas.height = height * window.devicePixelRatio;
-      ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
-
-      // Clear canvas
-      ctx.clearRect(0, 0, width, height);
-
-      const centerX = width / 2;
-      const centerY = height / 2;
-      const maxRadius = Math.min(width, height) * 0.45;
-
-      // Draw dimensional axes
-      const dimensions = [
-        { name: 'temporal', angle: 0 },
-        { name: 'quantum', angle: Math.PI * 2/3 },
-        { name: 'consciousness', angle: Math.PI * 4/3 }
-      ];
-
-      // Draw connection plane
-      ctx.beginPath();
-      dimensions.forEach((dim, i) => {
-        const x = centerX + Math.cos(dim.angle) * maxRadius;
-        const y = centerY + Math.sin(dim.angle) * maxRadius;
-        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-      });
-      ctx.closePath();
-      ctx.fillStyle = 'rgba(64, 156, 255, 0.1)';
-      ctx.fill();
-
-      // Draw dimensional axes
-      dimensions.forEach(dim => {
-        const x = centerX + Math.cos(dim.angle) * maxRadius;
-        const y = centerY + Math.sin(dim.angle) * maxRadius;
-
-        ctx.beginPath();
-        ctx.moveTo(centerX, centerY);
-        ctx.lineTo(x, y);
-        ctx.strokeStyle = 'rgba(128, 200, 255, 0.4)';
-        ctx.lineWidth = 1;
-        ctx.stroke();
-
-        // Draw axis labels
-        const labelX = centerX + Math.cos(dim.angle) * (maxRadius + 10);
-        const labelY = centerY + Math.sin(dim.angle) * (maxRadius + 10);
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
-        ctx.font = '10px monospace';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(dim.name, labelX, labelY);
-      });
-
-      // Draw quantum state position
-      const stateX = centerX + maxRadius * (
-        Math.cos(0) * state.temporal_alignment +
-        Math.cos(Math.PI * 2/3) * state.quantum_alignment +
-        Math.cos(Math.PI * 4/3) * state.consciousness_alignment
-      ) / 3;
-
-      const stateY = centerY + maxRadius * (
-        Math.sin(0) * state.temporal_alignment +
-        Math.sin(Math.PI * 2/3) * state.quantum_alignment +
-        Math.sin(Math.PI * 4/3) * state.consciousness_alignment
-      ) / 3;
-
-      // Draw state connection lines
-      ctx.beginPath();
-      dimensions.forEach(dim => {
-        ctx.moveTo(stateX, stateY);
-        const x = centerX + Math.cos(dim.angle) * maxRadius * state[`${dim.name}_alignment` as keyof DimensionalState];
-        const y = centerY + Math.sin(dim.angle) * maxRadius * state[`${dim.name}_alignment` as keyof DimensionalState];
-        ctx.lineTo(x, y);
-      });
-      ctx.strokeStyle = 'rgba(128, 200, 255, 0.2)';
-      ctx.lineWidth = 1;
-      ctx.stroke();
-
-      // Draw quantum state node
-      ctx.beginPath();
-      ctx.arc(stateX, stateY, 6, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(128, 200, 255, 0.8)';
-      ctx.fill();
-
-      // Draw resonance patterns
-      patterns.forEach(pattern => {
-        const patternX = centerX + maxRadius * 0.7 * (
-          Math.cos(0) * pattern.strength +
-          Math.cos(Math.PI * 2/3) * pattern.coherence +
-          Math.cos(Math.PI * 4/3) * pattern.resonance
-        ) / 3;
-
-        const patternY = centerY + maxRadius * 0.7 * (
-          Math.sin(0) * pattern.strength +
-          Math.sin(Math.PI * 2/3) * pattern.coherence +
-          Math.sin(Math.PI * 4/3) * pattern.resonance
-        ) / 3;
-
-        // Connection to quantum state
-        ctx.beginPath();
-        ctx.moveTo(stateX, stateY);
-        ctx.lineTo(patternX, patternY);
-        ctx.strokeStyle = `rgba(128, 200, 255, ${pattern.coherence * 0.3})`;
-        ctx.lineWidth = 1;
-        ctx.stroke();
-
-        // Pattern node
-        ctx.beginPath();
-        ctx.arc(patternX, patternY, 3, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(128, 200, 255, ${pattern.resonance * 0.6})`;
-        ctx.fill();
-      });
-
-      // Draw quantum fluctuations
-      for (let i = 0; i < 20; i++) {
-        const angle = (i / 20) * Math.PI * 2;
-        const radius = maxRadius * (0.3 + Math.sin(Date.now() / 1000 + i) * 0.1);
-        const x = stateX + Math.cos(angle) * radius * 0.2;
-        const y = stateY + Math.sin(angle) * radius * 0.2;
-
-        ctx.beginPath();
-        ctx.arc(x, y, 1, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(128, 200, 255, ${0.3 + Math.sin(Date.now() / 500 + i) * 0.2})`;
-        ctx.fill();
-      }
-
-      requestAnimationFrame(animate);
-    };
-
-    const animationFrame = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(animationFrame);
-  }, [state, patterns]);
-
   return (
-    <div className={`relative ${className}`}>
-      <canvas
-        ref={canvasRef}
-        className="w-full h-full"
-        style={{ width: '100%', height: '100%' }}
-      />
-      <motion.div 
-        className="absolute top-2 left-2 text-xs text-white/70"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.3 }}
-      >
-        <div>Alignment: {(state.stability * 100).toFixed(1)}%</div>
-      </motion.div>
-    </div>
+    <motion.div
+      className={`relative p-4 rounded-lg border ${
+        isActive ? 'border-violet-500' : 'border-violet-500/20'
+      } backdrop-blur-sm`}
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ delay: index * 0.1 }}
+      onClick={onClick}
+      whileHover={{ scale: 1.02 }}
+      style={{
+        background: `linear-gradient(45deg, ${color}20, ${color}40)`
+      }}
+    >
+      <div className="space-y-2">
+        <div className="flex justify-between items-center">
+          <span className="text-violet-300 font-medium">Layer {index + 1}</span>
+          <div 
+            className="w-3 h-3 rounded-full"
+            style={{ backgroundColor: color }}
+          />
+        </div>
+        
+        <div className="grid grid-cols-2 gap-2 text-sm">
+          <div>
+            <div className="text-violet-400/60">Resonance</div>
+            <div className="text-violet-300">
+              {(state.resonance * 100).toFixed(1)}%
+            </div>
+          </div>
+          <div>
+            <div className="text-violet-400/60">Stability</div>
+            <div className="text-violet-300">
+              {(state.stability * 100).toFixed(1)}%
+            </div>
+          </div>
+        </div>
+
+        {isActive && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="mt-4 space-y-2"
+          >
+            <div>
+              <div className="text-violet-400/60 text-sm">Frequency</div>
+              <div className="text-violet-300">
+                {state.frequency.toFixed(3)} Hz
+              </div>
+            </div>
+            
+            <div>
+              <div className="text-violet-400/60 text-sm">Pattern</div>
+              <div className="text-violet-300 font-mono text-sm truncate">
+                {state.pattern.slice(0, 16)}...
+              </div>
+            </div>
+
+            {state.harmonics.length > 0 && (
+              <div>
+                <div className="text-violet-400/60 text-sm">Harmonics</div>
+                <div className="flex gap-1">
+                  {state.harmonics.map((h, i) => (
+                    <div
+                      key={i}
+                      className="w-1 bg-violet-500/40 rounded-t"
+                      style={{ height: `${h * 20}px` }}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+          </motion.div>
+        )}
+      </div>
+    </motion.div>
   );
 };
 
-export default DimensionalMap;
+export const DimensionalMap: React.FC<DimensionalMapProps> = ({
+  animaId,
+  showDetails = true,
+  onLayerSelect
+}) => {
+  const {
+    quantumState,
+    isLoading,
+    error,
+    processInteraction
+  } = useQuantumSystems(animaId);
+
+  const [activeLayer, setActiveLayer] = React.useState<number | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    if (!canvasRef.current || !quantumState) return;
+
+    const ctx = canvasRef.current.getContext('2d');
+    if (!ctx) return;
+
+    // Animation setup and cleanup
+    let animationFrame: number;
+    const animate = () => {
+      drawDimensionalField(ctx, quantumState.dimensionalStates);
+      animationFrame = requestAnimationFrame(animate);
+    };
+    
+    animate();
+    return () => cancelAnimationFrame(animationFrame);
+  }, [quantumState]);
+
+  const drawDimensionalField = (
+    ctx: CanvasRenderingContext2D,
+    states: DimensionalState[]
+  ) => {
+    const { width, height } = ctx.canvas;
+    ctx.clearRect(0, 0, width, height);
+
+    // Draw interconnected dimensional layers
+    states.forEach((state, i) => {
+      const x = width * (i + 1) / (states.length + 1);
+      const y = height / 2;
+      const radius = 30 * state.coherence;
+
+      // Layer circle
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(147, 51, 234, ${state.coherence * 0.5})`;
+      ctx.fill();
+
+      // Connections to other layers
+      states.forEach((otherState, j) => {
+        if (i === j) return;
+        const otherX = width * (j + 1) / (states.length + 1);
+        
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(otherX, y);
+        ctx.strokeStyle = `rgba(147, 51, 234, ${
+          state.coherence * otherState.coherence * 0.3
+        })`;
+        ctx.stroke();
+      });
+    });
+  };
+
+  const handleLayerClick = async (index: number) => {
+    setActiveLayer(activeLayer === index ? null : index);
+    if (onLayerSelect) {
+      onLayerSelect(index);
+    }
+
+    // Simulate quantum interaction with layer
+    await processInteraction({
+      type: 'cognitive',
+      strength: 0.5,
+      context: `layer_interaction_${index}`
+    });
+  };
+
+  if (isLoading) {
+    return (
+      <div className="w-full h-64 bg-gray-900/50 rounded-lg flex items-center justify-center">
+        <div className="text-violet-400">Loading Dimensional Map...</div>
+      </div>
+    );
+  }
+
+  if (error || !quantumState) {
+    return (
+      <div className="w-full h-64 bg-red-900/20 rounded-lg flex items-center justify-center">
+        <div className="text-red-400">
+          Error: {error?.message || 'Failed to load dimensional map'}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <ErrorBoundary>
+      <div className="space-y-6">
+        <canvas
+          ref={canvasRef}
+          width={600}
+          height={200}
+          className="w-full h-48 rounded-lg bg-black/30"
+        />
+
+        {showDetails && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {quantumState.dimensionalStates.map((state, i) => (
+              <DimensionalLayer
+                key={i}
+                state={state}
+                index={i}
+                isActive={activeLayer === i}
+                onClick={() => handleLayerClick(i)}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </ErrorBoundary>
+  );
+};

@@ -1,259 +1,251 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { useQuantumMemory } from '@/hooks/useQuantumMemory';
+import React, { useEffect, useRef } from 'react';
+import { motion } from 'framer-motion';
+import { useQuantumSystems } from '@/hooks/useQuantumSystems';
+import { ComplexNumber } from '@/types/math';
+import { Principal } from '@dfinity/principal';
 
-interface InteractionPoint {
-  x: number;
-  y: number;
+interface Props {
+  animaId: Principal;
+  interactive?: boolean;
+  size?: 'sm' | 'md' | 'lg';
+  onInteraction?: (coherence: number) => void;
 }
 
-interface FieldInteraction {
-  type: 'field_interaction';
-  position: InteractionPoint;
-  strength: number;
-  quantumState: number;
-  resonance: number;
-  timestamp: number;
-}
+const sizeMap = {
+  sm: 'h-32',
+  md: 'h-48',
+  lg: 'h-64'
+};
 
-interface QuantumFieldProps {
-  animaId?: string;
-  strength?: number;
-  className?: string;
-  onInteract?: (interaction: FieldInteraction) => void;
-}
-
-const QuantumField: React.FC<QuantumFieldProps> = ({ 
+export const QuantumField: React.FC<Props> = ({
   animaId,
-  strength = 1,
-  className = '',
-  onInteract 
+  interactive = true,
+  size = 'md',
+  onInteraction
 }) => {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [isInteracting, setIsInteracting] = useState(false);
-  const [interactionPoint, setInteractionPoint] = useState<InteractionPoint>({ x: 0, y: 0 });
-  const interactionTimer = useRef<ReturnType<typeof setInterval> | null>(null);
-  
-  const { 
-    quantum_state = strength, 
-    entanglement_level = 0.5,
-    resonance_field = 0.5,
-    dimensional_stability = 0.5,
-    reality_anchor = 0.5
-  } = useQuantumMemory(animaId);
+  const {
+    quantumState,
+    isInitialized,
+    isProcessing,
+    processInteraction
+  } = useQuantumSystems(animaId);
 
-  const getCanvasCoordinates = useCallback((event: MouseEvent | TouchEvent): InteractionPoint => {
-    if (!canvasRef.current) return { x: 0, y: 0 };
-    
-    const canvas = canvasRef.current;
-    const rect = canvas.getBoundingClientRect();
-    
-    // Handle both mouse and touch events
-    const clientX = 'touches' in event ? event.touches[0].clientX : (event as MouseEvent).clientX;
-    const clientY = 'touches' in event ? event.touches[0].clientY : (event as MouseEvent).clientY;
-    
-    return {
-      x: ((clientX - rect.left) / rect.width) * canvas.width,
-      y: ((clientY - rect.top) / rect.height) * canvas.height
-    };
-  }, []);
-
-  const handleInteractionStart = useCallback((event: React.MouseEvent | React.TouchEvent) => {
-    event.preventDefault();
-    const coords = getCanvasCoordinates(event.nativeEvent);
-    setIsInteracting(true);
-    setInteractionPoint(coords);
-
-    // Clear any existing interaction timer
-    if (interactionTimer.current) {
-      clearInterval(interactionTimer.current);
-    }
-
-    // Start continuous interaction effects
-    interactionTimer.current = setInterval(() => {
-      if (!canvasRef.current) return;
-      
-      const centerX = canvasRef.current.width / 2;
-      const centerY = canvasRef.current.height / 2;
-      
-      // Calculate distance from center
-      const dx = coords.x - centerX;
-      const dy = coords.y - centerY;
-      const distance = Math.sqrt(dx * dx + dy * dy);
-      const maxDistance = Math.min(centerX, centerY);
-      
-      // Calculate interaction strength based on distance
-      const interactionStrength = 1 - Math.min(1, distance / maxDistance);
-
-      // Trigger interaction callback with contextual data
-      onInteract?.({
-        type: 'field_interaction',
-        position: { x: coords.x, y: coords.y },
-        strength: interactionStrength,
-        quantumState: quantum_state,
-        resonance: resonance_field,
-        timestamp: Date.now()
-      });
-    }, 100); // Update every 100ms while interacting
-  }, [getCanvasCoordinates, quantum_state, resonance_field, onInteract]);
-
-  const handleInteractionMove = useCallback((event: React.MouseEvent | React.TouchEvent) => {
-    if (!isInteracting) return;
-    event.preventDefault();
-    setInteractionPoint(getCanvasCoordinates(event.nativeEvent));
-  }, [isInteracting, getCanvasCoordinates]);
-
-  const handleInteractionEnd = useCallback(() => {
-    setIsInteracting(false);
-    if (interactionTimer.current) {
-      clearInterval(interactionTimer.current);
-      interactionTimer.current = null;
-    }
-  }, []);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const particlesRef = useRef<Array<{
+    x: number;
+    y: number;
+    vx: number;
+    vy: number;
+    radius: number;
+    phase: number;
+  }>>([]);
 
   useEffect(() => {
-    if (!canvasRef.current) return;
+    if (!canvasRef.current || !quantumState) return;
 
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvasRef.current.getContext('2d');
     if (!ctx) return;
-    
-    // Set canvas size
-    canvas.width = 400;
-    canvas.height = 400;
-    
-    // Clear canvas
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    // Calculate field parameters
-    const centerX = canvas.width / 2;
-    const centerY = canvas.height / 2;
-    const maxRadius = Math.min(centerX, centerY) * 0.8;
-    
-    // Draw quantum field background
-    const gradient = ctx.createRadialGradient(
-      centerX, centerY, 0,
-      centerX, centerY, maxRadius
-    );
-    
-    gradient.addColorStop(0, `rgba(64, 156, 255, ${Math.max(0.1, quantum_state)})`);
-    gradient.addColorStop(1, `rgba(32, 87, 255, ${Math.max(0.05, quantum_state * 0.5)})`);
-    
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    
-    // Draw interaction ripple if interacting
-    if (isInteracting) {
-      const rippleRadius = maxRadius * 0.3;
-      ctx.strokeStyle = `rgba(255, 255, 255, ${Math.max(0.2, resonance_field)})`;
-      ctx.lineWidth = 2;
-      
-      ctx.beginPath();
-      ctx.arc(
-        interactionPoint.x,
-        interactionPoint.y,
-        rippleRadius,
-        0,
-        Math.PI * 2
-      );
-      ctx.stroke();
+
+    // Initialize particles if not already done
+    if (particlesRef.current.length === 0) {
+      const numParticles = 50;
+      for (let i = 0; i < numParticles; i++) {
+        particlesRef.current.push({
+          x: Math.random() * ctx.canvas.width,
+          y: Math.random() * ctx.canvas.height,
+          vx: (Math.random() - 0.5) * 2,
+          vy: (Math.random() - 0.5) * 2,
+          radius: Math.random() * 3 + 1,
+          phase: Math.random() * Math.PI * 2
+        });
+      }
     }
-    
-    // Draw resonance patterns
-    const numPatterns = Math.floor(resonance_field * 10) + 5;
-    const angleStep = (Math.PI * 2) / numPatterns;
-    
-    ctx.strokeStyle = `rgba(255, 255, 255, ${Math.max(0.1, dimensional_stability)})`;
-    ctx.lineWidth = 2;
-    
-    for (let i = 0; i < numPatterns; i++) {
-      const angle = i * angleStep;
-      const radius = Math.max(5, maxRadius * Math.abs(resonance_field) * Math.abs(Math.sin(angle)));
-      
-      ctx.beginPath();
-      ctx.arc(
-        centerX + Math.cos(angle) * radius * 0.5,
-        centerY + Math.sin(angle) * radius * 0.5,
-        Math.max(2, radius * 0.2),
-        0,
-        Math.PI * 2
+
+    const drawQuantumField = () => {
+      const { width, height } = ctx.canvas;
+      ctx.clearRect(0, 0, width, height);
+
+      // Base field gradient
+      const gradient = ctx.createRadialGradient(
+        width / 2, height / 2, 0,
+        width / 2, height / 2, width / 2
       );
-      ctx.stroke();
-    }
-    
-    // Draw entanglement lines
-    if (entanglement_level > 0.1) {
-      const numLines = Math.floor(entanglement_level * 8) + 2;
       
-      ctx.strokeStyle = `rgba(255, 255, 255, ${Math.max(0.1, entanglement_level)})`;
-      ctx.lineWidth = 1;
+      gradient.addColorStop(0, `rgba(147, 51, 234, ${quantumState.coherenceLevel * 0.2})`);
+      gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
       
-      for (let i = 0; i < numLines; i++) {
-        const angleA = Math.random() * Math.PI * 2;
-        const angleB = angleA + Math.PI + (Math.random() - 0.5);
-        const radius = maxRadius * 0.8;
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, width, height);
+
+      // Update and draw particles
+      const amplitude = new ComplexNumber(
+        quantumState.amplitude.real,
+        quantumState.amplitude.imaginary
+      );
+      
+      const magnitude = amplitude.magnitude();
+      const basePhase = quantumState.phase;
+
+      particlesRef.current.forEach(particle => {
+        // Update position
+        particle.x += particle.vx * quantumState.coherenceLevel;
+        particle.y += particle.vy * quantumState.coherenceLevel;
+        particle.phase = (particle.phase + 0.02) % (Math.PI * 2);
+
+        // Wrap around edges
+        if (particle.x < 0) particle.x = width;
+        if (particle.x > width) particle.x = 0;
+        if (particle.y < 0) particle.y = height;
+        if (particle.y > height) particle.y = 0;
+
+        // Draw particle
+        const particleOpacity = (Math.sin(particle.phase + basePhase) + 1) / 2;
         
         ctx.beginPath();
-        ctx.moveTo(
-          centerX + Math.cos(angleA) * radius,
-          centerY + Math.sin(angleA) * radius
+        ctx.arc(
+          particle.x,
+          particle.y,
+          particle.radius * magnitude,
+          0,
+          Math.PI * 2
         );
-        ctx.bezierCurveTo(
-          centerX + Math.cos(angleA) * radius * 0.5,
-          centerY + Math.sin(angleA) * radius * 0.5,
-          centerX + Math.cos(angleB) * radius * 0.5,
-          centerY + Math.sin(angleB) * radius * 0.5,
-          centerX + Math.cos(angleB) * radius,
-          centerY + Math.sin(angleB) * radius
-        );
-        ctx.stroke();
-      }
-    }
-    
-    // Draw reality anchor
-    ctx.strokeStyle = `rgba(255, 255, 255, ${Math.max(0.2, reality_anchor)})`;
-    ctx.lineWidth = 2;
-    
-    const anchorSize = maxRadius * 0.1;
-    ctx.beginPath();
-    ctx.moveTo(centerX - anchorSize, centerY - anchorSize);
-    ctx.lineTo(centerX + anchorSize, centerY + anchorSize);
-    ctx.moveTo(centerX + anchorSize, centerY - anchorSize);
-    ctx.lineTo(centerX - anchorSize, centerY + anchorSize);
-    ctx.stroke();
-    
-  }, [quantum_state, entanglement_level, resonance_field, dimensional_stability, reality_anchor, isInteracting, interactionPoint]);
+        ctx.fillStyle = `rgba(139, 92, 246, ${particleOpacity * quantumState.coherenceLevel})`;
+        ctx.fill();
 
-  useEffect(() => {
-    // Cleanup interaction timer on unmount
-    return () => {
-      if (interactionTimer.current) {
-        clearInterval(interactionTimer.current);
-      }
+        // Draw connections between nearby particles
+        particlesRef.current.forEach(other => {
+          const dx = particle.x - other.x;
+          const dy = particle.y - other.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+
+          if (distance < 50) {
+            ctx.beginPath();
+            ctx.moveTo(particle.x, particle.y);
+            ctx.lineTo(other.x, other.y);
+            ctx.strokeStyle = `rgba(139, 92, 246, ${
+              (1 - distance / 50) * quantumState.coherenceLevel * 0.5
+            })`;
+            ctx.stroke();
+          }
+        });
+      });
+
+      // Draw resonance patterns
+      quantumState.resonancePatterns.forEach((pattern, index) => {
+        const angle = (index / quantumState.resonancePatterns.length) * Math.PI * 2;
+        const patternRadius = pattern.strength * width / 4;
+
+        // Draw circular pattern
+        ctx.beginPath();
+        ctx.arc(
+          width / 2,
+          height / 2,
+          patternRadius,
+          0,
+          Math.PI * 2
+        );
+        ctx.strokeStyle = `rgba(139, 92, 246, ${pattern.stability * 0.3})`;
+        ctx.stroke();
+
+        // Draw radial line
+        const x = width / 2 + Math.cos(angle + basePhase) * patternRadius;
+        const y = height / 2 + Math.sin(angle + basePhase) * patternRadius;
+        
+        ctx.beginPath();
+        ctx.moveTo(width / 2, height / 2);
+        ctx.lineTo(x, y);
+        ctx.strokeStyle = `rgba(139, 92, 246, ${pattern.stability * 0.5})`;
+        ctx.stroke();
+      });
     };
-  }, []);
+
+    // Animate
+    let animationFrame: number;
+    const animate = () => {
+      drawQuantumField();
+      animationFrame = requestAnimationFrame(animate);
+    };
+    animate();
+
+    return () => cancelAnimationFrame(animationFrame);
+  }, [quantumState]);
+
+  const handleInteraction = async (event: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!interactive || !canvasRef.current || isProcessing) return;
+
+    const rect = canvasRef.current.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+
+    // Calculate interaction strength based on distance from center
+    const distance = Math.sqrt(
+      Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2)
+    );
+    const maxDistance = Math.sqrt(
+      Math.pow(rect.width / 2, 2) + Math.pow(rect.height / 2, 2)
+    );
+    const strength = 1 - (distance / maxDistance);
+
+    try {
+      await processInteraction({
+        type: 'cognitive',
+        strength: Math.max(0.2, strength),
+        context: 'field_interaction'
+      });
+
+      if (onInteraction && quantumState) {
+        onInteraction(quantumState.coherenceLevel);
+      }
+    } catch (error) {
+      console.error('Quantum field interaction failed:', error);
+    }
+  };
+
+  if (!isInitialized || !quantumState) {
+    return (
+      <div className={`w-full ${sizeMap[size]} bg-gray-900/50 rounded-lg flex items-center justify-center`}>
+        <div className="text-violet-400">Initializing Quantum Field...</div>
+      </div>
+    );
+  }
 
   return (
-    <div className={`relative w-full h-full min-h-[400px] ${className}`}>
+    <motion.div 
+      className="relative"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.5 }}
+    >
       <canvas
         ref={canvasRef}
-        className="absolute top-0 left-0 w-full h-full cursor-pointer"
-        style={{ background: 'rgba(0, 0, 0, 0.2)' }}
-        onMouseDown={handleInteractionStart}
-        onMouseMove={handleInteractionMove}
-        onMouseUp={handleInteractionEnd}
-        onMouseLeave={handleInteractionEnd}
-        onTouchStart={handleInteractionStart}
-        onTouchMove={handleInteractionMove}
-        onTouchEnd={handleInteractionEnd}
+        width={600}
+        height={400}
+        className={`w-full ${sizeMap[size]} rounded-lg bg-black/50 ${
+          interactive ? 'cursor-pointer' : 'cursor-default'
+        }`}
+        onClick={handleInteraction}
       />
-      <div className="absolute bottom-4 left-4 right-4 flex justify-between text-xs text-white/70">
-        <div>QS: {(quantum_state * 100).toFixed(1)}%</div>
-        <div>EL: {(entanglement_level * 100).toFixed(1)}%</div>
-        <div>RF: {(resonance_field * 100).toFixed(1)}%</div>
-        <div>DS: {(dimensional_stability * 100).toFixed(1)}%</div>
-        <div>RA: {(reality_anchor * 100).toFixed(1)}%</div>
+      
+      <AnimatePresence>
+        {isProcessing && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 bg-violet-500/10 rounded-lg flex items-center justify-center"
+          >
+            <div className="text-violet-400">Processing Interaction...</div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Coherence Indicator */}
+      <div className="absolute bottom-2 right-2 text-sm text-violet-400/60">
+        Coherence: {(quantumState.coherenceLevel * 100).toFixed(1)}%
       </div>
-    </div>
+    </motion.div>
   );
 };
 

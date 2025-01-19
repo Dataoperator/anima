@@ -1,190 +1,109 @@
-import { QuantumState } from '@/types/quantum';
-import { EmotionalState, EmotionalMetrics, EmotionType } from './types';
-import { ConsciousnessMetrics } from '../types';
+import { EmotionType, EmotionalSignature, EmotionalState, Emotion } from '@/types/emotional';
+import { ErrorTelemetry } from '@/error/telemetry';
 
 export class EmotionalProcessor {
+  private static instance: EmotionalProcessor;
+  private telemetry: ErrorTelemetry;
   private currentState: EmotionalState;
-  private emotionalHistory: EmotionalMetrics[];
-  private readonly MAX_HISTORY = 100;
-  private readonly EMOTIONAL_DECAY = 0.05;
-  
-  constructor() {
+  private emotionalMemory: Emotion[] = [];
+
+  private constructor() {
+    this.telemetry = ErrorTelemetry.getInstance('emotional');
     this.currentState = {
-      dominantEmotion: 'neutral',
-      intensity: 0.5,
-      valence: 0.0,
-      stability: 1.0,
-      complexity: 0.3
-    };
-    this.emotionalHistory = [];
-  }
-
-  async processEmotionalState(
-    quantumState: QuantumState,
-    consciousnessMetrics: ConsciousnessMetrics,
-    interactionContext?: string
-  ): Promise<EmotionalState> {
-    // Calculate quantum influence on emotions
-    const quantumInfluence = this.calculateQuantumInfluence(quantumState);
-    
-    // Process consciousness metrics influence
-    const consciousnessInfluence = this.processConsciousnessInfluence(consciousnessMetrics);
-    
-    // Calculate emotional momentum
-    const emotionalMomentum = this.calculateEmotionalMomentum();
-    
-    // Determine new emotional state
-    const newState = this.calculateNewState(
-      quantumInfluence,
-      consciousnessInfluence,
-      emotionalMomentum,
-      interactionContext
-    );
-    
-    // Record metrics
-    this.recordEmotionalMetrics(newState);
-    
-    // Update current state
-    this.currentState = newState;
-    
-    return newState;
-  }
-
-  private calculateQuantumInfluence(state: QuantumState): number {
-    const coherenceFactor = state.coherence * 0.4;
-    const resonanceFactor = (state.resonance || 0.5) * 0.3;
-    const entanglementFactor = state.quantum_entanglement * 0.3;
-    
-    return (coherenceFactor + resonanceFactor + entanglementFactor);
-  }
-
-  private processConsciousnessInfluence(metrics: ConsciousnessMetrics): number {
-    return (
-      metrics.emotionalResonance * 0.4 +
-      metrics.awarenessLevel * 0.3 +
-      metrics.cognitiveComplexity * 0.3
-    );
-  }
-
-  private calculateEmotionalMomentum(): number {
-    if (this.emotionalHistory.length < 2) return 0;
-    
-    const recentEmotions = this.emotionalHistory.slice(-3);
-    return recentEmotions.reduce((acc, metrics) => 
-      acc + metrics.intensity * (metrics.valence > 0 ? 1 : -1)
-    , 0) / recentEmotions.length;
-  }
-
-  private calculateNewState(
-    quantumInfluence: number,
-    consciousnessInfluence: number,
-    emotionalMomentum: number,
-    context?: string
-  ): EmotionalState {
-    // Base calculations
-    const baseIntensity = (
-      quantumInfluence * 0.4 +
-      consciousnessInfluence * 0.4 +
-      Math.abs(emotionalMomentum) * 0.2
-    );
-    
-    const baseValence = (
-      Math.tanh(emotionalMomentum) * 0.6 +
-      Math.tanh(consciousnessInfluence - 0.5) * 0.4
-    );
-    
-    // Apply context modifiers if available
-    const contextModifier = context ? this.getContextModifier(context) : 1;
-    
-    // Calculate stability based on recent history
-    const stability = this.calculateEmotionalStability();
-    
-    // Determine dominant emotion
-    const dominantEmotion = this.determineDominantEmotion(
-      baseValence,
-      baseIntensity,
-      stability
-    );
-    
-    return {
-      dominantEmotion,
-      intensity: baseIntensity * contextModifier,
-      valence: baseValence,
-      stability,
-      complexity: this.calculateEmotionalComplexity()
+      dominant: {
+        type: EmotionType.NEUTRAL,
+        intensity: 0.5,
+        timestamp: BigInt(Date.now())
+      },
+      lastUpdate: BigInt(Date.now()),
+      history: []
     };
   }
 
-  private calculateEmotionalStability(): number {
-    if (this.emotionalHistory.length < 5) return 1.0;
-    
-    const recentMetrics = this.emotionalHistory.slice(-5);
-    const intensityVariance = this.calculateVariance(
-      recentMetrics.map(m => m.intensity)
-    );
-    const valenceVariance = this.calculateVariance(
-      recentMetrics.map(m => m.valence)
-    );
-    
-    return Math.max(0.1, 1 - (intensityVariance + valenceVariance) / 2);
-  }
-
-  private calculateEmotionalComplexity(): number {
-    if (this.emotionalHistory.length < 3) return 0.3;
-    
-    const uniqueEmotions = new Set(
-      this.emotionalHistory.slice(-10).map(m => m.dominantEmotion)
-    );
-    
-    const emotionalRange = this.emotionalHistory.slice(-10).reduce(
-      (acc, metrics) => acc + Math.abs(metrics.valence),
-      0
-    ) / 10;
-    
-    return Math.min(
-      1.0,
-      (uniqueEmotions.size / 10) * 0.6 + emotionalRange * 0.4
-    );
-  }
-
-  private determineDominantEmotion(
-    valence: number,
-    intensity: number,
-    stability: number
-  ): EmotionType {
-    if (intensity < 0.2) return 'neutral';
-    if (stability < 0.3) return 'chaotic';
-    
-    if (valence > 0.6) return intensity > 0.7 ? 'elated' : 'content';
-    if (valence < -0.6) return intensity > 0.7 ? 'distressed' : 'melancholic';
-    if (valence > 0.2) return 'positive';
-    if (valence < -0.2) return 'negative';
-    
-    return 'balanced';
-  }
-
-  private getContextModifier(context: string): number {
-    // Add context-specific modifiers here
-    if (context.includes('quantum_sync')) return 1.2;
-    if (context.includes('evolution')) return 1.1;
-    return 1.0;
-  }
-
-  private calculateVariance(values: number[]): number {
-    const mean = values.reduce((a, b) => a + b) / values.length;
-    return Math.sqrt(
-      values.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / values.length
-    );
-  }
-
-  private recordEmotionalMetrics(state: EmotionalState): void {
-    this.emotionalHistory.push({
-      ...state,
-      timestamp: Date.now()
-    });
-    
-    if (this.emotionalHistory.length > this.MAX_HISTORY) {
-      this.emotionalHistory.shift();
+  public static getInstance(): EmotionalProcessor {
+    if (!EmotionalProcessor.instance) {
+      EmotionalProcessor.instance = new EmotionalProcessor();
     }
+    return EmotionalProcessor.instance;
+  }
+
+  public async processEmotionalPattern(
+    pattern: EmotionalSignature
+  ): Promise<EmotionalState> {
+    try {
+      // Convert pattern to emotion
+      const newEmotion: Emotion = {
+        type: pattern.type,
+        intensity: pattern.intensity,
+        timestamp: BigInt(Date.now())
+      };
+
+      // Update emotional memory
+      this.emotionalMemory.push(newEmotion);
+      if (this.emotionalMemory.length > 100) {
+        this.emotionalMemory = this.emotionalMemory.slice(-100);
+      }
+
+      // Update current state
+      this.updateDominantEmotion(newEmotion);
+
+      return this.currentState;
+
+    } catch (error) {
+      await this.telemetry.logError({
+        errorType: 'PATTERN_PROCESSING_ERROR',
+        severity: 'HIGH',
+        context: 'processEmotionalPattern',
+        error: error instanceof Error ? error : new Error('Pattern processing failed')
+      });
+      throw error;
+    }
+  }
+
+  private updateDominantEmotion(newEmotion: Emotion): void {
+    const currentDominant = this.currentState.dominant;
+
+    // If new emotion is stronger or current dominant has decayed significantly
+    if (
+      newEmotion.intensity > currentDominant.intensity * 1.1 ||
+      this.hasEmotionDecayed(currentDominant)
+    ) {
+      // Update state with new dominant emotion
+      this.currentState = {
+        dominant: newEmotion,
+        secondary: currentDominant.intensity > 0.3 ? currentDominant : undefined,
+        lastUpdate: BigInt(Date.now()),
+        history: [...this.currentState.history, newEmotion]
+      };
+    }
+  }
+
+  private hasEmotionDecayed(emotion: Emotion): boolean {
+    const now = BigInt(Date.now());
+    const age = Number(now - emotion.timestamp) / 1000; // Convert to seconds
+    const decayFactor = Math.exp(-age / 300); // 5-minute half-life
+    return emotion.intensity * decayFactor < 0.3;
+  }
+
+  public getCurrentEmotionalState(): EmotionalState {
+    return { ...this.currentState };
+  }
+
+  public getEmotionalTrends(): Map<EmotionType, number> {
+    const trends = new Map<EmotionType, number>();
+    const recentMemory = this.emotionalMemory.slice(-10);
+
+    // Calculate frequency of each emotion type
+    recentMemory.forEach(emotion => {
+      const current = trends.get(emotion.type) || 0;
+      trends.set(emotion.type, current + 1);
+    });
+
+    // Normalize to percentages
+    for (const [type, count] of trends.entries()) {
+      trends.set(type, count / recentMemory.length);
+    }
+
+    return trends;
   }
 }

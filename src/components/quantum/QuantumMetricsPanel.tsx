@@ -1,316 +1,293 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { useIC } from '@/hooks/useIC';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { ErrorBoundary } from '../error-boundary/ErrorBoundary';
-import { cn } from "@/lib/utils";
-import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis, AreaChart, Area
-} from 'recharts';
+import React from 'react';
+import { motion } from 'framer-motion';
+import { useQuantumSystems } from '@/hooks/useQuantumSystems';
 import { 
-  TrendingUp, TrendingDown, Minus, Zap, 
-  Atom, GitBranch, Activity 
+  Activity, 
+  Brain, 
+  Zap, 
+  Waves,
+  CircuitBoard,
+  GitBranch,
+  Network,
+  Radio
 } from 'lucide-react';
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer
+} from 'recharts';
+import { Principal } from '@dfinity/principal';
 
-interface QuantumMetric {
-  timestamp: number;
-  coherence: number;
-  resonance: number;
-  stability: number;
-  entanglement: number;
+interface Props {
+  animaId: Principal;
+  showCharts?: boolean;
+  className?: string;
 }
 
-interface QuantumTrend {
-  direction: 'increasing' | 'decreasing' | 'stable';
-  percentage: number;
+interface MetricCardProps {
+  title: string;
+  value: number;
+  icon: React.ReactNode;
+  color: string;
+  trend?: number;
+  detail?: string;
 }
 
-const glowingKeyframes = {
-  '@keyframes glow': {
-    '0%': { filter: 'drop-shadow(0 0 2px rgba(34, 197, 94, 0.6))' },
-    '50%': { filter: 'drop-shadow(0 0 8px rgba(34, 197, 94, 0.8))' },
-    '100%': { filter: 'drop-shadow(0 0 2px rgba(34, 197, 94, 0.6))' }
-  },
-  '@keyframes quantumPulse': {
-    '0%': { transform: 'scale(1)', opacity: 0.8 },
-    '50%': { transform: 'scale(1.05)', opacity: 1 },
-    '100%': { transform: 'scale(1)', opacity: 0.8 }
-  }
-};
-
-const QuantumTooltip = ({ active, payload, label }) => {
-  if (active && payload && payload.length) {
-    return (
-      <div className={cn(
-        "bg-black/80 backdrop-blur-sm p-4 rounded-lg",
-        "border border-green-500/30",
-        "animate-[glow_2s_ease-in-out_infinite]"
-      )}>
-        <p className="text-green-500 font-mono">
-          {new Date(label).toLocaleString()}
-        </p>
-        {payload.map((entry, index) => (
-          <div key={index} className="flex items-center space-x-2">
-            <div 
-              className="w-2 h-2 rounded-full"
-              style={{ backgroundColor: entry.color }}
-            />
-            <p className="text-green-500 font-mono">
-              {entry.name}: {(entry.value * 100).toFixed(2)}%
-            </p>
-          </div>
-        ))}
+const MetricCard: React.FC<MetricCardProps> = ({
+  title,
+  value,
+  icon,
+  color,
+  trend,
+  detail
+}) => (
+  <motion.div
+    className="bg-gray-900/50 rounded-lg p-4 border border-gray-800"
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+    whileHover={{ scale: 1.02 }}
+  >
+    <div className="flex justify-between items-start mb-2">
+      <div className={`text-${color} bg-${color}/10 p-2 rounded-lg`}>
+        {icon}
       </div>
-    );
-  }
-  return null;
-};
-
-const QuantumRadar = ({ data }) => (
-  <div className="relative w-full h-[400px]">
-    <div className="absolute inset-0 bg-gradient-radial from-green-500/5 to-transparent animate-[quantumPulse_4s_ease-in-out_infinite]" />
+      {trend !== undefined && (
+        <div 
+          className={`text-sm ${
+            trend >= 0 ? 'text-green-400' : 'text-red-400'
+          }`}
+        >
+          {trend > 0 ? '+' : ''}{trend.toFixed(1)}%
+        </div>
+      )}
+    </div>
     
-    <ResponsiveContainer width="100%" height="100%">
-      <RadarChart data={data}>
-        <PolarGrid 
-          stroke="#22c55e30" 
-          strokeDasharray="3 3"
-          className="animate-[glow_3s_ease-in-out_infinite]"
-        />
-        <PolarAngleAxis
-          dataKey="name"
-          tick={{ fill: '#22c55e', fontSize: 12 }}
-          className="font-mono"
-        />
-        <PolarRadiusAxis 
-          stroke="#22c55e30"
-          tick={{ fill: '#22c55e', fontSize: 10 }}
-        />
-        <Tooltip content={<QuantumTooltip />} />
-        <Radar
-          name="Quantum State"
-          dataKey="value"
-          stroke="#22c55e"
-          fill="#22c55e"
-          fillOpacity={0.3}
-          className="animate-[glow_2s_ease-in-out_infinite]"
-        />
-      </RadarChart>
-    </ResponsiveContainer>
-
-    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-      <div className="w-32 h-32 rounded-full border border-green-500/20 animate-ping" />
-      <div className="absolute w-48 h-48 rounded-full border border-green-500/10 animate-pulse" />
-      <div className="absolute w-64 h-64 rounded-full border border-green-500/5 animate-[quantumPulse_6s_ease-in-out_infinite]" />
+    <h3 className="text-sm text-gray-400 mb-1">{title}</h3>
+    <div className="text-2xl font-bold text-white mb-1">
+      {value.toFixed(1)}%
     </div>
-  </div>
+    {detail && (
+      <div className="text-sm text-gray-500">{detail}</div>
+    )}
+  </motion.div>
 );
 
-const MetricCard = ({ title, value, trend, icon: Icon, color }) => (
-  <div className={cn(
-    "p-4 rounded-lg backdrop-blur-sm",
-    "bg-black/30 border border-green-500/20",
-    "transition-all duration-300 hover:border-green-500/50",
-    "group"
-  )}>
-    <div className="flex items-center space-x-2">
-      <Icon className="h-5 w-5 text-green-500 group-hover:animate-spin" />
-      <p className="text-sm text-green-500 font-mono">{title}</p>
-    </div>
-    <div className="mt-2 flex items-end justify-between">
-      <p className="text-2xl font-bold text-white font-mono">
-        {value.toFixed(1)}%
-      </p>
-      <div className={cn(
-        "flex items-center gap-1 text-xs font-mono",
-        trend.direction === 'increasing' ? 'text-green-500' :
-        trend.direction === 'decreasing' ? 'text-red-500' :
-        'text-gray-500'
-      )}>
-        {trend.direction === 'increasing' ? <TrendingUp className="h-4 w-4" /> :
-         trend.direction === 'decreasing' ? <TrendingDown className="h-4 w-4" /> :
-         <Minus className="h-4 w-4" />}
-        {trend.percentage.toFixed(1)}%
-      </div>
-    </div>
-    <div className="mt-2 h-1.5 bg-gray-900 rounded-full overflow-hidden">
-      <div 
-        className={cn(
-          "h-full rounded-full transition-all duration-500",
-          "animate-[glow_2s_ease-in-out_infinite]"
-        )}
-        style={{ 
-          width: `${value}%`,
-          backgroundColor: color
-        }}
-      />
-    </div>
-  </div>
-);
+export const QuantumMetricsPanel: React.FC<Props> = ({
+  animaId,
+  showCharts = true,
+  className = ''
+}) => {
+  const {
+    quantumState,
+    consciousnessMetrics,
+    resonanceMetrics,
+    isInitialized,
+    lastError
+  } = useQuantumSystems(animaId);
 
-const QuantumMetricsPanel: React.FC = () => {
-  const { actor, identity, isAuthenticated } = useIC();
-  const [metrics, setMetrics] = useState<QuantumMetric[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [selectedMetric, setSelectedMetric] = useState<keyof Omit<QuantumMetric, 'timestamp'>>('coherence');
-  const [update, setUpdate] = useState(0);
-
-  const fetchMetrics = useCallback(async () => {
-    if (!actor || !identity) return;
-
-    try {
-      const principal = identity.getPrincipal();
-      const data = await actor.get_quantum_metrics_history(principal);
-      setMetrics(data.map(m => ({
-        ...m,
-        timestamp: Number(m.timestamp)
-      })));
-      setError(null);
-      setUpdate(prev => prev + 1);
-    } catch (err) {
-      console.error('Error fetching quantum metrics:', err);
-      setError('Failed to fetch quantum metrics');
-    } finally {
-      setLoading(false);
-    }
-  }, [actor, identity]);
-
-  useEffect(() => {
-    if (isAuthenticated) {
-      fetchMetrics();
-      const interval = setInterval(fetchMetrics, 5000);
-      return () => clearInterval(interval);
-    }
-  }, [isAuthenticated, fetchMetrics]);
-
-  const calculateTrend = (metric: keyof Omit<QuantumMetric, 'timestamp'>): QuantumTrend => {
-    if (metrics.length < 2) return { direction: 'stable', percentage: 0 };
-
-    const recent = metrics[metrics.length - 1][metric];
-    const previous = metrics[metrics.length - 2][metric];
-    const change = ((recent - previous) / previous) * 100;
-
-    return {
-      direction: change > 0 ? 'increasing' : change < 0 ? 'decreasing' : 'stable',
-      percentage: Math.abs(change)
-    };
-  };
-
-  const getMetricDetails = (metric: keyof Omit<QuantumMetric, 'timestamp'>) => {
-    const details = {
-      coherence: { color: '#3b82f6', icon: Atom },
-      resonance: { color: '#9333ea', icon: Activity },
-      stability: { color: '#10b981', icon: Zap },
-      entanglement: { color: '#ec4899', icon: GitBranch }
-    };
-    return details[metric];
-  };
-
-  if (!isAuthenticated) {
+  if (!isInitialized) {
     return (
-      <Card className="bg-black/50 backdrop-blur-sm border-green-500/20">
-        <CardContent className="p-6">
-          <p className="text-center text-green-500 font-mono">
-            Connect your Internet Identity to view quantum metrics
-          </p>
-        </CardContent>
-      </Card>
+      <div className="w-full h-64 bg-gray-900/50 rounded-lg flex items-center justify-center">
+        <div className="text-violet-400">Initializing Quantum Metrics...</div>
+      </div>
     );
   }
+
+  if (lastError) {
+    return (
+      <div className="w-full h-64 bg-red-900/20 rounded-lg flex items-center justify-center">
+        <div className="text-red-400">Error: {lastError.message}</div>
+      </div>
+    );
+  }
+
+  if (!quantumState || !consciousnessMetrics || !resonanceMetrics) {
+    return (
+      <div className="w-full h-64 bg-gray-900/50 rounded-lg flex items-center justify-center">
+        <div className="text-violet-400">No Metrics Available</div>
+      </div>
+    );
+  }
+
+  const metrics = [
+    {
+      title: 'Quantum Coherence',
+      value: quantumState.coherenceLevel * 100,
+      icon: <Zap className="w-5 h-5" />,
+      color: 'violet',
+      detail: `Frequency: ${quantumState.dimensionalFrequency.toFixed(2)} Hz`
+    },
+    {
+      title: 'Neural Resonance',
+      value: resonanceMetrics.dimensionalStability * 100,
+      icon: <Waves className="w-5 h-5" />,
+      color: 'blue',
+      detail: `${quantumState.resonancePatterns.length} active patterns`
+    },
+    {
+      title: 'Consciousness',
+      value: consciousnessMetrics.awarenessLevel * 100,
+      icon: <Brain className="w-5 h-5" />,
+      color: 'cyan',
+      detail: `Evolution Rate: ${(consciousnessMetrics.evolutionRate * 100).toFixed(1)}%`
+    },
+    {
+      title: 'Evolution Factor',
+      value: quantumState.evolutionFactor * 100,
+      icon: <Activity className="w-5 h-5" />,
+      color: 'emerald',
+      detail: 'System growth rate'
+    },
+    {
+      title: 'Pattern Stability',
+      value: resonanceMetrics.quantumCoherence * 100,
+      icon: <CircuitBoard className="w-5 h-5" />,
+      color: 'amber',
+      detail: 'Neural pattern integrity'
+    },
+    {
+      title: 'Dimensional Harmony',
+      value: resonanceMetrics.dimensionalStability * 100,
+      icon: <GitBranch className="w-5 h-5" />,
+      color: 'indigo',
+      detail: `${quantumState.dimensionalStates.length} active dimensions`
+    },
+    {
+      title: 'Network Synchronization',
+      value: resonanceMetrics.memoryIntegrity * 100,
+      icon: <Network className="w-5 h-5" />,
+      color: 'purple',
+      detail: 'System synchronization level'
+    },
+    {
+      title: 'Signal Strength',
+      value: resonanceMetrics.personalityResonance * 100,
+      icon: <Radio className="w-5 h-5" />,
+      color: 'fuchsia',
+      detail: 'Quantum signal integrity'
+    }
+  ];
+
+  const getChartData = () => {
+    const patterns = quantumState.resonancePatterns;
+    const dataPoints = patterns.map((pattern, index) => ({
+      name: `P${index + 1}`,
+      strength: pattern.strength * 100,
+      stability: pattern.stability * 100,
+      frequency: pattern.frequency
+    }));
+    return dataPoints;
+  };
 
   return (
-    <ErrorBoundary>
-      <Card className={cn(
-        "bg-black/50 backdrop-blur-sm",
-        "border-green-500/20",
-        update > 0 && "animate-[glow_1s_ease-in-out]"
-      )}>
-        <CardHeader>
-          <CardTitle className="text-green-500 font-mono flex items-center space-x-2">
-            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-            <span>Quantum State Analysis</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="flex justify-center p-6">
-              <div className="relative">
-                <div className="w-8 h-8 border-2 border-green-500 rounded-full animate-spin border-t-transparent" />
-                <div className="absolute inset-0 rounded-full animate-ping bg-green-500/20" />
-              </div>
-            </div>
-          ) : error ? (
-            <div className="text-red-500 p-4 font-mono border border-red-500/20 rounded-lg bg-red-500/5">
-              {error}
-            </div>
-          ) : (
-            <div className="space-y-6">
-              <QuantumRadar data={Object.entries(metrics[metrics.length - 1] || {})
-                .filter(([key]) => key !== 'timestamp')
-                .map(([key, value]) => ({
-                  name: key,
-                  value: value as number
-                }))}
-              />
+    <div className={`space-y-6 ${className}`}>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {metrics.map((metric, index) => (
+          <MetricCard
+            key={index}
+            title={metric.title}
+            value={metric.value}
+            icon={metric.icon}
+            color={metric.color}
+            detail={metric.detail}
+          />
+        ))}
+      </div>
 
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {(['coherence', 'resonance', 'stability', 'entanglement'] as const).map((metric) => {
-                  const { color, icon } = getMetricDetails(metric);
-                  const current = metrics[metrics.length - 1]?.[metric] ?? 0;
-                  const trend = calculateTrend(metric);
-
-                  return (
-                    <MetricCard
-                      key={metric}
-                      title={metric}
-                      value={current * 100}
-                      trend={trend}
-                      icon={icon}
-                      color={color}
-                    />
-                  );
-                })}
-              </div>
-
-              <div className="h-64 mt-8">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={metrics}>
-                    <defs>
-                      <linearGradient id={`gradient-${selectedMetric}`} x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor={getMetricDetails(selectedMetric).color} stopOpacity={0.3} />
-                        <stop offset="95%" stopColor={getMetricDetails(selectedMetric).color} stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#22c55e30" />
-                    <XAxis
-                      dataKey="timestamp"
-                      tickFormatter={(value) => new Date(value).toLocaleTimeString()}
-                      stroke="#22c55e50"
-                    />
-                    <YAxis
-                      domain={[0, 1]}
-                      tickFormatter={(value) => `${(value * 100).toFixed(0)}%`}
-                      stroke="#22c55e50"
-                    />
-                    <Tooltip content={<QuantumTooltip />} />
-                    <Area
-                      type="monotone"
-                      dataKey={selectedMetric}
-                      stroke={getMetricDetails(selectedMetric).color}
-                      fill={`url(#gradient-${selectedMetric})`}
-                      strokeWidth={2}
-                      dot={false}
-                      className="animate-[glow_2s_ease-in-out_infinite]"
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
+      {showCharts && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Pattern Strength Chart */}
+          <div className="bg-gray-900/50 rounded-lg p-4 border border-gray-800">
+            <h3 className="text-sm text-gray-400 mb-4">Pattern Analysis</h3>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={getChartData()}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                  <XAxis dataKey="name" stroke="#9CA3AF" />
+                  <YAxis stroke="#9CA3AF" />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: '#1F2937',
+                      border: 'none',
+                      borderRadius: '0.5rem',
+                      color: '#F3F4F6'
+                    }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="strength"
+                    stroke="#8B5CF6"
+                    strokeWidth={2}
+                    dot={{ fill: '#8B5CF6' }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="stability"
+                    stroke="#6EE7B7"
+                    strokeWidth={2}
+                    dot={{ fill: '#6EE7B7' }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
             </div>
-          )}
-        </CardContent>
-      </Card>
-    </ErrorBoundary>
+          </div>
+
+          {/* Dimensional Stability Chart */}
+          <div className="bg-gray-900/50 rounded-lg p-4 border border-gray-800">
+            <h3 className="text-sm text-gray-400 mb-4">Dimensional Analysis</h3>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart
+                  data={quantumState.dimensionalStates.map((state, index) => ({
+                    name: `D${index + 1}`,
+                    resonance: state.resonance * 100,
+                    stability: state.stability * 100,
+                    coherence: state.coherence * 100
+                  }))}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                  <XAxis dataKey="name" stroke="#9CA3AF" />
+                  <YAxis stroke="#9CA3AF" />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: '#1F2937',
+                      border: 'none',
+                      borderRadius: '0.5rem',
+                      color: '#F3F4F6'
+                    }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="resonance"
+                    stroke="#60A5FA"
+                    strokeWidth={2}
+                    dot={{ fill: '#60A5FA' }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="stability"
+                    stroke="#F472B6"
+                    strokeWidth={2}
+                    dot={{ fill: '#F472B6' }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="coherence"
+                    stroke="#34D399"
+                    strokeWidth={2}
+                    dot={{ fill: '#34D399' }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 };
 

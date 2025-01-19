@@ -1,54 +1,45 @@
-export class Complex {
-    constructor(
-        public readonly re: number,
-        public readonly im: number
-    ) {}
-
-    multiply(other: Complex): Complex {
-        return new Complex(
-            this.re * other.re - this.im * other.im,
-            this.re * other.im + this.im * other.re
-        );
-    }
-
-    add(other: Complex): Complex {
-        return new Complex(
-            this.re + other.re,
-            this.im + other.im
-        );
-    }
-
-    subtract(other: Complex): Complex {
-        return new Complex(
-            this.re - other.re,
-            this.im - other.im
-        );
-    }
-
-    abs(): number {
-        return Math.sqrt(this.re * this.re + this.im * this.im);
-    }
-
-    phase(): number {
-        return Math.atan2(this.im, this.re);
-    }
-
-    conjugate(): Complex {
-        return new Complex(this.re, -this.im);
-    }
-
-    static fromPolar(r: number, phi: number): Complex {
-        return new Complex(
-            r * Math.cos(phi),
-            r * Math.sin(phi)
-        );
-    }
+export interface Complex {
+  real: number;
+  imaginary: number;
 }
 
-export type Vector = {
-    x: number;
-    y: number;
-    z: number;
-}
+export class ComplexNumber implements Complex {
+  constructor(public real: number, public imaginary: number) {}
 
-export type Matrix3x3 = number[][];
+  static fromPolar(r: number, theta: number): ComplexNumber {
+    return new ComplexNumber(
+      r * Math.cos(theta),
+      r * Math.sin(theta)
+    );
+  }
+
+  multiply(other: Complex): ComplexNumber {
+    return new ComplexNumber(
+      this.real * other.real - this.imaginary * other.imaginary,
+      this.real * other.imaginary + this.imaginary * other.real
+    );
+  }
+
+  add(other: Complex): ComplexNumber {
+    return new ComplexNumber(
+      this.real + other.real,
+      this.imaginary + other.imaginary
+    );
+  }
+
+  magnitude(): number {
+    return Math.sqrt(this.real * this.real + this.imaginary * this.imaginary);
+  }
+
+  phase(): number {
+    return Math.atan2(this.imaginary, this.real);
+  }
+
+  conjugate(): ComplexNumber {
+    return new ComplexNumber(this.real, -this.imaginary);
+  }
+
+  abs(): number {
+    return this.magnitude();
+  }
+}
